@@ -1,10 +1,10 @@
 // Holds the data every page shares: the admins and who is signed in,
 // the controllers, the sites, the vouchers, the device whitelist, the
-// guests and their
-// sign-ins (connections), which site you're looking at (or "All
-// sites"), and the date range the Dashboard and Reports show (This month
-// to start with). Who is signed in, the site and the date range are
-// remembered on this browser, so they're still there after a reload.
+// splash ads, the guests and their sign-ins (connections), which site
+// you're looking at (or "All sites"), and the date range the Dashboard
+// and Reports show (This month to start with). Who is signed in, the
+// site and the date range are remembered on this browser, so they're
+// still there after a reload.
 
 import { useMemo, useState } from "react";
 import { DataContext } from "./useData";
@@ -19,6 +19,7 @@ import {
 import { STARTING_VOUCHERS, makeCodes, voucherStatus } from "./vouchers";
 import { STARTING_ADMINS } from "./admins";
 import { STARTING_WHITELIST } from "./whitelist";
+import { STARTING_ADS } from "./ads";
 import { STARTING_CONNECTIONS, STARTING_GUESTS } from "./guests";
 
 const SAVED_SITE = "foyer-site";
@@ -99,6 +100,7 @@ export default function DataProvider({ children }) {
   const [sites, setSites] = useState(STARTING_SITES);
   const [vouchers, setVouchers] = useState(STARTING_VOUCHERS);
   const [whitelist, setWhitelist] = useState(STARTING_WHITELIST);
+  const [ads, setAds] = useState(STARTING_ADS);
   const [guests, setGuests] = useState(STARTING_GUESTS);
   const [connections, setConnections] = useState(STARTING_CONNECTIONS);
   const [siteId, setSiteId] = useState(savedSiteId);
@@ -206,6 +208,7 @@ export default function DataProvider({ children }) {
     setSites((list) => list.filter((s) => s.id !== id));
     setVouchers((list) => list.filter((v) => v.siteId !== id));
     setWhitelist((list) => list.filter((w) => w.siteId !== id));
+    setAds((list) => list.filter((a) => a.siteId !== id));
     setGuests((list) => list.filter((g) => g.siteId !== id));
     setConnections((list) => list.filter((c) => c.siteId !== id));
   }
@@ -251,6 +254,33 @@ export default function DataProvider({ children }) {
 
   function deleteWhitelist(id) {
     setWhitelist((list) => list.filter((w) => w.id !== id));
+  }
+
+  // ---------- Splash ads ----------
+
+  function addAd(values) {
+    const id = nextId(ads);
+    setAds((list) => [
+      { ...values, id, views: 0, clicks: 0, createdAt: Date.now() },
+      ...list,
+    ]);
+  }
+
+  function updateAd(id, changes) {
+    setAds((list) => list.map((a) => (a.id === id ? { ...a, ...changes } : a)));
+  }
+
+  function deleteAd(id) {
+    setAds((list) => list.filter((a) => a.id !== id));
+  }
+
+  // A guest saw an ad, or tapped it (from the guest page)
+  function recordAdView(id) {
+    setAds((list) => list.map((a) => (a.id === id ? { ...a, views: a.views + 1 } : a)));
+  }
+
+  function recordAdClick(id) {
+    setAds((list) => list.map((a) => (a.id === id ? { ...a, clicks: a.clicks + 1 } : a)));
   }
 
   // ---------- Guests ----------
@@ -338,6 +368,7 @@ export default function DataProvider({ children }) {
     sites,
     vouchers,
     whitelist,
+    ads,
     guests,
     connections,
     currentSite,
@@ -355,6 +386,11 @@ export default function DataProvider({ children }) {
     addWhitelist,
     updateWhitelist,
     deleteWhitelist,
+    addAd,
+    updateAd,
+    deleteAd,
+    recordAdView,
+    recordAdClick,
     deleteGuest,
   };
 

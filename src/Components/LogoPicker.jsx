@@ -4,6 +4,7 @@
 // phones.
 // - Logos: at most 480 × 240, PNG (keeps a see-through background)
 // - Backgrounds (kind="background"): at most 1600 × 1600, JPEG
+// - Splash ads (kind="ad"): at most 1080 × 1350 (a phone-shaped poster), JPEG
 import { useRef, useState } from "react";
 import { ImagePlus, Trash2 } from "lucide-react";
 import { secondaryButton } from "./formStyles";
@@ -11,6 +12,7 @@ import { secondaryButton } from "./formStyles";
 const KINDS = {
   logo: { maxW: 480, maxH: 240, type: "image/png", empty: "No logo", button: "Upload logo", hint: "PNG with a see-through background looks best." },
   background: { maxW: 1600, maxH: 1600, type: "image/jpeg", empty: "No picture", button: "Upload picture", hint: "A wide photo. It's made smaller so it loads fast." },
+  ad: { maxW: 1080, maxH: 1350, type: "image/jpeg", empty: "No picture", button: "Upload picture", hint: "A tall picture fits phones best, e.g. 1080 × 1350 (an Instagram post)." },
 };
 
 function shrink(file, { maxW, maxH, type }) {

@@ -18,6 +18,7 @@ import Account from "./Components/Pages/Account";
 import Login from "./Components/Pages/Login";
 import GuestPortal from "./Components/Pages/GuestPortal";
 import Whitelist from "./Components/Pages/Whitelist";
+import Ads from "./Components/Pages/Ads";
 
 function AdminPages() {
   return (
@@ -30,6 +31,7 @@ function AdminPages() {
           <Route path="/guests" element={<Guests />} />
           <Route path="/vouchers" element={<Vouchers />} />
           <Route path="/whitelist" element={<Whitelist />} />
+          <Route path="/ads" element={<Ads />} />
           <Route path="/reports" element={<Reports />} />
           <Route path="/controllers" element={<Controllers />} />
           <Route path="/admins" element={<Admins />} />
