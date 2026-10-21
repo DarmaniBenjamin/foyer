@@ -68,6 +68,7 @@ export const FIELD_PRESETS = [
     label: "Send me news and offers",
     type: "checkbox",
     required: false,
+    consent: true,
   },
 ];
 
@@ -120,6 +121,9 @@ export function makeField(preset, taken = []) {
     type: preset.type,
     required: preset.required,
     options: preset.options ?? [],
+    // A tick box that is the guest agreeing to marketing (shown as
+    // "Consented" on the Guests page)
+    consent: Boolean(preset.consent),
   };
 }
 
@@ -132,13 +136,58 @@ function defaultFields() {
   });
 }
 
+// Countries for phone numbers: the site's own is picked first on its
+// sign-in page (dial: the code put in front of the number)
+export const COUNTRIES = [
+  { code: "GD", name: "Grenada", dial: "+1 473" },
+  { code: "US", name: "United States", dial: "+1" },
+  { code: "CA", name: "Canada", dial: "+1" },
+  { code: "GB", name: "United Kingdom", dial: "+44" },
+  { code: "TT", name: "Trinidad and Tobago", dial: "+1 868" },
+  { code: "BB", name: "Barbados", dial: "+1 246" },
+  { code: "VC", name: "St Vincent and the Grenadines", dial: "+1 784" },
+  { code: "LC", name: "St Lucia", dial: "+1 758" },
+  { code: "DM", name: "Dominica", dial: "+1 767" },
+  { code: "AG", name: "Antigua and Barbuda", dial: "+1 268" },
+  { code: "KN", name: "St Kitts and Nevis", dial: "+1 869" },
+  { code: "JM", name: "Jamaica", dial: "+1 876" },
+  { code: "BS", name: "Bahamas", dial: "+1 242" },
+  { code: "GY", name: "Guyana", dial: "+592" },
+  { code: "VG", name: "British Virgin Islands", dial: "+1 284" },
+  { code: "KY", name: "Cayman Islands", dial: "+1 345" },
+  { code: "VE", name: "Venezuela", dial: "+58" },
+  { code: "BR", name: "Brazil", dial: "+55" },
+  { code: "DE", name: "Germany", dial: "+49" },
+  { code: "FR", name: "France", dial: "+33" },
+  { code: "NL", name: "Netherlands", dial: "+31" },
+  { code: "IT", name: "Italy", dial: "+39" },
+  { code: "ES", name: "Spain", dial: "+34" },
+  { code: "CH", name: "Switzerland", dial: "+41" },
+  { code: "SE", name: "Sweden", dial: "+46" },
+  { code: "NO", name: "Norway", dial: "+47" },
+  { code: "AU", name: "Australia", dial: "+61" },
+];
+
+// Every time zone this browser knows ("America/Grenada"...)
+export const TIMEZONES =
+  typeof Intl.supportedValuesOf === "function"
+    ? Intl.supportedValuesOf("timeZone")
+    : ["America/Grenada", "America/New_York", "Europe/London", "UTC"];
+
 // Everything a new site starts with.
 // slug: its part of the portal's web address (Omada: /omada/<slug>)
 // siteKey: UniFi only: the UniFi site's name ("default", or the short
 //   code in the controller's address bar), used in /guest/s/<siteKey>/
 // fields: the form's questions, in order
 // requireTerms: form and voucher sites also ask guests to tick the terms
-// look: the portal's logo (a picture), colours and words
+// look: the portal's logo (a picture), colours and words. The page can
+//   have a background picture; the box in the middle has its own colour
+//   and see-through-ness (cardOpacity, 0.3 to 1). labels: "above" the
+//   boxes, or "inside" them (greyed out until the guest types).
+// countryCode: the country picked first for phone numbers
+// timezone: the site's time zone (for its reports)
+// verifyEmailDomain: refuse email addresses with a misspelt or fake
+//   domain (e.g. gmial.com)
 // minutes: how long each sign-in lasts
 // downKbps / upKbps / dataMb: speed and data limits (null = no limit)
 // redirectUrl: where guests go after signing in (empty = where they
@@ -154,10 +203,18 @@ export function makeSite({ id, name, controllerId, mode, color, slug }) {
     active: true,
     fields: defaultFields(),
     requireTerms: mode === "terms",
+    countryCode: "GD",
+    timezone: "America/Grenada",
+    verifyEmailDomain: true,
     look: {
       logo: null,
       color,
       background: "#f4f6fb",
+      backgroundImage: null,
+      cardColor: "#ffffff",
+      cardOpacity: 1,
+      labels: "above",
+      footer: "Powered by Protonic Solutions Inc.",
       heading: `Welcome to ${name}`,
       message:
         mode === "voucher"
@@ -191,7 +248,26 @@ function exampleSites() {
     type: "choice",
     required: false,
     options: ["Supermarket", "Pharmacy", "Clothing", "Electronics", "Other"],
+    consent: false,
   });
+  mall.fields.push({
+    key: "marketing_emails",
+    label: "By connecting to this Wi-Fi, you agree to receive occasional marketing emails.",
+    type: "checkbox",
+    required: false,
+    options: [],
+    consent: true,
+  });
+  // Like a Spotipo page: a dark see-through box, labels inside the boxes
+  mall.look = {
+    ...mall.look,
+    background: "#1f2a37",
+    cardColor: "#171515",
+    cardOpacity: 0.92,
+    labels: "inside",
+    heading: "Free Wi-Fi Access",
+    message: "Please fill out the form below.",
+  };
   return [
     mall,
     makeSite({

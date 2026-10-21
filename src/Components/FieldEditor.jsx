@@ -101,6 +101,23 @@ function FieldRow({ field, index, count, onChange, onMove, onRemove }) {
           </button>
         </div>
       </div>
+      {field.type === "checkbox" && (
+        <label className="flex cursor-pointer items-start gap-2 rounded-xl bg-page px-3 py-2 text-sm">
+          <input
+            type="checkbox"
+            checked={Boolean(field.consent)}
+            onChange={(e) => onChange({ consent: e.target.checked })}
+            className="mt-0.5 h-4 w-4 accent-brand"
+          />
+          <span>
+            <span className="block font-medium">This is marketing consent</span>
+            <span className="block text-xs text-muted">
+              Ticking it means the guest agrees to marketing; shown as
+              “Consented” on the Guests page.
+            </span>
+          </span>
+        </label>
+      )}
       {field.type === "choice" && (
         <OptionsInput
           options={field.options}

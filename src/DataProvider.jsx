@@ -1,5 +1,6 @@
 // Holds the data every page shares: the admins and who is signed in,
-// the controllers, the sites, the vouchers, the guests and their
+// the controllers, the sites, the vouchers, the device whitelist, the
+// guests and their
 // sign-ins (connections), which site you're looking at (or "All
 // sites"), and the date range the Dashboard and Reports show (This month
 // to start with). Who is signed in, the site and the date range are
@@ -17,6 +18,7 @@ import {
 } from "./data";
 import { STARTING_VOUCHERS, makeCodes, voucherStatus } from "./vouchers";
 import { STARTING_ADMINS } from "./admins";
+import { STARTING_WHITELIST } from "./whitelist";
 import { STARTING_CONNECTIONS, STARTING_GUESTS } from "./guests";
 
 const SAVED_SITE = "foyer-site";
@@ -96,6 +98,7 @@ export default function DataProvider({ children }) {
   const [controllers, setControllers] = useState(STARTING_CONTROLLERS);
   const [sites, setSites] = useState(STARTING_SITES);
   const [vouchers, setVouchers] = useState(STARTING_VOUCHERS);
+  const [whitelist, setWhitelist] = useState(STARTING_WHITELIST);
   const [guests, setGuests] = useState(STARTING_GUESTS);
   const [connections, setConnections] = useState(STARTING_CONNECTIONS);
   const [siteId, setSiteId] = useState(savedSiteId);
@@ -202,6 +205,7 @@ export default function DataProvider({ children }) {
   function deleteSite(id) {
     setSites((list) => list.filter((s) => s.id !== id));
     setVouchers((list) => list.filter((v) => v.siteId !== id));
+    setWhitelist((list) => list.filter((w) => w.siteId !== id));
     setGuests((list) => list.filter((g) => g.siteId !== id));
     setConnections((list) => list.filter((c) => c.siteId !== id));
   }
@@ -230,6 +234,23 @@ export default function DataProvider({ children }) {
   function deleteVouchers(ids) {
     const gone = new Set(ids);
     setVouchers((list) => list.filter((v) => !gone.has(v.id)));
+  }
+
+  // ---------- Device whitelist ----------
+
+  function addWhitelist(values) {
+    const id = nextId(whitelist);
+    setWhitelist((list) => [{ ...values, id, createdAt: Date.now() }, ...list]);
+  }
+
+  function updateWhitelist(id, changes) {
+    setWhitelist((list) =>
+      list.map((w) => (w.id === id ? { ...w, ...changes } : w)),
+    );
+  }
+
+  function deleteWhitelist(id) {
+    setWhitelist((list) => list.filter((w) => w.id !== id));
   }
 
   // ---------- Guests ----------
@@ -316,6 +337,7 @@ export default function DataProvider({ children }) {
     controllers,
     sites,
     vouchers,
+    whitelist,
     guests,
     connections,
     currentSite,
@@ -330,6 +352,9 @@ export default function DataProvider({ children }) {
     deleteSite,
     addVouchers,
     deleteVouchers,
+    addWhitelist,
+    updateWhitelist,
+    deleteWhitelist,
     deleteGuest,
   };
 

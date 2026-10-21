@@ -27,6 +27,14 @@ import { secondaryButton } from "../formStyles";
 
 const PAGE = 50;
 
+// Did the guest tick the site's marketing-consent box? "Yes", "No", or
+// "—" when the site doesn't ask
+function consented(guest, site) {
+  const field = site?.mode === "form" && site.fields.find((f) => f.consent);
+  if (!field) return "—";
+  return guest.answers?.[field.key] ? "Yes" : "No";
+}
+
 const SORTS = [
   ["recent", "Last seen"],
   ["visits", "Most visits"],
@@ -237,6 +245,7 @@ export default function Guests() {
                       <>
                         <th className="px-4 py-3 font-medium">Guest</th>
                         <th className="px-4 py-3 font-medium">Site</th>
+                        <th className="px-4 py-3 font-medium">Consented</th>
                       </>
                     )}
                     <th className="px-4 py-3 font-medium">Sign-ins</th>
@@ -279,6 +288,7 @@ export default function Guests() {
                                 </span>
                               )}
                             </td>
+                            <td className="px-4 py-3 text-muted">{consented(g, site)}</td>
                           </>
                         )}
                         <td className="px-4 py-3">{g.signInsInRange}</td>

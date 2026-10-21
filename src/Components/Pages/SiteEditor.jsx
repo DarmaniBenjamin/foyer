@@ -1,8 +1,8 @@
 // One site's settings, with a live preview of its sign-in page.
 //   Details: name, controller, portal on/off, the address to put in the
-//            controller
+//            controller, country, time zone and the email check
 //   Sign-in: form questions, terms or voucher
-//   Look:    logo, colours and words
+//   Look:    logo, background picture, colours, the box and words
 //   Access:  how long guests stay on, speed and data limits
 // Changes only count once you press Save.
 import { useEffect, useState } from "react";
@@ -20,7 +20,9 @@ import {
 import useData from "../../useData";
 import {
   CONTROLLER_KINDS,
+  COUNTRIES,
   SIGN_IN_MODES,
+  TIMEZONES,
   formatMinutes,
   makeSlug,
 } from "../../data";
@@ -277,6 +279,53 @@ function DetailsTab({ draft, set, controllers, slugsTaken, onDelete }) {
         )}
       </Section>
 
+      <Section title="Guests and time">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label className={labelClass} htmlFor="site-country">
+              Country
+            </label>
+            <select
+              id="site-country"
+              value={draft.countryCode}
+              onChange={(e) => set({ countryCode: e.target.value })}
+              className={inputClass}
+            >
+              {COUNTRIES.map((c) => (
+                <option key={c.code} value={c.code}>
+                  {c.name} ({c.dial})
+                </option>
+              ))}
+            </select>
+            <p className={hintClass}>Picked first for phone numbers.</p>
+          </div>
+          <div>
+            <label className={labelClass} htmlFor="site-tz">
+              Time zone
+            </label>
+            <select
+              id="site-tz"
+              value={draft.timezone}
+              onChange={(e) => set({ timezone: e.target.value })}
+              className={inputClass}
+            >
+              {TIMEZONES.map((tz) => (
+                <option key={tz} value={tz}>
+                  {tz.replaceAll("_", " ")}
+                </option>
+              ))}
+            </select>
+            <p className={hintClass}>For the times in this site's reports.</p>
+          </div>
+        </div>
+        <Toggle
+          checked={draft.verifyEmailDomain}
+          onChange={(verifyEmailDomain) => set({ verifyEmailDomain })}
+          label="Check email addresses"
+          detail="Refuse misspelt or fake domains like gmial.com or yaho.com, and ask the guest to fix them."
+        />
+      </Section>
+
       <section className="flex flex-col gap-3 rounded-2xl border border-red-200 bg-white p-5 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h3 className="font-semibold text-red-700">Delete site</h3>
@@ -400,32 +449,90 @@ function LookTab({ draft, setLook, onPreviewPage }) {
     </div>
   );
 
+  const opacity = Math.round((look.cardOpacity ?? 1) * 100);
   return (
     <>
       <Section title="Logo">
         <LogoPicker value={look.logo} onChange={(logo) => setLook({ logo })} />
       </Section>
-      <Section title="Colours">
+
+      <Section title="Page background" hint="Behind the sign-in box. The picture covers the whole screen.">
+        <LogoPicker
+          kind="background"
+          value={look.backgroundImage}
+          onChange={(backgroundImage) => setLook({ backgroundImage })}
+        />
+        <ColorField
+          id="look-background"
+          label={look.backgroundImage ? "Colour while the picture loads" : "Background colour"}
+          value={look.background}
+          onChange={(background) => setLook({ background })}
+        />
+      </Section>
+
+      <Section title="Sign-in box">
         <div className="grid gap-4 sm:grid-cols-2">
           <ColorField
+            id="look-card"
+            label="Box colour"
+            value={look.cardColor ?? "#ffffff"}
+            onChange={(cardColor) => setLook({ cardColor })}
+          />
+          <ColorField
             id="look-color"
-            label="Main colour (button)"
+            label="Button colour"
             value={look.color}
             onChange={(color) => setLook({ color })}
           />
-          <ColorField
-            id="look-background"
-            label="Page background"
-            value={look.background}
-            onChange={(background) => setLook({ background })}
+        </div>
+        <div>
+          <label className={labelClass} htmlFor="look-opacity">
+            See-through: {100 - opacity}%
+          </label>
+          <input
+            id="look-opacity"
+            type="range"
+            min="30"
+            max="100"
+            value={opacity}
+            onChange={(e) => setLook({ cardOpacity: Number(e.target.value) / 100 })}
+            className="w-full accent-brand"
           />
+          <p className={hintClass}>
+            Lets the background picture show through the box. The words
+            turn white on a dark box by themselves.
+          </p>
+        </div>
+        <div>
+          <span className={labelClass}>Question names</span>
+          <div className="grid grid-cols-2 gap-2">
+            {[
+              ["above", "Above the boxes"],
+              ["inside", "Inside the boxes"],
+            ].map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setLook({ labels: value })}
+                className={`h-11 rounded-xl border text-sm font-semibold transition ${
+                  (look.labels ?? "above") === value
+                    ? "border-brand bg-brand/10 text-brand"
+                    : "border-line text-muted hover:border-brand/40 hover:bg-brand/5"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
       </Section>
+
       <Section title="Words">
         {text("heading", "Heading")}
         {text("message", "Message under the heading", 2)}
         {text("button", "Button")}
         {text("success", "After signing in", 3)}
+        {text("footer", "Small print at the bottom")}
       </Section>
     </>
   );

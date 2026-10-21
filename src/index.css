@@ -148,6 +148,15 @@ html.dark {
   background-color: #ffffff;
   box-shadow: none;
 }
+.dark [data-portal] .bg-white\/90 {
+  background-color: rgb(255 255 255 / 0.9);
+}
+.dark [data-portal] .bg-red-50 {
+  background-color: #fef2f2;
+}
+.dark [data-portal] .text-red-700 {
+  color: #b91c1c;
+}
 
 /* ============================================================
    Printing (voucher cards): only the print sheet is printed
