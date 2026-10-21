@@ -1,12 +1,13 @@
 // /api/controllers: the UniFi and Omada controllers (admins only). The
 // password is locked before it's saved and never sent back to the page.
-// (Test connection and letting guests on come in the next step.)
+// Test connection signs in to the controller for real (controllers/).
 import { Router } from "express";
 import { eq } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { controllers } from "../db/schema.js";
 import { requireAccess } from "../auth.js";
 import { seal } from "../secrets.js";
+import { testController } from "../controllers/index.js";
 import { Problem, controllerOut, text } from "../shapes.js";
 
 export const controllersRouter = Router();
@@ -55,6 +56,13 @@ controllersRouter.patch("/:id", async (req, res) => {
   const [row] = await db.update(controllers).set(changes).where(eq(controllers.id, id)).returning();
   if (!row) throw new Problem("That controller was already removed.", 404);
   res.json(controllerOut(row));
+});
+
+// Test connection: signs in to the controller and saves the result
+controllersRouter.post("/:id/test", async (req, res) => {
+  const [row] = await db.select().from(controllers).where(eq(controllers.id, Number(req.params.id)));
+  if (!row) throw new Problem("That controller was already removed.", 404);
+  res.json(controllerOut(await testController(row)));
 });
 
 controllersRouter.delete("/:id", async (req, res) => {

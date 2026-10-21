@@ -1,8 +1,8 @@
 // Controllers: the UniFi and Omada controllers on the Linode. Each site
 // signs its guests in through one of them.
 //
-// Test connection is a demo for now (it only checks the address looks
-// right). It does the real sign-in once the server is built.
+// Test connection signs in to the controller from the server (UniFi: a
+// local admin; Omada: a Hotspot Operator) and shows what it found.
 import { useState } from "react";
 import {
   CircleAlert,
@@ -20,25 +20,6 @@ import ControllerModal from "../ControllerModal";
 import Modal from "../Modal";
 import SiteIcon from "../SiteIcon";
 import { dangerButton, primaryButton, secondaryButton } from "../formStyles";
-
-// Stands in for the server's check until it exists
-function demoTest(controller) {
-  return new Promise((resolve) =>
-    setTimeout(() => {
-      if (!controller.url.startsWith("https://"))
-        return resolve({
-          ok: false,
-          message:
-            "Use the controller's https:// address (its domain with the SSL certificate).",
-        });
-      const kind = CONTROLLER_KINDS[controller.kind].label;
-      resolve({
-        ok: true,
-        message: `Demo: the address looks right. The real ${kind} sign-in check comes when the server is built.`,
-      });
-    }, 1200),
-  );
-}
 
 function TestResult({ test }) {
   if (!test)
@@ -62,14 +43,13 @@ function TestResult({ test }) {
 }
 
 function ControllerCard({ controller, usedBy, isCurrent, onEdit, onDelete }) {
-  const { updateController } = useData();
+  const { testController } = useData();
   const [testing, setTesting] = useState(false);
   const kind = CONTROLLER_KINDS[controller.kind];
 
   async function test() {
     setTesting(true);
-    const result = await demoTest(controller);
-    updateController(controller.id, { lastTest: { ...result, at: Date.now() } });
+    await testController(controller.id);
     setTesting(false);
   }
 

@@ -1,9 +1,12 @@
 // /api/portal: what the guest sign-in page (/p/<site>) uses. Guests
 // aren't signed in, so this only gives out what that page shows.
 //
-// FOR NOW: signing in saves the guest and their sign-in. The next step
-// also lets their phone on through the site's controller, with the MAC
-// address the controller gives; until then the page sends a made-up one.
+// Signing in lets the guest's phone on through the site's controller,
+// using the details the controller gave (ctx, see context.js), and saves
+// the guest and their sign-in. Opened without those details (e.g. you
+// trying /p/<site> in your own browser while signed in to Foyer), it's a
+// test: the guest is saved with a made-up MAC address and nobody is let
+// on.
 import { Router } from "express";
 import { and, eq, lt, sql } from "drizzle-orm";
 import { db } from "../db/index.js";
@@ -12,6 +15,8 @@ import { adStatus } from "../../src/ads.js";
 import { voucherStatus } from "../../src/vouchers.js";
 import { normalizeMac } from "../../src/whitelist.js";
 import { Problem, adOut, ms, siteOut, voucherOut } from "../shapes.js";
+import { open } from "../context.js";
+import { authorizeGuest } from "../controllers/index.js";
 
 export const portalRouter = Router();
 
@@ -47,13 +52,17 @@ function cleanAnswers(site, given) {
   return answers;
 }
 
-// { answers, code, mac } → { minutes } or { error }
+// { answers, code, ctx, sig } → { minutes, next } or { error }
+// (a test from a signed-in Foyer user sends mac instead of ctx)
 portalRouter.post("/:slug/signin", async (req, res) => {
   const row = await findSite(req.params.slug);
   const site = siteOut(row);
   if (!site.active) throw new Problem("Wi-Fi sign-in isn't available right now.");
-  const mac = normalizeMac(req.body?.mac);
-  if (!mac) throw new Problem("Open this page from the Wi-Fi to sign in.");
+  const ctx = open(req.body?.ctx, req.body?.sig);
+  if (req.body?.ctx && !ctx)
+    throw new Problem("This sign-in page has expired. Turn the Wi-Fi off and on again to get a new one.");
+  const mac = ctx?.mac ?? (req.user ? normalizeMac(req.body?.mac) : "");
+  if (!mac) throw new Problem("Open this page by joining the Wi-Fi.");
   const answers = site.mode === "form" ? cleanAnswers(site, req.body?.answers) : {};
 
   let voucher = null;
@@ -65,6 +74,36 @@ portalRouter.post("/:slug/signin", async (req, res) => {
     const status = voucherStatus(voucherOut(voucher));
     if (status === "used") return res.json({ error: "That code has already been used." });
     if (status === "expired") return res.json({ error: "That code has expired." });
+  }
+
+  // Let the phone on through the controller (not for a test)
+  const minutes = voucher?.minutes ?? site.minutes ?? 120;
+  const source = voucher ?? site;
+  if (ctx) {
+    try {
+      await authorizeGuest(row, ctx, {
+        minutes,
+        downKbps: source.downKbps ?? null,
+        upKbps: source.upKbps ?? null,
+        dataMb: source.dataMb ?? null,
+      });
+    } catch (err) {
+      console.error(`Letting ${mac} on at ${row.name} failed: ${err.message}`);
+      await db.insert(connections).values({
+        siteId: row.id,
+        guestId: null,
+        mac,
+        method: site.mode,
+        minutes,
+        ok: false,
+      });
+      return res.json({
+        error: "Sorry, we couldn't connect you just now. Wait a moment and try again, or ask the staff.",
+      });
+    }
+  }
+
+  if (voucher) {
     // Counted only if a use is still left (two phones at once can't both
     // take the last one)
     const [counted] = await db
@@ -90,7 +129,6 @@ portalRouter.post("/:slug/signin", async (req, res) => {
     })
     .returning();
 
-  const minutes = voucher?.minutes ?? site.minutes ?? 120;
   await db.insert(connections).values({
     siteId: row.id,
     guestId: guest.id,
@@ -100,7 +138,9 @@ portalRouter.post("/:slug/signin", async (req, res) => {
     ok: true,
     at: now,
   });
-  res.json({ minutes, at: ms(now) });
+  // next: where the guest was going before the sign-in page (the
+  // "Continue" button, if the site doesn't send them somewhere itself)
+  res.json({ minutes, at: ms(now), next: ctx?.url ?? "", test: !ctx });
 });
 
 // A splash ad was seen, or tapped

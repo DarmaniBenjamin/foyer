@@ -6,13 +6,18 @@
 // running splash ad, it shows first ("before") or right after they
 // connect ("after"), and its views and taps are counted.
 //
-// FOR NOW: the next step has the controller send guests here (Omada:
-// /omada/<name>, UniFi: /guest/s/<site>/) with their phone's MAC address,
-// and signing in lets the phone on through the controller. Until then
-// this browser gets a made-up MAC address, so trying the page twice
-// counts as the same device coming back.
+// The controller sends guests to the server first (Omada: /omada/<name>,
+// UniFi: /guest/s/<site>/), which sends them here with their phone's
+// details signed in the address (?ctx=…&sig=…). Signing in hands those
+// back, and the server lets that phone on through the controller.
+// ?done=1: a whitelisted device the server already let on.
+//
+// Opened without those details (you trying the page while signed in to
+// Foyer), it's a test: this browser gets a made-up MAC address, so
+// trying twice counts as the same device coming back, and nobody is let
+// on.
 import { useEffect, useState } from "react";
-import { useParams } from "react-router";
+import { useParams, useSearchParams } from "react-router";
 import { ArrowLeft, LoaderCircle, SearchX, WifiOff } from "lucide-react";
 import useData from "../../useData";
 import { api } from "../../api";
@@ -59,18 +64,22 @@ const count = (ad, kind) =>
 
 // The sign-in page with its splash ads. The ads are picked once, when
 // the page opens.
-function Portal({ site, ads }) {
-  const [before] = useState(() => pickAd(ads, site.id, "before"));
+// guest: { ctx, sig } from the controller, or null for a test
+function Portal({ site, ads, guest, done }) {
+  const [before] = useState(() => (done ? null : pickAd(ads, site.id, "before")));
   const [after] = useState(() => pickAd(ads, site.id, "after"));
   const [showing, setShowing] = useState(before); // the ad on screen, or null
+  // Where the guest was going, for "Continue" (if the site doesn't say)
+  const [next, setNext] = useState("");
 
   async function signIn(values) {
     try {
       const outcome = await api(`/portal/${site.slug}/signin`, {
         method: "POST",
-        body: { ...values, mac: demoDeviceMac() },
+        body: { ...values, ...(guest ?? { mac: demoDeviceMac() }) },
       });
       if (!outcome.error && after) setShowing(after);
+      if (outcome.next) setNext(outcome.next);
       return outcome;
     } catch (err) {
       return { error: err.message };
@@ -79,7 +88,12 @@ function Portal({ site, ads }) {
 
   return (
     <>
-      <PortalPreview site={site} fullPage onSignIn={signIn} />
+      <PortalPreview
+        site={site.redirectUrl || !next ? site : { ...site, redirectUrl: next }}
+        page={done ? "success" : "signin"}
+        fullPage
+        onSignIn={signIn}
+      />
       {showing && (
         <SplashAd
           key={showing.id + showing.when}
@@ -95,6 +109,8 @@ function Portal({ site, ads }) {
 
 export default function GuestPortal() {
   const { slug } = useParams();
+  const [params] = useSearchParams();
+  const guest = params.get("ctx") ? { ctx: params.get("ctx"), sig: params.get("sig") } : null;
   const { currentAdmin } = useData();
   // { site, ads }, "missing", "error" or null while loading
   const [page, setPage] = useState(null);
@@ -139,7 +155,13 @@ export default function GuestPortal() {
           text="Wi-Fi sign-in isn't available right now. Please ask the staff."
         />
       ) : (
-        <Portal key={site.id} site={site} ads={page.ads} />
+        <Portal
+          key={site.id}
+          site={site}
+          ads={page.ads}
+          guest={guest}
+          done={params.get("done") === "1"}
+        />
       )}
 
       {/* Only people signed in to Foyer see this, to get back after

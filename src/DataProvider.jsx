@@ -264,6 +264,13 @@ export default function DataProvider({ children }) {
     if (row) replace("controllers", row);
   }
 
+  // Test connection: the server signs in to the controller and saves
+  // the result on it
+  async function testController(id) {
+    const row = await send(`/controllers/${id}/test`, { method: "POST" });
+    if (row) replace("controllers", row);
+  }
+
   function deleteController(id) {
     change("controllers", (list) => list.filter((c) => c.id !== id));
     change("sites", (list) =>
@@ -403,6 +410,7 @@ export default function DataProvider({ children }) {
     setRange,
     addController,
     updateController,
+    testController,
     deleteController,
     addSite,
     updateSite,
