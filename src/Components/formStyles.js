@@ -10,7 +10,7 @@ export const labelClass = "mb-1.5 block text-sm font-medium text-ink";
 export const hintClass = "mt-1 text-xs text-muted";
 
 export const primaryButton =
-  "inline-flex h-11 items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-brand px-4 text-sm font-semibold text-white transition hover:bg-brand/90 active:scale-[0.97] disabled:pointer-events-none disabled:opacity-50";
+  "btn-glow inline-flex h-11 items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-brand px-4 text-sm font-semibold text-white shadow-md shadow-brand/25 transition hover:brightness-110 active:scale-[0.97] disabled:pointer-events-none disabled:opacity-50";
 
 export const secondaryButton =
   "inline-flex h-11 items-center justify-center gap-2 whitespace-nowrap rounded-xl border border-line bg-white px-4 text-sm font-semibold text-ink transition hover:border-brand/40 hover:bg-brand/5 active:scale-[0.97] disabled:pointer-events-none disabled:opacity-50";

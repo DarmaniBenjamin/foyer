@@ -1,5 +1,6 @@
 // Holds the data every page shares: the controllers, the sites, the
-// vouchers, and which site you're looking at (or "All sites").
+// vouchers, the guests and their sign-ins (connections), and which site
+// you're looking at (or "All sites").
 //
 // The site you pick is remembered on this browser, so it's still picked
 // after a reload.
@@ -14,6 +15,7 @@ import {
   makeSlug,
 } from "./data";
 import { STARTING_VOUCHERS, makeCodes } from "./vouchers";
+import { STARTING_CONNECTIONS, STARTING_GUESTS } from "./guests";
 
 const SAVED_SITE = "foyer-site";
 
@@ -33,6 +35,8 @@ export default function DataProvider({ children }) {
   const [controllers, setControllers] = useState(STARTING_CONTROLLERS);
   const [sites, setSites] = useState(STARTING_SITES);
   const [vouchers, setVouchers] = useState(STARTING_VOUCHERS);
+  const [guests, setGuests] = useState(STARTING_GUESTS);
+  const [connections, setConnections] = useState(STARTING_CONNECTIONS);
   const [siteId, setSiteId] = useState(savedSiteId);
 
   // The picked site, or null for "All sites" (also if the saved site
@@ -95,6 +99,8 @@ export default function DataProvider({ children }) {
   function deleteSite(id) {
     setSites((list) => list.filter((s) => s.id !== id));
     setVouchers((list) => list.filter((v) => v.siteId !== id));
+    setGuests((list) => list.filter((g) => g.siteId !== id));
+    setConnections((list) => list.filter((c) => c.siteId !== id));
   }
 
   // ---------- Vouchers ----------
@@ -123,10 +129,23 @@ export default function DataProvider({ children }) {
     setVouchers((list) => list.filter((v) => !gone.has(v.id)));
   }
 
+  // ---------- Guests ----------
+
+  // Removes a guest and everything they typed (e.g. when they ask to be
+  // forgotten). Their sign-ins still count in the reports, without them.
+  function deleteGuest(id) {
+    setGuests((list) => list.filter((g) => g.id !== id));
+    setConnections((list) =>
+      list.map((c) => (c.guestId === id ? { ...c, guestId: null } : c)),
+    );
+  }
+
   const value = {
     controllers,
     sites,
     vouchers,
+    guests,
+    connections,
     currentSite,
     pickSite,
     addController,
@@ -137,6 +156,7 @@ export default function DataProvider({ children }) {
     deleteSite,
     addVouchers,
     deleteVouchers,
+    deleteGuest,
   };
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;

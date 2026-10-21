@@ -6,6 +6,7 @@ import Controllers from "./Components/Pages/Controllers";
 import Sites from "./Components/Pages/Sites";
 import SiteEditorPage from "./Components/Pages/SiteEditor";
 import Vouchers from "./Components/Pages/Vouchers";
+import Guests from "./Components/Pages/Guests";
 
 export default function App() {
   return (
@@ -14,7 +15,7 @@ export default function App() {
         <Route path="/" element={<ComingSoon title="Dashboard" />} />
         <Route path="/sites" element={<Sites />} />
         <Route path="/sites/:id" element={<SiteEditorPage />} />
-        <Route path="/guests" element={<ComingSoon title="Guests" />} />
+        <Route path="/guests" element={<Guests />} />
         <Route path="/vouchers" element={<Vouchers />} />
         <Route path="/reports" element={<ComingSoon title="Reports" />} />
         <Route path="/controllers" element={<Controllers />} />
