@@ -1,5 +1,5 @@
 // Voucher codes: making them, and working out whether each one can
-// still be used. Example vouchers are here too, until the server exists.
+// still be used. Example vouchers are here too, for "npm run db:demo".
 
 // No 0/O, 1/I/L or 5/S, so codes are easy to read off a printed card
 const LETTERS = "ABCDEFGHJKMNPQRTUVWXYZ2346789";

@@ -6,10 +6,9 @@
 //   to each area (access). They always see their sites' Dashboard and
 //   Reports, and never Sites, Controllers or Users.
 //
-// FOR NOW (no server yet): passwords are kept as typed, in memory only,
-// so the sign-in page can be tried. The server will keep only scrambled
-// copies (like Uplink) and check them itself, and only send a client
-// their own sites' data.
+// The server (server/auth.js) uses canAccess too: it only sends a client
+// their own sites' data and checks every change, so hiding buttons on
+// the pages is only for tidiness.
 
 export const DEMO_EMAIL = "admin@example.com";
 export const DEMO_PASSWORD = "foyer-demo";
@@ -48,6 +47,7 @@ export function canAccess(user, area, level = "read") {
 
 const day = 24 * 60 * 60 * 1000;
 
+// The example logins "npm run db:demo" adds (for your own computer)
 export const STARTING_ADMINS = [
   {
     id: 1,

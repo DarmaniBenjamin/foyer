@@ -76,8 +76,10 @@ export default function Sites() {
     navigate(`/sites/${site.id}`);
   }
 
-  function create(values) {
-    const site = addSite(values);
+  // The box stays open until the server has made the site
+  async function create(values) {
+    const site = await addSite(values);
+    if (!site) return;
     setAdding(false);
     open(site);
   }

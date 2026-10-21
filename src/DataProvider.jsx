@@ -1,31 +1,24 @@
-// Holds the data every page shares: the admins and who is signed in,
-// the controllers, the sites, the vouchers, the device whitelist, the
-// splash ads, the guests and their sign-ins (connections), which site
-// you're looking at (or "All sites"), and the date range the Dashboard
-// and Reports show (This month to start with). Who is signed in, the
-// site and the date range are remembered on this browser, so they're
-// still there after a reload.
+// Holds the data every page shares, loaded from Foyer's server (see
+// api.js and server/): who is signed in, the users, the controllers, the
+// sites, the vouchers, the device whitelist, the splash ads, the guests
+// and their sign-ins (connections). Also which site you're looking at
+// (or "All sites") and the date range the Dashboard and Reports show,
+// which are remembered on this browser.
 //
-// A client login only gets their own sites and those sites' data, so
-// every page shows just theirs without checking. can(area, level) says
-// whether the signed-in person may see or change an area. The guest
-// page uses allSites and allAds, since guests aren't signed in.
-
-import { useMemo, useState } from "react";
+// Changes are sent to the server. Most show straight away and are saved
+// in the background; if the server says no, a message pops up at the
+// bottom and the data is loaded again, so the page shows what's really
+// saved. Adding something waits for the server (it gives the new id).
+//
+// The server only sends a client login their own sites and what their
+// access allows. can(area, level) says whether the signed-in person may
+// see or change an area, so the pages can hide what they can't use.
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { CircleAlert, X } from "lucide-react";
 import { DataContext } from "./useData";
-import {
-  ALL_SITES,
-  SITE_COLORS,
-  STARTING_CONTROLLERS,
-  STARTING_SITES,
-  makeSite,
-  makeSlug,
-} from "./data";
-import { STARTING_VOUCHERS, makeCodes, voucherStatus } from "./vouchers";
-import { STARTING_ADMINS, canAccess } from "./admins";
-import { STARTING_WHITELIST } from "./whitelist";
-import { STARTING_ADS } from "./ads";
-import { STARTING_CONNECTIONS, STARTING_GUESTS } from "./guests";
+import { ALL_SITES } from "./data";
+import { canAccess } from "./admins";
+import { api } from "./api";
 
 const SAVED_SITE = "foyer-site";
 
@@ -52,95 +45,114 @@ function savedRange() {
   return { preset: "this-month" };
 }
 
-const SAVED_SESSION = "foyer-demo-session";
-
-function savedSession() {
-  try {
-    return Number(localStorage.getItem(SAVED_SESSION)) || null;
-  } catch {
-    return null;
-  }
-}
-
-// A made-up MAC address for this browser, so trying the guest page twice
-// counts as the same device coming back (like a real phone would)
-function demoDeviceMac() {
-  const make = () =>
-    Array.from({ length: 6 }, () =>
-      Math.floor(Math.random() * 256)
-        .toString(16)
-        .padStart(2, "0")
-        .toUpperCase(),
-    ).join(":");
-  try {
-    let mac = localStorage.getItem("foyer-demo-device");
-    if (!mac) {
-      mac = make();
-      localStorage.setItem("foyer-demo-device", mac);
-    }
-    return mac;
-  } catch {
-    return make();
-  }
-}
-
-// "k7qm 3rxa" and "K7QM-3RXA" are the same code
-const cleanCode = (code) => String(code ?? "").replace(/[^a-z0-9]/gi, "").toUpperCase();
-
 const remember = (key, value) => {
   try {
-    if (value === null) localStorage.removeItem(key);
-    else localStorage.setItem(key, value);
+    localStorage.setItem(key, value);
   } catch {
     // Private browsing: it just isn't remembered
   }
 };
 
-const nextId = (list) => Math.max(0, ...list.map((item) => item.id)) + 1;
+const EMPTY = {
+  users: [],
+  controllers: [],
+  sites: [],
+  vouchers: [],
+  whitelist: [],
+  ads: [],
+  guests: [],
+  connections: [],
+};
+
+// The message at the bottom when the server said no
+function Toast({ message, onClose }) {
+  useEffect(() => {
+    const timer = setTimeout(onClose, 8000);
+    return () => clearTimeout(timer);
+  }, [message, onClose]);
+  return (
+    <div className="fixed inset-x-0 bottom-4 z-[60] flex justify-center px-4" role="alert">
+      <div className="flex max-w-md items-start gap-3 rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700 shadow-xl ring-1 ring-red-200">
+        <CircleAlert size={18} className="mt-0.5 shrink-0" />
+        <p className="flex-1">{message}</p>
+        <button type="button" onClick={onClose} aria-label="Close" className="shrink-0">
+          <X size={16} />
+        </button>
+      </div>
+    </div>
+  );
+}
 
 export default function DataProvider({ children }) {
-  const [admins, setAdmins] = useState(STARTING_ADMINS);
-  const [adminId, setAdminId] = useState(savedSession);
-  const [controllers, setControllers] = useState(STARTING_CONTROLLERS);
-  const [sites, setSites] = useState(STARTING_SITES);
-  const [vouchers, setVouchers] = useState(STARTING_VOUCHERS);
-  const [whitelist, setWhitelist] = useState(STARTING_WHITELIST);
-  const [ads, setAds] = useState(STARTING_ADS);
-  const [guests, setGuests] = useState(STARTING_GUESTS);
-  const [connections, setConnections] = useState(STARTING_CONNECTIONS);
+  // "loading" (finding out who is signed in), "ready" or "error"
+  const [status, setStatus] = useState("loading");
+  const [startError, setStartError] = useState("");
+  const [needsSetup, setNeedsSetup] = useState(false);
+  const [currentAdmin, setCurrentAdmin] = useState(null);
+  const [data, setData] = useState(EMPTY);
   const [siteId, setSiteId] = useState(savedSiteId);
   const [range, setRangeState] = useState(savedRange);
+  const [problem, setProblem] = useState("");
+  const closeProblem = useCallback(() => setProblem(""), []);
 
-  // The signed-in person, or null
-  const currentAdmin = admins.find((a) => a.id === adminId) ?? null;
   const isClient = currentAdmin?.role === "client";
 
-  // A client's own sites, or null for everyone else (every site)
-  const ownSites = useMemo(
-    () => (isClient ? new Set(currentAdmin.siteIds) : null),
-    [isClient, currentAdmin],
-  );
-  const scoped = useMemo(() => {
-    const only = (list, key = "siteId") =>
-      ownSites ? list.filter((item) => ownSites.has(item[key])) : list;
-    return {
-      sites: only(sites, "id"),
-      vouchers: only(vouchers),
-      whitelist: only(whitelist),
-      ads: only(ads),
-      guests: only(guests),
-      connections: only(connections),
-    };
-  }, [ownSites, sites, vouchers, whitelist, ads, guests, connections]);
+  // ---------- Loading ----------
+
+  const loadData = useCallback(async () => {
+    const loaded = await api("/data");
+    setCurrentAdmin(loaded.user);
+    setData({ ...EMPTY, ...loaded });
+  }, []);
+
+  const start = useCallback(async () => {
+    try {
+      const me = await api("/auth/me");
+      setNeedsSetup(me.needsSetup);
+      setCurrentAdmin(me.user);
+      if (me.user) await loadData();
+      setStatus("ready");
+    } catch (err) {
+      setStartError(err.message);
+      setStatus("error");
+    }
+  }, [loadData]);
+
+  useEffect(() => {
+    start();
+  }, [start]);
+
+  // Runs a change on the server. If it fails: the message pops up and
+  // the data is loaded again (or, signed out elsewhere, the sign-in page
+  // shows). Returns the server's answer, or null.
+  async function send(path, options) {
+    try {
+      return await api(path, options);
+    } catch (err) {
+      if (err.status === 401) {
+        setCurrentAdmin(null);
+        setData(EMPTY);
+        return null;
+      }
+      setProblem(err.message);
+      loadData().catch(() => {});
+      return null;
+    }
+  }
+
+  // Changes one list in the data
+  const change = (name, fn) => setData((d) => ({ ...d, [name]: fn(d[name]) }));
+  const replace = (name, row) =>
+    change(name, (list) => list.map((item) => (item.id === row.id ? row : item)));
+
+  // ---------- Which site, which dates ----------
 
   // The picked site, or null for "All sites" (also if the saved site
   // was removed, or isn't one of a client's sites)
   const currentSite = useMemo(
-    () => scoped.sites.find((s) => s.id === siteId) ?? null,
-    [scoped.sites, siteId],
+    () => data.sites.find((s) => s.id === siteId) ?? null,
+    [data.sites, siteId],
   );
-
-  const can = (area, level = "read") => canAccess(currentAdmin, area, level);
 
   function pickSite(id) {
     setSiteId(id);
@@ -152,164 +164,197 @@ export default function DataProvider({ children }) {
     remember(SAVED_RANGE, JSON.stringify(value));
   }
 
-  // ---------- Signing in and admins ----------
+  const can = (area, level = "read") => canAccess(currentAdmin, area, level);
+
+  // ---------- Signing in and out ----------
 
   // Returns "" when it worked, or what's wrong
-  function signIn(email, password) {
-    const admin = admins.find(
-      (a) => a.email === email.trim().toLowerCase() && a.password === password,
-    );
-    if (!admin) return "That email or password is wrong.";
-    setAdminId(admin.id);
-    remember(SAVED_SESSION, String(admin.id));
-    updateAdmin(admin.id, { lastActiveAt: Date.now() });
-    return "";
+  async function signIn(email, password) {
+    try {
+      const { user } = await api("/auth/login", { method: "POST", body: { email, password } });
+      setCurrentAdmin(user);
+      setStatus("loading");
+      await loadData();
+      setStatus("ready");
+      return "";
+    } catch (err) {
+      setStatus("ready");
+      return err.message;
+    }
   }
 
-  function signOut() {
-    setAdminId(null);
-    remember(SAVED_SESSION, null);
+  // The first admin, from the /setup/<code> page. Returns "" or what's wrong.
+  async function setUp(values) {
+    try {
+      await api("/setup", { method: "POST", body: values });
+      setNeedsSetup(false);
+      await start();
+      return "";
+    } catch (err) {
+      return err.message;
+    }
   }
 
-  function addAdmin(values) {
-    const id = nextId(admins);
-    setAdmins((list) => [
-      ...list,
-      { ...values, id, createdAt: Date.now(), lastActiveAt: null },
-    ]);
+  async function signOut() {
+    await api("/auth/logout", { method: "POST" }).catch(() => {});
+    setCurrentAdmin(null);
+    setData(EMPTY);
   }
 
-  function updateAdmin(id, changes) {
-    setAdmins((list) =>
-      list.map((a) => (a.id === id ? { ...a, ...changes } : a)),
-    );
+  // My account. Both return "" or what's wrong.
+  async function updateProfile(values) {
+    try {
+      const { user } = await api("/auth/me", { method: "PATCH", body: values });
+      setCurrentAdmin(user);
+      replace("users", user);
+      return "";
+    } catch (err) {
+      return err.message;
+    }
+  }
+
+  async function changePassword(current, password) {
+    try {
+      await api("/auth/password", { method: "POST", body: { current, password } });
+      return "";
+    } catch (err) {
+      return err.message;
+    }
+  }
+
+  // ---------- Users (the Users page) ----------
+  // Both return "" or what's wrong, so the box can show it
+
+  async function addAdmin(values) {
+    try {
+      const user = await api("/users", { method: "POST", body: values });
+      change("users", (list) => [...list, user]);
+      return "";
+    } catch (err) {
+      return err.message;
+    }
+  }
+
+  async function updateAdmin(id, values) {
+    try {
+      const user = await api(`/users/${id}`, { method: "PATCH", body: values });
+      replace("users", user);
+      if (user.id === currentAdmin?.id) setCurrentAdmin(user);
+      return "";
+    } catch (err) {
+      return err.message;
+    }
   }
 
   function removeAdmin(id) {
-    setAdmins((list) => list.filter((a) => a.id !== id));
+    change("users", (list) => list.filter((u) => u.id !== id));
+    send(`/users/${id}`, { method: "DELETE" });
   }
 
   // ---------- Controllers ----------
 
-  function addController(values) {
-    const id = nextId(controllers);
-    setControllers((list) => [...list, { ...values, id, lastTest: null }]);
+  async function addController(values) {
+    const row = await send("/controllers", { method: "POST", body: values });
+    if (row) change("controllers", (list) => [...list, row]);
   }
 
-  function updateController(id, changes) {
-    setControllers((list) =>
-      list.map((c) => (c.id === id ? { ...c, ...changes } : c)),
-    );
+  async function updateController(id, changes) {
+    change("controllers", (list) => list.map((c) => (c.id === id ? { ...c, ...changes } : c)));
+    const row = await send(`/controllers/${id}`, { method: "PATCH", body: changes });
+    if (row) replace("controllers", row);
   }
 
   function deleteController(id) {
-    setControllers((list) => list.filter((c) => c.id !== id));
+    change("controllers", (list) => list.filter((c) => c.id !== id));
+    change("sites", (list) =>
+      list.map((s) => (s.controllerId === id ? { ...s, controllerId: null } : s)),
+    );
+    send(`/controllers/${id}`, { method: "DELETE" });
   }
 
   // ---------- Sites ----------
 
-  // values: { name, controllerId, mode }. Returns the new site.
-  function addSite(values) {
-    const id = nextId(sites);
-    const site = makeSite({
-      ...values,
-      id,
-      slug: makeSlug(
-        values.name,
-        sites.map((s) => s.slug),
-      ),
-      color: SITE_COLORS[sites.length % SITE_COLORS.length],
-    });
-    setSites((list) => [...list, site]);
+  // values: { name, controllerId, mode }. Returns the new site, or null.
+  async function addSite(values) {
+    const site = await send("/sites", { method: "POST", body: values });
+    if (site) change("sites", (list) => [...list, site]);
     return site;
   }
 
+  // Shows straight away (the editor's "unsaved changes" bar goes), then
+  // saves the whole site
   function updateSite(id, changes) {
-    setSites((list) =>
-      list.map((s) => (s.id === id ? { ...s, ...changes } : s)),
-    );
+    const old = data.sites.find((s) => s.id === id);
+    if (!old) return;
+    const whole = { ...old, ...changes };
+    replace("sites", whole);
+    send(`/sites/${id}`, { method: "PATCH", body: whole });
   }
 
   function deleteSite(id) {
-    setSites((list) => list.filter((s) => s.id !== id));
-    setVouchers((list) => list.filter((v) => v.siteId !== id));
-    setWhitelist((list) => list.filter((w) => w.siteId !== id));
-    setAds((list) => list.filter((a) => a.siteId !== id));
-    setAdmins((list) =>
-      list.map((a) => ({ ...a, siteIds: (a.siteIds ?? []).filter((s) => s !== id) })),
-    );
-    setGuests((list) => list.filter((g) => g.siteId !== id));
-    setConnections((list) => list.filter((c) => c.siteId !== id));
+    setData((d) => ({
+      ...d,
+      sites: d.sites.filter((s) => s.id !== id),
+      vouchers: d.vouchers.filter((v) => v.siteId !== id),
+      whitelist: d.whitelist.filter((w) => w.siteId !== id),
+      ads: d.ads.filter((a) => a.siteId !== id),
+      guests: d.guests.filter((g) => g.siteId !== id),
+      connections: d.connections.filter((c) => c.siteId !== id),
+      users: d.users.map((u) => ({ ...u, siteIds: (u.siteIds ?? []).filter((s) => s !== id) })),
+    }));
+    send(`/sites/${id}`, { method: "DELETE" });
   }
 
   // ---------- Vouchers ----------
 
   // values: { siteId, count, batch, minutes, maxUses, downKbps, upKbps,
-  // dataMb, validUntil }. Returns the new vouchers.
-  function addVouchers({ count, ...values }) {
-    const taken = new Set(
-      vouchers.filter((v) => v.siteId === values.siteId).map((v) => v.code),
-    );
-    let id = nextId(vouchers);
-    const createdAt = Date.now();
-    const made = makeCodes(count, taken).map((code) => ({
-      ...values,
-      id: id++,
-      code,
-      uses: 0,
-      createdAt,
-    }));
-    setVouchers((list) => [...made, ...list]);
+  // dataMb, validUntil }. Returns the new vouchers, or null.
+  async function addVouchers(values) {
+    const made = await send("/vouchers", { method: "POST", body: values });
+    if (made) change("vouchers", (list) => [...made, ...list]);
     return made;
   }
 
   function deleteVouchers(ids) {
     const gone = new Set(ids);
-    setVouchers((list) => list.filter((v) => !gone.has(v.id)));
+    change("vouchers", (list) => list.filter((v) => !gone.has(v.id)));
+    send("/vouchers/delete", { method: "POST", body: { ids } });
   }
 
   // ---------- Device whitelist ----------
 
-  function addWhitelist(values) {
-    const id = nextId(whitelist);
-    setWhitelist((list) => [{ ...values, id, createdAt: Date.now() }, ...list]);
+  async function addWhitelist(values) {
+    const row = await send("/whitelist", { method: "POST", body: values });
+    if (row) change("whitelist", (list) => [row, ...list]);
   }
 
-  function updateWhitelist(id, changes) {
-    setWhitelist((list) =>
-      list.map((w) => (w.id === id ? { ...w, ...changes } : w)),
-    );
+  async function updateWhitelist(id, changes) {
+    change("whitelist", (list) => list.map((w) => (w.id === id ? { ...w, ...changes } : w)));
+    const row = await send(`/whitelist/${id}`, { method: "PATCH", body: changes });
+    if (row) replace("whitelist", row);
   }
 
   function deleteWhitelist(id) {
-    setWhitelist((list) => list.filter((w) => w.id !== id));
+    change("whitelist", (list) => list.filter((w) => w.id !== id));
+    send(`/whitelist/${id}`, { method: "DELETE" });
   }
 
   // ---------- Splash ads ----------
 
-  function addAd(values) {
-    const id = nextId(ads);
-    setAds((list) => [
-      { ...values, id, views: 0, clicks: 0, createdAt: Date.now() },
-      ...list,
-    ]);
+  async function addAd(values) {
+    const row = await send("/ads", { method: "POST", body: values });
+    if (row) change("ads", (list) => [row, ...list]);
   }
 
-  function updateAd(id, changes) {
-    setAds((list) => list.map((a) => (a.id === id ? { ...a, ...changes } : a)));
+  async function updateAd(id, changes) {
+    change("ads", (list) => list.map((a) => (a.id === id ? { ...a, ...changes } : a)));
+    const row = await send(`/ads/${id}`, { method: "PATCH", body: changes });
+    if (row) replace("ads", row);
   }
 
   function deleteAd(id) {
-    setAds((list) => list.filter((a) => a.id !== id));
-  }
-
-  // A guest saw an ad, or tapped it (from the guest page)
-  function recordAdView(id) {
-    setAds((list) => list.map((a) => (a.id === id ? { ...a, views: a.views + 1 } : a)));
-  }
-
-  function recordAdClick(id) {
-    setAds((list) => list.map((a) => (a.id === id ? { ...a, clicks: a.clicks + 1 } : a)));
+    change("ads", (list) => list.filter((a) => a.id !== id));
+    send(`/ads/${id}`, { method: "DELETE" });
   }
 
   // ---------- Guests ----------
@@ -317,88 +362,41 @@ export default function DataProvider({ children }) {
   // Removes a guest and everything they typed (e.g. when they ask to be
   // forgotten). Their sign-ins still count in the reports, without them.
   function deleteGuest(id) {
-    setGuests((list) => list.filter((g) => g.id !== id));
-    setConnections((list) =>
-      list.map((c) => (c.guestId === id ? { ...c, guestId: null } : c)),
-    );
-  }
-
-  // ---------- A guest signing in on a site's page ----------
-  // FOR NOW (no server yet): checks the voucher and saves the guest and
-  // their sign-in here. The server will also let them on through the
-  // site's controller. Returns { error } or { minutes }.
-  function recordSignIn(site, { answers = {}, code = "" }) {
-    const now = Date.now();
-    let voucher = null;
-    if (site.mode === "voucher") {
-      voucher = vouchers.find(
-        (v) => v.siteId === site.id && cleanCode(v.code) === cleanCode(code),
-      );
-      if (!voucher) return { error: "That code isn't right. Check it and try again." };
-      const status = voucherStatus(voucher, now);
-      if (status === "used") return { error: "That code has already been used." };
-      if (status === "expired") return { error: "That code has expired." };
-    }
-
-    const mac = demoDeviceMac();
-    const existing = guests.find((g) => g.siteId === site.id && g.mac === mac);
-    const guestId = existing?.id ?? nextId(guests);
-    if (existing) {
-      setGuests((list) =>
-        list.map((g) =>
-          g.id === existing.id
-            ? {
-                ...g,
-                answers: { ...g.answers, ...answers },
-                visits: g.visits + 1,
-                lastSeenAt: now,
-              }
-            : g,
-        ),
-      );
-    } else {
-      setGuests((list) => [
-        ...list,
-        { id: guestId, siteId: site.id, mac, answers, visits: 1, firstSeenAt: now, lastSeenAt: now },
-      ]);
-    }
-
-    const minutes = voucher?.minutes ?? site.minutes;
-    if (voucher)
-      setVouchers((list) =>
-        list.map((v) => (v.id === voucher.id ? { ...v, uses: v.uses + 1 } : v)),
-      );
-    setConnections((list) => [
-      ...list,
-      {
-        id: nextId(list),
-        siteId: site.id,
-        guestId,
-        mac,
-        method: site.mode,
-        minutes,
-        ok: true,
-        at: now,
-      },
-    ]);
-    return { minutes };
+    setData((d) => ({
+      ...d,
+      guests: d.guests.filter((g) => g.id !== id),
+      connections: d.connections.map((c) => (c.guestId === id ? { ...c, guestId: null } : c)),
+    }));
+    send(`/guests/${id}`, { method: "DELETE" });
   }
 
   const value = {
-    admins,
+    status,
+    startError,
+    retry: () => {
+      setStatus("loading");
+      start();
+    },
+    needsSetup,
+    admins: data.users,
     currentAdmin,
     isClient,
     can,
     signIn,
+    setUp,
     signOut,
+    updateProfile,
+    changePassword,
     addAdmin,
     updateAdmin,
     removeAdmin,
-    recordSignIn,
-    controllers,
-    ...scoped,
-    allSites: sites,
-    allAds: ads,
+    controllers: data.controllers,
+    sites: data.sites,
+    vouchers: data.vouchers,
+    whitelist: data.whitelist,
+    ads: data.ads,
+    guests: data.guests,
+    connections: data.connections,
     currentSite,
     pickSite,
     range,
@@ -417,10 +415,13 @@ export default function DataProvider({ children }) {
     addAd,
     updateAd,
     deleteAd,
-    recordAdView,
-    recordAdClick,
     deleteGuest,
   };
 
-  return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
+  return (
+    <DataContext.Provider value={value}>
+      {children}
+      {problem && <Toast message={problem} onClose={closeProblem} />}
+    </DataContext.Provider>
+  );
 }

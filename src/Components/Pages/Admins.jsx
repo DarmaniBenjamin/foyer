@@ -57,7 +57,10 @@ function UserModal({ user, isYou, sites, emailsTaken, onSave, onClose }) {
     );
   }
 
-  function save() {
+  const [saving, setSaving] = useState(false);
+
+  async function save() {
+    if (saving) return;
     const cleanEmail = email.trim().toLowerCase();
     if (!name.trim()) return setError("Enter their name.");
     if (!validEmail(cleanEmail)) return setError("Enter a real email address.");
@@ -69,7 +72,9 @@ function UserModal({ user, isYou, sites, emailsTaken, onSave, onClose }) {
     if (role === "client" && siteIds.length === 0)
       return setError("Pick at least one site they can see.");
     document.activeElement?.blur();
-    onSave({
+    setSaving(true);
+    // "" when it worked (the box closes), or the server's reason
+    const problem = await onSave({
       name: name.trim(),
       email: cleanEmail,
       ...(password ? { password } : {}),
@@ -77,6 +82,8 @@ function UserModal({ user, isYou, sites, emailsTaken, onSave, onClose }) {
       siteIds: role === "client" ? siteIds : [],
       access: role === "client" ? access : NO_ACCESS,
     });
+    setSaving(false);
+    if (problem) setError(problem);
   }
 
   return (
@@ -89,7 +96,7 @@ function UserModal({ user, isYou, sites, emailsTaken, onSave, onClose }) {
           <button type="button" onClick={onClose} className={secondaryButton}>
             Cancel
           </button>
-          <button type="submit" className={primaryButton}>
+          <button type="submit" disabled={saving} className={primaryButton}>
             {user ? "Save" : "Add user"}
           </button>
         </>
@@ -382,10 +389,13 @@ export default function Admins() {
           emailsTaken={admins
             .filter((a) => a.id !== editing?.id)
             .map((a) => a.email)}
-          onSave={(values) => {
-            if (editing === "new") addAdmin(values);
-            else updateAdmin(editing.id, values);
-            setEditing(null);
+          onSave={async (values) => {
+            const problem =
+              editing === "new"
+                ? await addAdmin(values)
+                : await updateAdmin(editing.id, values);
+            if (!problem) setEditing(null);
+            return problem;
           }}
           onClose={() => setEditing(null)}
         />

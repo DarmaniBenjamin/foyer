@@ -57,7 +57,10 @@ export default function VoucherModal({ siteId, onMade, onPrint, onClose }) {
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
   });
 
-  function save() {
+  const [saving, setSaving] = useState(false);
+
+  async function save() {
+    if (saving) return;
     const n = parseInt(count, 10);
     const uses = parseInt(maxUses, 10);
     if (!chosen) return setError("Pick a site.");
@@ -67,7 +70,8 @@ export default function VoucherModal({ siteId, onMade, onPrint, onClose }) {
     if (validUntil && endOfDay(validUntil) < Date.now())
       return setError("The last day to use them can't be in the past.");
     document.activeElement?.blur();
-    const vouchers = addVouchers({
+    setSaving(true);
+    const vouchers = await addVouchers({
       siteId: chosen.id,
       count: n,
       batch: batch.trim() || batchName(),
@@ -78,6 +82,9 @@ export default function VoucherModal({ siteId, onMade, onPrint, onClose }) {
       dataMb: parseInt(dataMb, 10) || null,
       validUntil: endOfDay(validUntil),
     });
+    setSaving(false);
+    // null: the server said no (the message shows at the bottom)
+    if (!vouchers) return;
     setMade(vouchers);
     onMade?.(vouchers);
   }

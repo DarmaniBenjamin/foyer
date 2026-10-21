@@ -1,6 +1,7 @@
-// Example data so the admin site can be built and tried before the
-// server exists. It resets when the page reloads. Later the same shapes
-// come from the server instead.
+// The shapes of controllers and sites, the lists and helpers the pages
+// share, and example data. The example data only goes into a database
+// with "npm run db:demo" (for trying Foyer on your own computer); the
+// pages get the real data from the server.
 
 // ---------- Controllers ----------
 

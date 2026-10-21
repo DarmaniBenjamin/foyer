@@ -1,6 +1,6 @@
 // Splash ads: a picture shown full screen on a site's guest page for a
 // few seconds, like Spotipo's campaigns. Example ads are here too,
-// until the server exists.
+// for "npm run db:demo".
 //
 // siteId: the site it shows on
 // name: what you call it (guests don't see this)

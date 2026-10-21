@@ -1,16 +1,16 @@
-// The sign-in page for admins. After signing in, you go back to the page
-// you were trying to open.
+// The sign-in page, for admins and client logins. After signing in, you
+// go back to the page you were trying to open.
 import { useState } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router";
 import { LoaderCircle, LogIn } from "lucide-react";
 import useData from "../../useData";
-import { DEMO_EMAIL, DEMO_PASSWORD } from "../../admins";
 import AuthShell from "../AuthShell";
 import PasswordInput from "../PasswordInput";
+import Loading from "../Loading";
 import { inputClass, labelClass, primaryButton } from "../formStyles";
 
 export default function Login() {
-  const { currentAdmin, signIn } = useData();
+  const { status, needsSetup, currentAdmin, signIn } = useData();
   const navigate = useNavigate();
   const location = useLocation();
   const [email, setEmail] = useState("");
@@ -19,13 +19,14 @@ export default function Login() {
   const [busy, setBusy] = useState(false);
   const goTo = location.state?.from ?? "/";
 
-  if (currentAdmin) return <Navigate to={goTo} replace />;
+  if (currentAdmin && status === "ready") return <Navigate to={goTo} replace />;
+  if (status === "error" || (status === "loading" && !busy)) return <Loading />;
 
-  function submit(e) {
+  async function submit(e) {
     e.preventDefault();
     if (!email.trim() || !password) return setError("Enter your email and password.");
     setBusy(true);
-    const problem = signIn(email, password);
+    const problem = await signIn(email, password);
     setBusy(false);
     if (problem) return setError(problem);
     document.activeElement?.blur();
@@ -68,28 +69,18 @@ export default function Login() {
           Sign in
         </button>
         <p className="text-center text-xs text-muted">
-          Forgot your password? Ask another admin to set a new one.
+          Forgot your password? Ask Protonic Solutions to set a new one.
         </p>
       </form>
 
-      {/* FOR NOW (no server yet): the example admin's sign-in */}
-      <div className="mt-6 rounded-xl border border-dashed border-line p-3 text-xs text-muted">
-        <p className="font-semibold text-ink">Demo sign-in</p>
-        <p className="mt-1">
-          {DEMO_EMAIL} · {DEMO_PASSWORD}
+      {/* A new Foyer with nobody added yet */}
+      {needsSetup && (
+        <p className="mt-6 rounded-xl border border-dashed border-line p-3 text-xs text-muted">
+          <b className="text-ink">Setting up Foyer?</b> Nobody has been added
+          yet. Open <span className="font-mono">/setup/</span> followed by the
+          SETUP_CODE from your settings to make the first admin.
         </p>
-        <button
-          type="button"
-          onClick={() => {
-            setEmail(DEMO_EMAIL);
-            setPassword(DEMO_PASSWORD);
-            setError("");
-          }}
-          className="mt-2 font-semibold text-brand hover:underline"
-        >
-          Fill it in
-        </button>
-      </div>
+      )}
     </AuthShell>
   );
 }

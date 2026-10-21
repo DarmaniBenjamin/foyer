@@ -26,7 +26,7 @@ function Card({ title, children }) {
 }
 
 export default function Account() {
-  const { admins, currentAdmin, updateAdmin } = useData();
+  const { currentAdmin, updateProfile, changePassword } = useData();
   const [name, setName] = useState(currentAdmin.name);
   const [email, setEmail] = useState(currentAdmin.email);
   const [profileError, setProfileError] = useState("");
@@ -38,28 +38,27 @@ export default function Account() {
   const [passwordError, setPasswordError] = useState("");
   const [passwordSaved, setPasswordSaved] = useState(false);
 
-  function saveProfile(e) {
+  async function saveProfile(e) {
     e.preventDefault();
     setProfileSaved(false);
     const cleanEmail = email.trim().toLowerCase();
     if (!name.trim()) return setProfileError("Enter your name.");
     if (!validEmail(cleanEmail)) return setProfileError("Enter a real email address.");
-    if (admins.some((a) => a.id !== currentAdmin.id && a.email === cleanEmail))
-      return setProfileError("Another admin already uses that email.");
-    setProfileError("");
-    updateAdmin(currentAdmin.id, { name: name.trim(), email: cleanEmail });
-    setProfileSaved(true);
+    const problem = await updateProfile({ name: name.trim(), email: cleanEmail });
+    setProfileError(problem);
+    setProfileSaved(!problem);
   }
 
-  function savePassword(e) {
+  // Your other devices are signed out when it changes
+  async function savePassword(e) {
     e.preventDefault();
     setPasswordSaved(false);
-    if (current !== currentAdmin.password)
-      return setPasswordError("Your current password is wrong.");
+    if (!current) return setPasswordError("Enter your current password.");
     if (next.length < 10) return setPasswordError(PASSWORD_RULE);
     if (next !== again) return setPasswordError("The two new passwords don't match.");
-    setPasswordError("");
-    updateAdmin(currentAdmin.id, { password: next });
+    const problem = await changePassword(current, next);
+    setPasswordError(problem);
+    if (problem) return;
     setCurrent("");
     setNext("");
     setAgain("");

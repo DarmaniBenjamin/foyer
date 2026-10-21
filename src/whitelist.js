@@ -1,9 +1,9 @@
 // The device whitelist: devices (by MAC address) that go straight on to
 // a site's Wi-Fi without the sign-in page, like a smart TV or a
-// FireStick, until their end date. Example entries are here too, until
-// the server exists.
+// FireStick, until their end date. Example entries are here too, for
+// "npm run db:demo".
 //
-// When the server is built, it lets each one on through the site's
+// Next step: the server lets each one on through the site's
 // controller for as long as the entry lasts, with its limits.
 
 // "aa-bb-cc-dd-ee-ff", "AABB.CCDD.EEFF"... → "AA:BB:CC:DD:EE:FF" (or "")

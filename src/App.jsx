@@ -1,5 +1,6 @@
 // The site's pages. Each Route links an address to a page.
 // - /login: the sign-in page
+// - /setup/<code>: making the first admin on a new Foyer
 // - /p/<site>: a site's guest Wi-Fi sign-in page (what guests see)
 // - everything else: the admin pages, only for people signed in. Pages
 //   in "only" need access to that area (client logins may not have it).
@@ -19,6 +20,7 @@ import Admins from "./Components/Pages/Admins";
 import Account from "./Components/Pages/Account";
 import Login from "./Components/Pages/Login";
 import GuestPortal from "./Components/Pages/GuestPortal";
+import Setup from "./Components/Pages/Setup";
 import Whitelist from "./Components/Pages/Whitelist";
 import Ads from "./Components/Pages/Ads";
 
@@ -52,6 +54,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      <Route path="/setup/:code" element={<Setup />} />
       <Route path="/p/:slug" element={<GuestPortal />} />
       <Route path="/*" element={<AdminPages />} />
     </Routes>

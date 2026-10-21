@@ -1,7 +1,7 @@
 // Guests: everyone who has signed in at a site (one per device), and
 // their sign-ins ("connections"). Helpers to show them, and example
-// guests until the server exists.
-import { STARTING_SITES } from "./data";
+// guests for "npm run db:demo".
+import { STARTING_SITES } from "./data.js";
 
 // ---------- Showing guests ----------
 

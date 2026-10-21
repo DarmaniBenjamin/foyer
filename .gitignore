@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Foyer's settings and secret key (never on GitHub)
+.env
+.secret-key

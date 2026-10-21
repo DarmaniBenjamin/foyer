@@ -7,27 +7,40 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "server": "node --watch-path=server --watch-path=src server/index.js",
+    "start": "node server/index.js",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "node server/db/migrate.js",
+    "db:demo": "node server/db/demo.js"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.3",
+    "@vitejs/plugin-react": "^6.1.2",
+    "bcryptjs": "^3.0.3",
     "docx": "^9.13.0",
+    "drizzle-orm": "^0.45.4",
     "exceljs": "^4.4.0",
+    "express": "^5.3.0",
     "lucide-react": "^1.60.0",
+    "pg": "^8.23.1",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "react-router": "^8.5.0",
-    "tailwindcss": "^4.3.3"
+    "tailwindcss": "^4.3.3",
+    "vite": "^8.3.5"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
-    "@vitejs/plugin-react": "^6.1.2",
+    "drizzle-kit": "^0.31.11",
     "eslint": "^10.13.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.7",
-    "globals": "^17.13.0",
-    "vite": "^8.3.4"
+    "globals": "^17.13.0"
+  },
+  "engines": {
+    "node": ">=22"
   }
 }
