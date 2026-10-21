@@ -1,9 +1,10 @@
 // Holds the data every page shares: the controllers, the sites, the
-// vouchers, the guests and their sign-ins (connections), and which site
-// you're looking at (or "All sites").
-//
-// The site you pick is remembered on this browser, so it's still picked
-// after a reload.
+// vouchers, the guests and their sign-ins (connections), which site
+// you're looking at (or "All sites"), and the date range the Dashboard
+// and Reports show (This month to start with). The site and the date
+// range are remembered on this browser, so they're still picked after a
+// reload.
+
 import { useMemo, useState } from "react";
 import { DataContext } from "./useData";
 import {
@@ -29,6 +30,19 @@ function savedSiteId() {
   }
 }
 
+const SAVED_RANGE = "foyer-range";
+
+// { preset: "this-month" } or { from, to }
+function savedRange() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(SAVED_RANGE));
+    if (saved?.preset || (saved?.from && saved?.to)) return saved;
+  } catch {
+    // nothing saved, or not readable
+  }
+  return { preset: "this-month" };
+}
+
 const nextId = (list) => Math.max(0, ...list.map((item) => item.id)) + 1;
 
 export default function DataProvider({ children }) {
@@ -38,6 +52,7 @@ export default function DataProvider({ children }) {
   const [guests, setGuests] = useState(STARTING_GUESTS);
   const [connections, setConnections] = useState(STARTING_CONNECTIONS);
   const [siteId, setSiteId] = useState(savedSiteId);
+  const [range, setRangeState] = useState(savedRange);
 
   // The picked site, or null for "All sites" (also if the saved site
   // was removed)
@@ -50,6 +65,15 @@ export default function DataProvider({ children }) {
     setSiteId(id);
     try {
       localStorage.setItem(SAVED_SITE, String(id));
+    } catch {
+      // Private browsing: it just isn't remembered
+    }
+  }
+
+  function setRange(value) {
+    setRangeState(value);
+    try {
+      localStorage.setItem(SAVED_RANGE, JSON.stringify(value));
     } catch {
       // Private browsing: it just isn't remembered
     }
@@ -148,6 +172,8 @@ export default function DataProvider({ children }) {
     connections,
     currentSite,
     pickSite,
+    range,
+    setRange,
     addController,
     updateController,
     deleteController,

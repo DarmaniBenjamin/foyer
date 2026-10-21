@@ -1,0 +1,204 @@
+// A bar chart, drawn as SVG. Used on the Dashboard and Reports (with the
+// app's colours and a hover tooltip), and drawn again in fixed light
+// colours as a picture for the Word report (exports.js).
+//
+// data: [{ key, label, title, value, parts }]
+//   label: under the bar ("" for none). title: the tooltip's heading.
+//   parts (only with `series`): { new: 3, returning: 12 }, stacked with
+//   the first series on top.
+// series: [{ key, name }] to split each bar (see chartColors.js)
+//
+// On screen it's drawn at the width of its box (measured), so the text
+// stays the same size on a phone and a big screen.
+import { useLayoutEffect, useRef, useState } from "react";
+import { APP_COLORS } from "./chartColors";
+
+const PICTURE_WIDTH = 720;
+
+// Clean steps for the side numbers: 1, 2, 5, 10, 20, 50...
+function niceStep(rough) {
+  if (rough <= 1) return 1;
+  const power = 10 ** Math.floor(Math.log10(rough));
+  for (const m of [1, 2, 5, 10]) if (m * power >= rough) return m * power;
+  return 10 * power;
+}
+
+const compact = (n) =>
+  n >= 1000 ? `${(n / 1000).toFixed(n >= 10000 ? 0 : 1).replace(/\.0$/, "")}K` : String(n);
+
+// A bar (or the top part of a stacked bar): square at the bottom, 4px
+// rounded at the top. Lower parts of a stack are plain rectangles.
+function barPath(x, y, w, h, rounded = true) {
+  if (!rounded) return `M${x},${y + h} V${y} H${x + w} V${y + h} Z`;
+  const r = Math.min(4, w / 2, h);
+  return `M${x},${y + h} V${y + r} Q${x},${y} ${x + r},${y} H${x + w - r} Q${x + w},${y} ${x + w},${y + r} V${y + h} Z`;
+}
+
+export default function BarChart({
+  data,
+  series,
+  height = 240,
+  unit = "sign-ins",
+  colors = APP_COLORS,
+  fontFamily = "inherit",
+  forPicture = false,
+}) {
+  const boxRef = useRef(null);
+  // 0 until the box has been measured
+  const [measured, setMeasured] = useState(0);
+  const [hover, setHover] = useState(null);
+
+  useLayoutEffect(() => {
+    if (forPicture || !boxRef.current) return;
+    const box = boxRef.current;
+    const observer = new ResizeObserver(([entry]) =>
+      setMeasured(Math.max(240, Math.round(entry.contentRect.width))),
+    );
+    observer.observe(box);
+    return () => observer.disconnect();
+  }, [forPicture]);
+
+  const W = forPicture ? PICTURE_WIDTH : measured;
+  // The picture has its legend drawn in (on screen it's above the chart)
+  const legendH = forPicture && series ? 26 : 0;
+  const left = 36;
+  const right = 4;
+  const top = 12 + legendH;
+  const bottom = 26;
+  const innerW = W - left - right;
+  const innerH = height - top - bottom;
+  const maxValue = Math.max(0, ...data.map((d) => d.value));
+  const step = niceStep(maxValue / 4);
+  const max = Math.max(step, Math.ceil(maxValue / step) * step);
+  const ticks = Array.from({ length: Math.round(max / step) + 1 }, (_, i) => i * step);
+  const band = innerW / Math.max(1, data.length);
+  const barW = Math.max(2, Math.min(24, band - 2));
+  // Only as many labels under the bars as fit without overlapping
+  const fit = Math.max(2, Math.floor(innerW / 34));
+  const labelledKeys = data.filter((d) => d.label).map((d) => d.key);
+  const every = Math.ceil(labelledKeys.length / fit);
+  const shownLabels = new Set(labelledKeys.filter((_, i) => i % every === 0));
+  // Bottom to top: the last series sits at the bottom
+  const stack = series ? [...series].reverse() : null;
+
+  function bar(d, i) {
+    const x = left + band * i + band / 2 - barW / 2;
+    const base = top + innerH;
+    if (!stack) {
+      const h = (d.value / max) * innerH;
+      return h > 0 ? (
+        <path d={barPath(x, base - h, barW, h)} fill={hover === i ? colors.hover : colors.bar} />
+      ) : null;
+    }
+    // Stacked: each part on top of the one below, with a 2px gap
+    const parts = stack.filter((s) => d.parts?.[s.key] > 0);
+    let y = base;
+    return parts.map((s, n) => {
+      const full = (d.parts[s.key] / max) * innerH;
+      const gap = n > 0 ? Math.min(2, full / 2) : 0;
+      const h = full - gap;
+      y -= full;
+      const isTop = n === parts.length - 1;
+      return (
+        <path
+          key={s.key}
+          d={barPath(x, y, barW, h, isTop)}
+          fill={colors.series[s.key]}
+          opacity={hover !== null && hover !== i ? 0.85 : 1}
+        />
+      );
+    });
+  }
+
+  const svg = (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox={`0 0 ${W} ${height}`}
+      width={W}
+      height={height}
+      fontFamily={fontFamily}
+      role="img"
+      style={forPicture ? undefined : { display: "block", overflow: "visible" }}
+    >
+      {forPicture && <rect width={W} height={height} fill="#ffffff" />}
+      {legendH > 0 &&
+        series.map((s, n) => (
+          <g key={s.key} transform={`translate(${left + n * 150}, 4)`}>
+            <rect width="12" height="12" rx="3" fill={colors.series[s.key]} />
+            <text x="18" y="10.5" fontSize="12" fill="#344054">
+              {s.name}
+            </text>
+          </g>
+        ))}
+      {ticks.map((t) => {
+        const y = top + innerH - (t / max) * innerH;
+        return (
+          <g key={t}>
+            <line x1={left} x2={W - right} y1={y} y2={y} stroke={colors.grid} strokeWidth="1" />
+            <text x={left - 8} y={y + 4} textAnchor="end" fontSize="11" fill={colors.text}>
+              {compact(t)}
+            </text>
+          </g>
+        );
+      })}
+      {data.map((d, i) => {
+        const cx = left + band * i + band / 2;
+        return (
+          <g key={d.key}>
+            {bar(d, i)}
+            {shownLabels.has(d.key) && (
+              <text x={cx} y={height - 8} textAnchor="middle" fontSize="11" fill={colors.text}>
+                {d.label}
+              </text>
+            )}
+            {!forPicture && (
+              <rect
+                x={left + band * i}
+                y={top}
+                width={band}
+                height={innerH}
+                fill="transparent"
+                onMouseEnter={() => setHover(i)}
+                onMouseLeave={() => setHover(null)}
+                onClick={() => setHover(i)}
+              >
+                <title>{`${d.title}: ${d.value.toLocaleString()} ${unit}`}</title>
+              </rect>
+            )}
+          </g>
+        );
+      })}
+    </svg>
+  );
+
+  if (forPicture) return svg;
+
+  const shown = hover !== null ? data[hover] : null;
+  return (
+    <div ref={boxRef} className="relative w-full min-w-0" style={{ minHeight: height }}>
+      {measured > 0 && svg}
+      {shown && (
+        <div
+          className="pointer-events-none absolute top-0 z-10 -translate-x-1/2 rounded-lg border border-line bg-white px-2.5 py-1.5 text-xs whitespace-nowrap shadow-lg"
+          style={{
+            left: Math.min(W - 70, Math.max(70, left + band * hover + band / 2)),
+          }}
+        >
+          <p className="text-muted">{shown.title}</p>
+          <p className="font-semibold">
+            {shown.value.toLocaleString()} {unit}
+          </p>
+          {series?.map((s) => (
+            <p key={s.key} className="flex items-center gap-1.5 text-muted">
+              <span
+                className="h-2 w-2 rounded-sm"
+                style={{ backgroundColor: colors.series[s.key] }}
+              />
+              {s.name}: {(shown.parts?.[s.key] ?? 0).toLocaleString()}
+            </p>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}

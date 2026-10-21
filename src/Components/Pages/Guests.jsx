@@ -1,28 +1,31 @@
-// Guests: everyone who signed in, one row per device.
+// Guests: everyone who signed in during the date range, one row per
+// device.
 // - One site picked: every question on its form is its own column (the
-//   same columns the Excel export will have).
+//   same columns as the Excel download).
 // - All sites: the name, email and site of every guest.
 // Click a guest for everything they typed and their recent sign-ins.
+// The date range is the same one the Dashboard and Reports use.
 import { useMemo, useState } from "react";
 import { Link } from "react-router";
-import { Repeat, Search, UserPlus, Users } from "lucide-react";
+import {
+  FileSpreadsheet,
+  LoaderCircle,
+  Repeat,
+  Search,
+  UserPlus,
+  Users,
+} from "lucide-react";
 import useData from "../../useData";
 import { SIGN_IN_MODES } from "../../data";
+import { resolveRange } from "../../dates";
+import { guestsIn } from "../../reports";
 import { answerText, dateTime, guestEmail, guestName } from "../../guests";
 import SiteIcon from "../SiteIcon";
 import GuestModal from "../GuestModal";
+import DateRangePicker from "../DateRangePicker";
 import { secondaryButton } from "../formStyles";
 
 const PAGE = 50;
-const DAY = 24 * 60 * 60 * 1000;
-
-const PERIODS = [
-  ["all", "All time"],
-  ["7", "Last 7 days"],
-  ["30", "Last 30 days"],
-  ["90", "Last 90 days"],
-  ["month", "This month"],
-];
 
 const SORTS = [
   ["recent", "Last seen"],
@@ -30,15 +33,6 @@ const SORTS = [
   ["new", "Newest guests"],
   ["name", "Name A–Z"],
 ];
-
-function startOf(period, now) {
-  if (period === "all") return 0;
-  if (period === "month") {
-    const d = new Date(now);
-    return new Date(d.getFullYear(), d.getMonth(), 1).getTime();
-  }
-  return now - Number(period) * DAY;
-}
 
 function Stat({ icon, label, value }) {
   const Icon = icon;
@@ -59,13 +53,21 @@ const selectClass =
   "h-10 min-w-0 rounded-xl border border-line bg-white px-3 text-base outline-none focus:border-brand sm:text-sm";
 
 export default function Guests() {
-  const { sites, guests, currentSite } = useData();
-  const [period, setPeriod] = useState("30");
+  const {
+    sites,
+    guests,
+    connections,
+    currentSite,
+    range: rangeValue,
+    setRange,
+  } = useData();
   const [sort, setSort] = useState("recent");
   const [search, setSearch] = useState("");
   const [shown, setShown] = useState(PAGE);
   const [open, setOpen] = useState(null);
+  const [downloading, setDownloading] = useState(false);
   const [now] = useState(() => Date.now());
+  const range = useMemo(() => resolveRange(rangeValue, now), [rangeValue, now]);
 
   const siteById = useMemo(
     () => new Map(sites.map((s) => [s.id, s])),
@@ -74,12 +76,15 @@ export default function Guests() {
   // The picked site's questions become columns
   const fields = currentSite?.mode === "form" ? currentSite.fields : [];
 
+  // Guests who signed in during the range (the same ones as the Excel)
+  const inRange = useMemo(
+    () => guestsIn({ connections, guests, site: currentSite, range }),
+    [connections, guests, currentSite, range],
+  );
+
   const list = useMemo(() => {
-    const from = startOf(period, now);
     const words = search.trim().toLowerCase();
-    const matching = guests.filter((g) => {
-      if (currentSite && g.siteId !== currentSite.id) return false;
-      if (g.lastSeenAt < from) return false;
+    const matching = inRange.filter((g) => {
       if (!words) return true;
       const text = [g.mac, ...Object.values(g.answers ?? {})]
         .join(" ")
@@ -94,20 +99,57 @@ export default function Guests() {
       name: (a, b) => byName(a).localeCompare(byName(b)),
     };
     return matching.sort(order[sort]);
-  }, [guests, currentSite, period, search, sort, now, siteById]);
+  }, [inRange, search, sort, siteById]);
 
-  const from = startOf(period, now);
-  const newGuests = list.filter((g) => g.firstSeenAt >= from).length;
-  const returning = list.filter((g) => g.visits > 1).length;
+  const newGuests = list.filter((g) => g.firstSeenAt >= range.from).length;
+  const returning = list.filter(
+    (g) => g.signInsInRange > 1 || g.firstSeenAt < range.from,
+  ).length;
 
   const reset = () => setShown(PAGE);
 
+  async function download() {
+    setDownloading(true);
+    try {
+      const { downloadGuestExcel } = await import("../../exports");
+      await downloadGuestExcel({ sites, guests, connections, site: currentSite, range });
+    } catch (err) {
+      console.error(err);
+      alert(`Couldn't make the Excel file: ${err.message}`);
+    } finally {
+      setDownloading(false);
+    }
+  }
+
   return (
     <div className="space-y-5">
+      <div className="flex flex-wrap items-center gap-3">
+        <DateRangePicker
+          value={rangeValue}
+          onChange={(value) => {
+            setRange(value);
+            reset();
+          }}
+        />
+        <button
+          type="button"
+          onClick={download}
+          disabled={downloading || inRange.length === 0}
+          className={secondaryButton}
+        >
+          {downloading ? (
+            <LoaderCircle size={18} className="animate-spin" />
+          ) : (
+            <FileSpreadsheet size={18} />
+          )}
+          Download Excel
+        </button>
+      </div>
+
       <p className="max-w-2xl text-sm text-muted">
         {currentSite
-          ? `Everyone who signed in to ${currentSite.name}'s Wi-Fi, one row per device.`
-          : "Everyone who signed in, at every site. Pick a site in the switcher to see each of its questions as a column."}
+          ? `Everyone who signed in to ${currentSite.name}'s Wi-Fi in this period, one row per device.`
+          : "Everyone who signed in at every site in this period. Pick a site in the switcher to see each of its questions as a column."}
       </p>
 
       {currentSite && currentSite.mode !== "form" && (
@@ -128,7 +170,7 @@ export default function Guests() {
         <Stat icon={Users} label="Guests" value={list.length} />
         <Stat
           icon={UserPlus}
-          label={period === "all" ? "New guests" : "New"}
+          label="New"
           value={newGuests}
         />
         <Stat icon={Repeat} label="Came back" value={returning} />
@@ -153,21 +195,6 @@ export default function Guests() {
           </div>
           <div className="flex gap-2 sm:ml-auto">
             <select
-              value={period}
-              onChange={(e) => {
-                setPeriod(e.target.value);
-                reset();
-              }}
-              className={`${selectClass} flex-1`}
-              aria-label="Last seen"
-            >
-              {PERIODS.map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </select>
-            <select
               value={sort}
               onChange={(e) => setSort(e.target.value)}
               className={`${selectClass} flex-1`}
@@ -186,7 +213,7 @@ export default function Guests() {
           <div className="px-6 py-14 text-center">
             <p className="font-medium">No guests here</p>
             <p className="mt-1 text-sm text-muted">
-              Try a longer time period, or clear the search.
+              Try a longer date range, or clear the search.
             </p>
           </div>
         ) : (
@@ -212,7 +239,7 @@ export default function Guests() {
                         <th className="px-4 py-3 font-medium">Site</th>
                       </>
                     )}
-                    <th className="px-4 py-3 font-medium">Visits</th>
+                    <th className="px-4 py-3 font-medium">Sign-ins</th>
                     <th className="px-4 py-3 font-medium">First seen</th>
                     <th className="px-4 py-3 font-medium">Last seen</th>
                   </tr>
@@ -254,7 +281,7 @@ export default function Guests() {
                             </td>
                           </>
                         )}
-                        <td className="px-4 py-3">{g.visits}</td>
+                        <td className="px-4 py-3">{g.signInsInRange}</td>
                         <td className="px-4 py-3 whitespace-nowrap text-muted">
                           {dateTime(g.firstSeenAt)}
                         </td>
@@ -288,7 +315,7 @@ export default function Guests() {
                     </div>
                     <div className="shrink-0 text-right text-xs text-muted">
                       <p>
-                        {g.visits} visit{g.visits === 1 ? "" : "s"}
+                        {g.signInsInRange} sign-in{g.signInsInRange === 1 ? "" : "s"}
                       </p>
                       <p>
                         {new Date(g.lastSeenAt).toLocaleDateString("en-GB", {
