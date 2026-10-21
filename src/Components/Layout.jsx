@@ -1,14 +1,15 @@
 // The frame around every admin page: the sidebar on the left (a slide-in
 // menu on phones) and the top bar with the page's name.
 import { useEffect, useState } from "react";
-import { NavLink, useLocation } from "react-router";
-import { LogOut, Menu, Wifi, X } from "lucide-react";
+import { Link, NavLink, useLocation, useNavigate } from "react-router";
+import { ExternalLink, LogOut, Menu, Wifi, X } from "lucide-react";
 import { navLinks, getPageTitle } from "./navLinks";
 import { APP_NAME } from "../brand";
 import SiteSwitcher from "./SiteSwitcher";
 import ThemeSwitch from "./ThemeSwitch";
 import SiteIcon from "./SiteIcon";
 import useData from "../useData";
+import { adminInitials } from "../admins";
 
 function SidebarLink({ link, onClick }) {
   const Icon = link.icon;
@@ -39,6 +40,8 @@ function SidebarLink({ link, onClick }) {
 }
 
 function Sidebar({ open, onClose }) {
+  const { currentAdmin, signOut } = useData();
+  const navigate = useNavigate();
   return (
     <>
       {/* The dark cover behind the menu on phones; tapping it closes the menu */}
@@ -79,13 +82,38 @@ function Sidebar({ open, onClose }) {
         <div className="space-y-2 border-t border-line p-3">
           <ThemeSwitch />
           <SiteSwitcher onPicked={onClose} />
-          <button
-            type="button"
-            className="flex h-11 w-full items-center gap-3 rounded-xl px-4 text-sm font-medium text-muted transition-colors hover:bg-red-50 hover:text-red-600"
-          >
-            <LogOut size={20} />
-            Sign out
-          </button>
+          {/* You: opens My account; the door signs you out */}
+          <div className="flex items-center gap-1">
+            <Link
+              to="/account"
+              onClick={onClose}
+              className="flex min-w-0 flex-1 items-center gap-3 rounded-xl px-2 py-1.5 transition hover:bg-brand/5"
+            >
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-soft text-xs font-semibold text-brand">
+                {adminInitials(currentAdmin?.name ?? "")}
+              </span>
+              <span className="min-w-0">
+                <span className="block truncate text-sm font-medium">
+                  {currentAdmin?.name}
+                </span>
+                <span className="block truncate text-xs text-muted">
+                  {currentAdmin?.email}
+                </span>
+              </span>
+            </Link>
+            <button
+              type="button"
+              onClick={() => {
+                signOut();
+                navigate("/login");
+              }}
+              className="shrink-0 rounded-xl p-2.5 text-muted transition-colors hover:bg-red-50 hover:text-red-600"
+              aria-label="Sign out"
+              title="Sign out"
+            >
+              <LogOut size={20} />
+            </button>
+          </div>
         </div>
       </aside>
     </>
@@ -123,12 +151,24 @@ export default function Layout({ children }) {
             <Menu size={22} />
           </button>
           <h1 className="text-lg font-semibold">{title}</h1>
-          {/* Which site you're looking at, on the right */}
+          {/* Which site you're looking at, on the right, with a link to
+              its guest sign-in page */}
           <span className="ml-auto flex min-w-0 items-center gap-2 text-sm text-muted">
             {currentSite && <SiteIcon site={currentSite} size="sm" />}
-            <span className="truncate">
+            <span className="hidden truncate sm:block">
               {currentSite ? currentSite.name : "All sites"}
             </span>
+            {currentSite && (
+              <Link
+                to={`/p/${currentSite.slug}`}
+                className="flex shrink-0 items-center gap-1.5 rounded-lg border border-line px-2.5 py-1.5 text-xs font-semibold text-ink transition hover:border-brand/40 hover:text-brand"
+                title="Open this site's guest sign-in page"
+              >
+                <ExternalLink size={14} />
+                Guest page
+              </Link>
+            )}
+            {!currentSite && <span className="sm:hidden">All sites</span>}
           </span>
         </header>
 

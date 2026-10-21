@@ -23,6 +23,7 @@ export const navLinks = [
 // The page name for an address, for the top bar and the browser tab
 export function getPageTitle(pathname) {
   if (pathname === "/") return "Dashboard";
+  if (pathname.startsWith("/account")) return "My account";
   const link = navLinks.find(
     (l) => l.path !== "/" && pathname.startsWith(l.path),
   );
