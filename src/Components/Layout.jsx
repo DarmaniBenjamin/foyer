@@ -5,6 +5,9 @@ import { NavLink, useLocation } from "react-router";
 import { LogOut, Menu, Wifi, X } from "lucide-react";
 import { navLinks, getPageTitle } from "./navLinks";
 import { APP_NAME } from "../brand";
+import SiteSwitcher from "./SiteSwitcher";
+import SiteIcon from "./SiteIcon";
+import useData from "../useData";
 
 function SidebarLink({ link, onClick }) {
   const Icon = link.icon;
@@ -72,7 +75,8 @@ function Sidebar({ open, onClose }) {
           ))}
         </nav>
 
-        <div className="border-t border-line p-3">
+        <div className="space-y-2 border-t border-line p-3">
+          <SiteSwitcher onPicked={onClose} />
           <button
             type="button"
             className="flex h-11 w-full items-center gap-3 rounded-xl px-4 text-sm font-medium text-muted transition-colors hover:bg-red-50 hover:text-red-600"
@@ -90,6 +94,7 @@ export default function Layout({ children }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const { pathname } = useLocation();
   const title = getPageTitle(pathname);
+  const { currentSite } = useData();
 
   // The browser tab shows the page's name
   useEffect(() => {
@@ -116,6 +121,13 @@ export default function Layout({ children }) {
             <Menu size={22} />
           </button>
           <h1 className="text-lg font-semibold">{title}</h1>
+          {/* Which site you're looking at, on the right */}
+          <span className="ml-auto flex min-w-0 items-center gap-2 text-sm text-muted">
+            {currentSite && <SiteIcon site={currentSite} size="sm" />}
+            <span className="truncate">
+              {currentSite ? currentSite.name : "All sites"}
+            </span>
+          </span>
         </header>
 
         <main className="flex-1 p-4 sm:p-6">{children}</main>
