@@ -21,6 +21,7 @@ export default function Dashboard() {
     guests,
     connections,
     currentSite,
+    can,
     pickSite,
     range: rangeValue,
     setRange,
@@ -123,7 +124,12 @@ export default function Dashboard() {
                     {site && <SiteIcon site={site} size="sm" />}
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium">
-                        {guest ? guestName(guest, site) : "Removed guest"}
+                        {/* Names are guest data: client logins need access */}
+                        {!can("guests")
+                          ? "Guest"
+                          : guest
+                            ? guestName(guest, site)
+                            : "Removed guest"}
                       </p>
                       <p className="truncate text-xs text-muted">{site?.name}</p>
                     </div>

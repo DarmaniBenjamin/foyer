@@ -5,6 +5,11 @@
 // and Reports show (This month to start with). Who is signed in, the
 // site and the date range are remembered on this browser, so they're
 // still there after a reload.
+//
+// A client login only gets their own sites and those sites' data, so
+// every page shows just theirs without checking. can(area, level) says
+// whether the signed-in person may see or change an area. The guest
+// page uses allSites and allAds, since guests aren't signed in.
 
 import { useMemo, useState } from "react";
 import { DataContext } from "./useData";
@@ -17,7 +22,7 @@ import {
   makeSlug,
 } from "./data";
 import { STARTING_VOUCHERS, makeCodes, voucherStatus } from "./vouchers";
-import { STARTING_ADMINS } from "./admins";
+import { STARTING_ADMINS, canAccess } from "./admins";
 import { STARTING_WHITELIST } from "./whitelist";
 import { STARTING_ADS } from "./ads";
 import { STARTING_CONNECTIONS, STARTING_GUESTS } from "./guests";
@@ -106,15 +111,36 @@ export default function DataProvider({ children }) {
   const [siteId, setSiteId] = useState(savedSiteId);
   const [range, setRangeState] = useState(savedRange);
 
-  // The signed-in admin, or null
+  // The signed-in person, or null
   const currentAdmin = admins.find((a) => a.id === adminId) ?? null;
+  const isClient = currentAdmin?.role === "client";
+
+  // A client's own sites, or null for everyone else (every site)
+  const ownSites = useMemo(
+    () => (isClient ? new Set(currentAdmin.siteIds) : null),
+    [isClient, currentAdmin],
+  );
+  const scoped = useMemo(() => {
+    const only = (list, key = "siteId") =>
+      ownSites ? list.filter((item) => ownSites.has(item[key])) : list;
+    return {
+      sites: only(sites, "id"),
+      vouchers: only(vouchers),
+      whitelist: only(whitelist),
+      ads: only(ads),
+      guests: only(guests),
+      connections: only(connections),
+    };
+  }, [ownSites, sites, vouchers, whitelist, ads, guests, connections]);
 
   // The picked site, or null for "All sites" (also if the saved site
-  // was removed)
+  // was removed, or isn't one of a client's sites)
   const currentSite = useMemo(
-    () => sites.find((s) => s.id === siteId) ?? null,
-    [sites, siteId],
+    () => scoped.sites.find((s) => s.id === siteId) ?? null,
+    [scoped.sites, siteId],
   );
+
+  const can = (area, level = "read") => canAccess(currentAdmin, area, level);
 
   function pickSite(id) {
     setSiteId(id);
@@ -209,6 +235,9 @@ export default function DataProvider({ children }) {
     setVouchers((list) => list.filter((v) => v.siteId !== id));
     setWhitelist((list) => list.filter((w) => w.siteId !== id));
     setAds((list) => list.filter((a) => a.siteId !== id));
+    setAdmins((list) =>
+      list.map((a) => ({ ...a, siteIds: (a.siteIds ?? []).filter((s) => s !== id) })),
+    );
     setGuests((list) => list.filter((g) => g.siteId !== id));
     setConnections((list) => list.filter((c) => c.siteId !== id));
   }
@@ -358,6 +387,8 @@ export default function DataProvider({ children }) {
   const value = {
     admins,
     currentAdmin,
+    isClient,
+    can,
     signIn,
     signOut,
     addAdmin,
@@ -365,12 +396,9 @@ export default function DataProvider({ children }) {
     removeAdmin,
     recordSignIn,
     controllers,
-    sites,
-    vouchers,
-    whitelist,
-    ads,
-    guests,
-    connections,
+    ...scoped,
+    allSites: sites,
+    allAds: ads,
     currentSite,
     pickSite,
     range,

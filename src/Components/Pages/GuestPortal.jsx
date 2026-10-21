@@ -38,7 +38,7 @@ function Notice({ icon, title, text }) {
 // the page opens, so turning one on or off in another tab doesn't
 // change what this guest sees.
 function Portal({ site }) {
-  const { ads, recordSignIn, recordAdView, recordAdClick } = useData();
+  const { allAds: ads, recordSignIn, recordAdView, recordAdClick } = useData();
   const [before] = useState(() => pickAd(ads, site.id, "before"));
   const [after] = useState(() => pickAd(ads, site.id, "after"));
   const [showing, setShowing] = useState(before); // the ad on screen, or null
@@ -67,7 +67,7 @@ function Portal({ site }) {
 
 export default function GuestPortal() {
   const { slug } = useParams();
-  const { sites, currentAdmin } = useData();
+  const { allSites: sites, currentAdmin } = useData();
   const site = sites.find((s) => s.slug === slug);
 
   useEffect(() => {

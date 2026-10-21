@@ -1,6 +1,7 @@
 // Device whitelist: devices that skip the sign-in page (smart TVs,
 // FireSticks, staff tablets). Follows the site switcher: one site's
-// devices, or every site's on "All sites".
+// devices, or every site's on "All sites". Client logins with Read
+// access only see the list.
 import { useState } from "react";
 import { Pencil, Plus, Search, Trash2 } from "lucide-react";
 import useData from "../../useData";
@@ -38,8 +39,16 @@ function Status({ status }) {
 }
 
 export default function Whitelist() {
-  const { sites, whitelist, currentSite, addWhitelist, updateWhitelist, deleteWhitelist } =
-    useData();
+  const {
+    sites,
+    whitelist,
+    currentSite,
+    can,
+    addWhitelist,
+    updateWhitelist,
+    deleteWhitelist,
+  } = useData();
+  const canEdit = can("whitelist", "write");
   const [search, setSearch] = useState("");
   const [editing, setEditing] = useState(null); // "new" or an entry
   const [deleting, setDeleting] = useState(null);
@@ -56,26 +65,27 @@ export default function Whitelist() {
     );
   const siteOf = (w) => sites.find((s) => s.id === w.siteId);
 
-  const actions = (w) => (
-    <div className="flex shrink-0 justify-end">
-      <button
-        type="button"
-        onClick={() => setEditing(w)}
-        className="rounded-lg p-2 text-muted transition hover:bg-page hover:text-brand"
-        aria-label="Edit"
-      >
-        <Pencil size={16} />
-      </button>
-      <button
-        type="button"
-        onClick={() => setDeleting(w)}
-        className="rounded-lg p-2 text-muted transition hover:bg-red-50 hover:text-red-600"
-        aria-label="Delete"
-      >
-        <Trash2 size={16} />
-      </button>
-    </div>
-  );
+  const actions = (w) =>
+    canEdit && (
+      <div className="flex shrink-0 justify-end">
+        <button
+          type="button"
+          onClick={() => setEditing(w)}
+          className="rounded-lg p-2 text-muted transition hover:bg-page hover:text-brand"
+          aria-label="Edit"
+        >
+          <Pencil size={16} />
+        </button>
+        <button
+          type="button"
+          onClick={() => setDeleting(w)}
+          className="rounded-lg p-2 text-muted transition hover:bg-red-50 hover:text-red-600"
+          aria-label="Delete"
+        >
+          <Trash2 size={16} />
+        </button>
+      </div>
+    );
 
   return (
     <div className="space-y-5">
@@ -84,14 +94,16 @@ export default function Whitelist() {
           Devices that go straight on to the Wi-Fi without the sign-in page,
           like a smart TV or a FireStick.
         </p>
-        <button
-          type="button"
-          onClick={() => setEditing("new")}
-          className={`${primaryButton} shrink-0`}
-        >
-          <Plus size={18} />
-          Add device
-        </button>
+        {canEdit && (
+          <button
+            type="button"
+            onClick={() => setEditing("new")}
+            className={`${primaryButton} shrink-0`}
+          >
+            <Plus size={18} />
+            Add device
+          </button>
+        )}
       </div>
 
       <div className="rounded-2xl border border-line bg-white">
@@ -114,7 +126,11 @@ export default function Whitelist() {
           <div className="px-6 py-14 text-center">
             <p className="font-medium">No devices here</p>
             <p className="mt-1 text-sm text-muted">
-              {search ? "Nothing matches that search." : "Press Add device to add one."}
+              {search
+                ? "Nothing matches that search."
+                : canEdit
+                  ? "Press Add device to add one."
+                  : "None of your devices skip the sign-in page."}
             </p>
           </div>
         ) : (
@@ -125,7 +141,9 @@ export default function Whitelist() {
                 <thead>
                   <tr className="text-left text-xs tracking-wide whitespace-nowrap text-muted uppercase">
                     <th className="px-4 py-3 font-medium">MAC address</th>
-                    {!currentSite && <th className="px-4 py-3 font-medium">Site</th>}
+                    {!currentSite && (
+                      <th className="px-4 py-3 font-medium">Site</th>
+                    )}
                     <th className="px-4 py-3 font-medium">Status</th>
                     <th className="px-4 py-3 font-medium">Ends</th>
                     <th className="px-4 py-3 font-medium">Note</th>
@@ -136,7 +154,10 @@ export default function Whitelist() {
                   {list.map((w) => {
                     const site = siteOf(w);
                     return (
-                      <tr key={w.id} className="border-t border-line transition-colors hover:bg-brand/5">
+                      <tr
+                        key={w.id}
+                        className="border-t border-line transition-colors hover:bg-brand/5"
+                      >
                         <td className="px-4 py-3">
                           <p className="font-mono font-semibold">{w.mac}</p>
                           <p className="text-xs text-muted">{limits(w)}</p>
@@ -211,7 +232,11 @@ export default function Whitelist() {
           onClose={() => setDeleting(null)}
           footer={
             <>
-              <button type="button" onClick={() => setDeleting(null)} className={secondaryButton}>
+              <button
+                type="button"
+                onClick={() => setDeleting(null)}
+                className={secondaryButton}
+              >
                 Cancel
               </button>
               <button
@@ -228,8 +253,8 @@ export default function Whitelist() {
           }
         >
           <p className="text-sm text-muted">
-            {deleting.note} ({deleting.mac}) will see the sign-in page next
-            time it connects.
+            {deleting.note} ({deleting.mac}) will see the sign-in page next time
+            it connects.
           </p>
         </Modal>
       )}

@@ -66,6 +66,7 @@ export default function Guests() {
     guests,
     connections,
     currentSite,
+    can,
     range: rangeValue,
     setRange,
   } = useData();
@@ -165,12 +166,14 @@ export default function Guests() {
           {currentSite.name} signs guests in with{" "}
           <b className="text-ink">{SIGN_IN_MODES[currentSite.mode].label}</b>, so
           there are no answers, only devices.{" "}
-          <Link
-            to={`/sites/${currentSite.id}`}
-            className="font-semibold text-brand hover:underline"
-          >
-            Ask questions instead
-          </Link>
+          {can("sites") && (
+            <Link
+              to={`/sites/${currentSite.id}`}
+              className="font-semibold text-brand hover:underline"
+            >
+              Ask questions instead
+            </Link>
+          )}
         </p>
       )}
 

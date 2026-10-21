@@ -40,7 +40,7 @@ function SidebarLink({ link, onClick }) {
 }
 
 function Sidebar({ open, onClose }) {
-  const { currentAdmin, signOut } = useData();
+  const { currentAdmin, isClient, can, signOut } = useData();
   const navigate = useNavigate();
   return (
     <>
@@ -74,9 +74,11 @@ function Sidebar({ open, onClose }) {
         </div>
 
         <nav className="flex flex-1 flex-col gap-1 overflow-y-auto px-3 py-2">
-          {navLinks.map((link) => (
-            <SidebarLink key={link.path} link={link} onClick={onClose} />
-          ))}
+          {navLinks
+            .filter((link) => can(link.area))
+            .map((link) => (
+              <SidebarLink key={link.path} link={link} onClick={onClose} />
+            ))}
         </nav>
 
         <div className="space-y-2 border-t border-line p-3">
@@ -93,8 +95,13 @@ function Sidebar({ open, onClose }) {
                 {adminInitials(currentAdmin?.name ?? "")}
               </span>
               <span className="min-w-0">
-                <span className="block truncate text-sm font-medium">
-                  {currentAdmin?.name}
+                <span className="flex items-center gap-1.5 text-sm font-medium">
+                  <span className="truncate">{currentAdmin?.name}</span>
+                  {isClient && (
+                    <span className="shrink-0 rounded-full bg-brand/10 px-1.5 py-0.5 text-[10px] font-semibold text-brand">
+                      Client
+                    </span>
+                  )}
                 </span>
                 <span className="block truncate text-xs text-muted">
                   {currentAdmin?.email}

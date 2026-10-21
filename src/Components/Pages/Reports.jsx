@@ -29,10 +29,16 @@ function DownloadButton({ icon, title, detail, onClick, busy, disabled }) {
       className="group flex w-full items-center gap-4 rounded-2xl border border-line bg-white p-4 text-left transition hover:-translate-y-0.5 hover:border-brand/30 hover:shadow-md disabled:pointer-events-none disabled:opacity-60"
     >
       <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-brand text-white">
-        {busy ? <LoaderCircle size={22} className="animate-spin" /> : <Icon size={22} />}
+        {busy ? (
+          <LoaderCircle size={22} className="animate-spin" />
+        ) : (
+          <Icon size={22} />
+        )}
       </span>
       <span className="min-w-0">
-        <span className="block font-semibold group-hover:text-brand">{title}</span>
+        <span className="block font-semibold group-hover:text-brand">
+          {title}
+        </span>
         <span className="block text-sm text-muted">{detail}</span>
       </span>
     </button>
@@ -40,8 +46,17 @@ function DownloadButton({ icon, title, detail, onClick, busy, disabled }) {
 }
 
 export default function Reports() {
-  const { sites, guests, connections, currentSite, range: rangeValue, setRange } =
-    useData();
+  const {
+    sites,
+    guests,
+    connections,
+    currentSite,
+    can,
+    range: rangeValue,
+    setRange,
+  } = useData();
+  // The guest list is guest data: client logins need access to it
+  const canGuests = can("guests");
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [now] = useState(() => Date.now());
@@ -54,7 +69,8 @@ export default function Reports() {
   const guestCount = useMemo(
     () =>
       (currentSite ? [currentSite] : sites).reduce(
-        (sum, s) => sum + guestsIn({ connections, guests, site: s, range }).length,
+        (sum, s) =>
+          sum + guestsIn({ connections, guests, site: s, range }).length,
         0,
       ),
     [connections, guests, sites, currentSite, range],
@@ -91,20 +107,22 @@ export default function Reports() {
       </div>
 
       <div className="grid gap-3 md:grid-cols-2">
-        <DownloadButton
-          icon={FileSpreadsheet}
-          title="Guest list (Excel)"
-          detail={`${guestCount.toLocaleString()} guests, ${
-            currentSite
-              ? currentSite.mode === "form"
-                ? "every question its own column"
-                : "devices only (no form)"
-              : "one sheet per site"
-          } · ${period}`}
-          busy={busy === "excel"}
-          disabled={guestCount === 0}
-          onClick={() => download("excel")}
-        />
+        {canGuests && (
+          <DownloadButton
+            icon={FileSpreadsheet}
+            title="Guest list (Excel)"
+            detail={`${guestCount.toLocaleString()} guests, ${
+              currentSite
+                ? currentSite.mode === "form"
+                  ? "every question its own column"
+                  : "devices only (no form)"
+                : "one sheet per site"
+            } · ${period}`}
+            busy={busy === "excel"}
+            disabled={guestCount === 0}
+            onClick={() => download("excel")}
+          />
+        )}
         <DownloadButton
           icon={FileText}
           title="Report with graphs (Word)"
@@ -121,10 +139,26 @@ export default function Reports() {
       )}
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatTile label="Sign-ins" value={report.signIns.toLocaleString()} detail={`${report.perDay.toFixed(1)} a day`} />
-        <StatTile label="Guests" value={report.guests.toLocaleString()} detail="Different devices" />
-        <StatTile label="New guests" value={report.newGuests.toLocaleString()} detail="First time ever" />
-        <StatTile label="Came back" value={report.returning.toLocaleString()} detail="More than one visit" />
+        <StatTile
+          label="Sign-ins"
+          value={report.signIns.toLocaleString()}
+          detail={`${report.perDay.toFixed(1)} a day`}
+        />
+        <StatTile
+          label="Guests"
+          value={report.guests.toLocaleString()}
+          detail="Different devices"
+        />
+        <StatTile
+          label="New guests"
+          value={report.newGuests.toLocaleString()}
+          detail="First time ever"
+        />
+        <StatTile
+          label="Came back"
+          value={report.returning.toLocaleString()}
+          detail="More than one visit"
+        />
       </div>
 
       <ChartCard

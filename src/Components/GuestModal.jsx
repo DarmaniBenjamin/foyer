@@ -1,5 +1,6 @@
 // One guest's details: what they typed, their device, and their recent
-// sign-ins. Also where a guest is removed when they ask to be forgotten.
+// sign-ins. Also where a guest is removed when they ask to be forgotten
+// (not for client logins with Read access to guest data).
 import { useState } from "react";
 import { Trash2 } from "lucide-react";
 import Modal from "./Modal";
@@ -18,7 +19,7 @@ function Row({ label, children }) {
 }
 
 export default function GuestModal({ guest, onClose }) {
-  const { sites, connections, deleteGuest } = useData();
+  const { sites, connections, can, deleteGuest } = useData();
   const [confirming, setConfirming] = useState(false);
   const site = sites.find((s) => s.id === guest.siteId);
   const fields = site?.fields ?? [];
@@ -64,14 +65,16 @@ export default function GuestModal({ guest, onClose }) {
           </>
         ) : (
           <>
-            <button
-              type="button"
-              onClick={() => setConfirming(true)}
-              className={`${secondaryButton} mr-auto hover:border-red-200 hover:bg-red-50 hover:text-red-600`}
-            >
-              <Trash2 size={16} />
-              Forget guest
-            </button>
+            {can("guests", "write") && (
+              <button
+                type="button"
+                onClick={() => setConfirming(true)}
+                className={`${secondaryButton} mr-auto hover:border-red-200 hover:bg-red-50 hover:text-red-600`}
+              >
+                <Trash2 size={16} />
+                Forget guest
+              </button>
+            )}
             <button type="button" onClick={onClose} className={secondaryButton}>
               Close
             </button>

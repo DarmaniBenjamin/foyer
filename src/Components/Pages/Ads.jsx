@@ -1,7 +1,7 @@
 // Splash ads: pictures shown on a site's guest page for a few seconds,
 // before signing in or after connecting. Follows the site switcher: one
 // site's ads, or every site's on "All sites". Each ad shows its views,
-// taps and click rate.
+// taps and click rate. Client logins with Read access only see them.
 import { useState } from "react";
 import { Eye, MousePointerClick, Pencil, Plus, Trash2 } from "lucide-react";
 import useData from "../../useData";
@@ -19,17 +19,25 @@ const STATUS = {
 };
 
 const day = (ms) =>
-  new Date(ms).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+  new Date(ms).toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
 
 function dates(ad) {
   if (!ad.startsAt && !ad.endsAt) return "No end date";
-  if (ad.startsAt && ad.endsAt) return `${day(ad.startsAt)} – ${day(ad.endsAt)}`;
+  if (ad.startsAt && ad.endsAt)
+    return `${day(ad.startsAt)} – ${day(ad.endsAt)}`;
   return ad.startsAt ? `From ${day(ad.startsAt)}` : `Until ${day(ad.endsAt)}`;
 }
 
 function Toggle({ checked, onChange, label }) {
   return (
-    <label className="relative inline-flex shrink-0 cursor-pointer" title={label}>
+    <label
+      className="relative inline-flex shrink-0 cursor-pointer"
+      title={label}
+    >
       <input
         type="checkbox"
         checked={checked}
@@ -44,7 +52,8 @@ function Toggle({ checked, onChange, label }) {
 }
 
 export default function Ads() {
-  const { sites, ads, currentSite, addAd, updateAd, deleteAd } = useData();
+  const { sites, ads, currentSite, can, addAd, updateAd, deleteAd } = useData();
+  const canEdit = can("ads", "write");
   const [editing, setEditing] = useState(null); // "new" or an ad
   const [deleting, setDeleting] = useState(null);
   const [now] = useState(() => Date.now());
@@ -59,17 +68,19 @@ export default function Ads() {
     <div className="space-y-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="max-w-2xl text-sm text-muted">
-          Pictures guests see full screen for a few seconds on the Wi-Fi
-          page. If a site has more than one running, they take turns.
+          Pictures guests see full screen for a few seconds on the Wi-Fi page.
+          If a site has more than one running, they take turns.
         </p>
-        <button
-          type="button"
-          onClick={() => setEditing("new")}
-          className={`${primaryButton} shrink-0`}
-        >
-          <Plus size={18} />
-          New ad
-        </button>
+        {canEdit && (
+          <button
+            type="button"
+            onClick={() => setEditing("new")}
+            className={`${primaryButton} shrink-0`}
+          >
+            <Plus size={18} />
+            New ad
+          </button>
+        )}
       </div>
 
       <div className="grid grid-cols-3 gap-2 sm:gap-3">
@@ -78,7 +89,10 @@ export default function Ads() {
           ["Views", totalViews],
           ["Taps", totalClicks],
         ].map(([label, value]) => (
-          <div key={label} className="rounded-2xl border border-line bg-white p-3 sm:p-4">
+          <div
+            key={label}
+            className="rounded-2xl border border-line bg-white p-3 sm:p-4"
+          >
             <p className="text-xs text-muted sm:text-sm">{label}</p>
             <p className="text-xl font-semibold">{value.toLocaleString()}</p>
           </div>
@@ -88,7 +102,9 @@ export default function Ads() {
       {list.length === 0 ? (
         <div className="rounded-2xl border border-line bg-white px-6 py-14 text-center">
           <p className="font-medium">No splash ads yet</p>
-          <p className="mt-1 text-sm text-muted">Press New ad to add one.</p>
+          {canEdit && (
+            <p className="mt-1 text-sm text-muted">Press New ad to add one.</p>
+          )}
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
@@ -102,9 +118,9 @@ export default function Ads() {
               >
                 <button
                   type="button"
-                  onClick={() => setEditing(ad)}
-                  className="flex h-48 items-center justify-center bg-black/90 p-3"
-                  aria-label={`Edit ${ad.name}`}
+                  onClick={() => canEdit && setEditing(ad)}
+                  className={`flex h-48 items-center justify-center bg-black/90 p-3 ${canEdit ? "" : "cursor-default"}`}
+                  aria-label={canEdit ? `Edit ${ad.name}` : ad.name}
                 >
                   <img
                     src={ad.image}
@@ -120,15 +136,19 @@ export default function Ads() {
                         {AD_WHEN[ad.when].label} · {ad.seconds} s
                       </p>
                     </div>
-                    <Toggle
-                      checked={ad.active}
-                      onChange={(active) => updateAd(ad.id, { active })}
-                      label={ad.active ? "Turn off" : "Turn on"}
-                    />
+                    {canEdit && (
+                      <Toggle
+                        checked={ad.active}
+                        onChange={(active) => updateAd(ad.id, { active })}
+                        label={ad.active ? "Turn off" : "Turn on"}
+                      />
+                    )}
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2 text-xs">
-                    <span className={`rounded-full px-2 py-0.5 font-medium ${statusClass}`}>
+                    <span
+                      className={`rounded-full px-2 py-0.5 font-medium ${statusClass}`}
+                    >
                       {statusLabel}
                     </span>
                     <span className="text-muted">{dates(ad)}</span>
@@ -149,26 +169,30 @@ export default function Ads() {
                     <span className="flex items-center gap-1.5" title="Taps">
                       <MousePointerClick size={16} className="text-muted" />
                       {ad.clicks.toLocaleString()}
-                      <span className="text-xs text-muted">({clickRate(ad)})</span>
+                      <span className="text-xs text-muted">
+                        ({clickRate(ad)})
+                      </span>
                     </span>
-                    <div className="ml-auto flex">
-                      <button
-                        type="button"
-                        onClick={() => setEditing(ad)}
-                        className="rounded-lg p-2 text-muted transition hover:bg-page hover:text-brand"
-                        aria-label="Edit"
-                      >
-                        <Pencil size={16} />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setDeleting(ad)}
-                        className="rounded-lg p-2 text-muted transition hover:bg-red-50 hover:text-red-600"
-                        aria-label="Delete"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
+                    {canEdit && (
+                      <div className="ml-auto flex">
+                        <button
+                          type="button"
+                          onClick={() => setEditing(ad)}
+                          className="rounded-lg p-2 text-muted transition hover:bg-page hover:text-brand"
+                          aria-label="Edit"
+                        >
+                          <Pencil size={16} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setDeleting(ad)}
+                          className="rounded-lg p-2 text-muted transition hover:bg-red-50 hover:text-red-600"
+                          aria-label="Delete"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -196,7 +220,11 @@ export default function Ads() {
           onClose={() => setDeleting(null)}
           footer={
             <>
-              <button type="button" onClick={() => setDeleting(null)} className={secondaryButton}>
+              <button
+                type="button"
+                onClick={() => setDeleting(null)}
+                className={secondaryButton}
+              >
                 Cancel
               </button>
               <button
@@ -213,8 +241,8 @@ export default function Ads() {
           }
         >
           <p className="text-sm text-muted">
-            Guests stop seeing it, and its view and tap counts are removed.
-            To pause it instead, turn it off.
+            Guests stop seeing it, and its view and tap counts are removed. To
+            pause it instead, turn it off.
           </p>
         </Modal>
       )}

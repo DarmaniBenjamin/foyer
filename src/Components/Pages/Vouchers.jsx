@@ -85,7 +85,9 @@ function limitsText(v) {
 }
 
 export default function Vouchers() {
-  const { sites, vouchers, currentSite, deleteVouchers } = useData();
+  const { sites, vouchers, currentSite, can, deleteVouchers } = useData();
+  // Client logins with Read access can see and print, not make or delete
+  const canEdit = can("vouchers", "write");
   const [status, setStatus] = useState("all");
   const [batch, setBatch] = useState("");
   const [search, setSearch] = useState("");
@@ -153,14 +155,16 @@ export default function Vouchers() {
             ? `Codes guests type to get on ${currentSite.name}'s Wi-Fi.`
             : "Codes guests type to get on the Wi-Fi, for every site."}
         </p>
-        <button
-          type="button"
-          onClick={() => setMaking(true)}
-          className={`${primaryButton} shrink-0`}
-        >
-          <TicketPlus size={18} />
-          Make vouchers
-        </button>
+        {canEdit && (
+          <button
+            type="button"
+            onClick={() => setMaking(true)}
+            className={`${primaryButton} shrink-0`}
+          >
+            <TicketPlus size={18} />
+            Make vouchers
+          </button>
+        )}
       </div>
 
       {currentSite && currentSite.mode !== "voucher" && (
@@ -169,11 +173,16 @@ export default function Vouchers() {
           <p>
             {currentSite.name} signs guests in with{" "}
             {SIGN_IN_MODES[currentSite.mode].label}, so its guests aren't asked
-            for a code.{" "}
-            <Link to={`/sites/${currentSite.id}`} className="font-semibold underline">
-              Change it on the site's page
-            </Link>{" "}
-            (Sign-in tab) to use vouchers.
+            for a code.
+            {can("sites") && (
+              <>
+                {" "}
+                <Link to={`/sites/${currentSite.id}`} className="font-semibold underline">
+                  Change it on the site's page
+                </Link>{" "}
+                (Sign-in tab) to use vouchers.
+              </>
+            )}
           </p>
         </div>
       )}
@@ -270,7 +279,7 @@ export default function Vouchers() {
               <Printer size={16} />
               Print {printable.length}
             </button>
-            {activeBatch && (
+            {canEdit && activeBatch && (
               <button
                 type="button"
                 onClick={() =>
@@ -294,7 +303,9 @@ export default function Vouchers() {
             <p className="mt-1 text-sm text-muted">
               {forSite.length
                 ? "Nothing matches these filters."
-                : "Press Make vouchers to create some."}
+                : canEdit
+                  ? "Press Make vouchers to create some."
+                  : "There are no vouchers yet."}
             </p>
           </div>
         ) : (
@@ -353,11 +364,13 @@ export default function Vouchers() {
                         <td className="px-2 py-3">
                           <div className="flex justify-end">
                             <CopyButton text={v.code} />
-                            <DeleteButton
-                              onClick={() =>
-                                setDeleting({ ids: [v.id], text: `voucher ${v.code}` })
-                              }
-                            />
+                            {canEdit && (
+                              <DeleteButton
+                                onClick={() =>
+                                  setDeleting({ ids: [v.id], text: `voucher ${v.code}` })
+                                }
+                              />
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -389,11 +402,13 @@ export default function Vouchers() {
                     </div>
                     <div className="flex shrink-0">
                       <CopyButton text={v.code} />
-                      <DeleteButton
-                        onClick={() =>
-                          setDeleting({ ids: [v.id], text: `voucher ${v.code}` })
-                        }
-                      />
+                      {canEdit && (
+                        <DeleteButton
+                          onClick={() =>
+                            setDeleting({ ids: [v.id], text: `voucher ${v.code}` })
+                          }
+                        />
+                      )}
                     </div>
                   </div>
                 );
