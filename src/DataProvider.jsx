@@ -1,5 +1,5 @@
-// Holds the data every page shares: the controllers, the sites, and
-// which site you're looking at (or "All sites").
+// Holds the data every page shares: the controllers, the sites, the
+// vouchers, and which site you're looking at (or "All sites").
 //
 // The site you pick is remembered on this browser, so it's still picked
 // after a reload.
@@ -7,9 +7,13 @@ import { useMemo, useState } from "react";
 import { DataContext } from "./useData";
 import {
   ALL_SITES,
+  SITE_COLORS,
   STARTING_CONTROLLERS,
   STARTING_SITES,
+  makeSite,
+  makeSlug,
 } from "./data";
+import { STARTING_VOUCHERS, makeCodes } from "./vouchers";
 
 const SAVED_SITE = "foyer-site";
 
@@ -23,9 +27,12 @@ function savedSiteId() {
   }
 }
 
+const nextId = (list) => Math.max(0, ...list.map((item) => item.id)) + 1;
+
 export default function DataProvider({ children }) {
   const [controllers, setControllers] = useState(STARTING_CONTROLLERS);
-  const [sites] = useState(STARTING_SITES);
+  const [sites, setSites] = useState(STARTING_SITES);
+  const [vouchers, setVouchers] = useState(STARTING_VOUCHERS);
   const [siteId, setSiteId] = useState(savedSiteId);
 
   // The picked site, or null for "All sites" (also if the saved site
@@ -47,7 +54,7 @@ export default function DataProvider({ children }) {
   // ---------- Controllers ----------
 
   function addController(values) {
-    const id = Math.max(0, ...controllers.map((c) => c.id)) + 1;
+    const id = nextId(controllers);
     setControllers((list) => [...list, { ...values, id, lastTest: null }]);
   }
 
@@ -61,14 +68,75 @@ export default function DataProvider({ children }) {
     setControllers((list) => list.filter((c) => c.id !== id));
   }
 
+  // ---------- Sites ----------
+
+  // values: { name, controllerId, mode }. Returns the new site.
+  function addSite(values) {
+    const id = nextId(sites);
+    const site = makeSite({
+      ...values,
+      id,
+      slug: makeSlug(
+        values.name,
+        sites.map((s) => s.slug),
+      ),
+      color: SITE_COLORS[sites.length % SITE_COLORS.length],
+    });
+    setSites((list) => [...list, site]);
+    return site;
+  }
+
+  function updateSite(id, changes) {
+    setSites((list) =>
+      list.map((s) => (s.id === id ? { ...s, ...changes } : s)),
+    );
+  }
+
+  function deleteSite(id) {
+    setSites((list) => list.filter((s) => s.id !== id));
+    setVouchers((list) => list.filter((v) => v.siteId !== id));
+  }
+
+  // ---------- Vouchers ----------
+
+  // values: { siteId, count, batch, minutes, maxUses, downKbps, upKbps,
+  // dataMb, validUntil }. Returns the new vouchers.
+  function addVouchers({ count, ...values }) {
+    const taken = new Set(
+      vouchers.filter((v) => v.siteId === values.siteId).map((v) => v.code),
+    );
+    let id = nextId(vouchers);
+    const createdAt = Date.now();
+    const made = makeCodes(count, taken).map((code) => ({
+      ...values,
+      id: id++,
+      code,
+      uses: 0,
+      createdAt,
+    }));
+    setVouchers((list) => [...made, ...list]);
+    return made;
+  }
+
+  function deleteVouchers(ids) {
+    const gone = new Set(ids);
+    setVouchers((list) => list.filter((v) => !gone.has(v.id)));
+  }
+
   const value = {
     controllers,
     sites,
+    vouchers,
     currentSite,
     pickSite,
     addController,
     updateController,
     deleteController,
+    addSite,
+    updateSite,
+    deleteSite,
+    addVouchers,
+    deleteVouchers,
   };
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;

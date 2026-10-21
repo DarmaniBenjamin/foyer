@@ -1,6 +1,7 @@
 // What guests see on their phone when they join a site's Wi-Fi: the
 // sign-in page, or (page="success") the page after they're connected.
-// The Sites editor shows it live as you change things.
+// The Sites editor shows it live as you change things. It always looks
+// light (data-portal, see index.css), like it does on guests' phones.
 import { useState } from "react";
 import { CircleCheck, Wifi } from "lucide-react";
 import { textOn } from "../data";
@@ -64,6 +65,7 @@ export default function PortalPreview({ site, page = "signin", onConnect }) {
 
   return (
     <div
+      data-portal
       className="flex min-h-full flex-col items-center px-4 py-8"
       style={{ backgroundColor: look.background }}
     >

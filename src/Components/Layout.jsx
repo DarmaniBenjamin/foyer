@@ -6,6 +6,7 @@ import { LogOut, Menu, Wifi, X } from "lucide-react";
 import { navLinks, getPageTitle } from "./navLinks";
 import { APP_NAME } from "../brand";
 import SiteSwitcher from "./SiteSwitcher";
+import ThemeSwitch from "./ThemeSwitch";
 import SiteIcon from "./SiteIcon";
 import useData from "../useData";
 
@@ -76,6 +77,7 @@ function Sidebar({ open, onClose }) {
         </nav>
 
         <div className="space-y-2 border-t border-line p-3">
+          <ThemeSwitch />
           <SiteSwitcher onPicked={onClose} />
           <button
             type="button"

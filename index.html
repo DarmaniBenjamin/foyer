@@ -10,7 +10,26 @@
       rel="stylesheet"
     />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#ffffff" />
     <title>Foyer</title>
+    <!-- Switch to dark mode before anything is drawn, so the page never
+         flashes white. Same rules as src/theme.js. -->
+    <script>
+      (function () {
+        try {
+          var saved = localStorage.getItem("foyer-theme");
+          var dark = saved
+            ? saved === "dark"
+            : window.matchMedia("(prefers-color-scheme: dark)").matches;
+          if (dark) {
+            document.documentElement.classList.add("dark");
+            document
+              .querySelector('meta[name="theme-color"]')
+              .setAttribute("content", "#131c2e");
+          }
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

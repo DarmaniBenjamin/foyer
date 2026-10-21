@@ -5,6 +5,7 @@ import ComingSoon from "./Components/Pages/ComingSoon";
 import Controllers from "./Components/Pages/Controllers";
 import Sites from "./Components/Pages/Sites";
 import SiteEditorPage from "./Components/Pages/SiteEditor";
+import Vouchers from "./Components/Pages/Vouchers";
 
 export default function App() {
   return (
@@ -14,7 +15,7 @@ export default function App() {
         <Route path="/sites" element={<Sites />} />
         <Route path="/sites/:id" element={<SiteEditorPage />} />
         <Route path="/guests" element={<ComingSoon title="Guests" />} />
-        <Route path="/vouchers" element={<ComingSoon title="Vouchers" />} />
+        <Route path="/vouchers" element={<Vouchers />} />
         <Route path="/reports" element={<ComingSoon title="Reports" />} />
         <Route path="/controllers" element={<Controllers />} />
         <Route path="/admins" element={<ComingSoon title="Admins" />} />
