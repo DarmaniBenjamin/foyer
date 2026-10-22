@@ -67,7 +67,12 @@ export function buildReport({ connections, guests, sites, site, range }) {
       date.setDate(date.getDate() + i);
       series.push({
         key: date.getTime(),
+        // "21" with "Wed" under it. The graph shows "21 Oct" instead on
+        // the first labelled day of each month (group, longLabel)
         label: String(date.getDate()),
+        longLabel: `${date.getDate()} ${SHORT_MONTHS[date.getMonth()]}`,
+        group: `${date.getFullYear()}-${date.getMonth()}`,
+        sublabel: date.toLocaleDateString("en-GB", { weekday: "short" }),
         title: date.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" }),
         value: 0,
         parts: { new: 0, returning: 0 },

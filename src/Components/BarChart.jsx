@@ -3,7 +3,10 @@
 // colours as a picture for the Word report (exports.js).
 //
 // data: [{ key, label, title, value, parts }]
-//   label: under the bar ("" for none). title: the tooltip's heading.
+//   label: under the bar ("" for none). sublabel: a second, lighter line
+//   under it (the weekday on the sign-ins graph). group and longLabel:
+//   the first labelled bar of each group (month) shows longLabel ("1 Oct")
+//   instead. title: the tooltip's heading.
 //   parts (only with `series`): { new: 3, returning: 12 }, drawn as
 //   bars side by side (first series on the left) so they're easy to
 //   compare.
@@ -63,7 +66,8 @@ export default function BarChart({
   const left = 36;
   const right = 4;
   const top = 12 + legendH;
-  const bottom = 26;
+  const twoLines = data.some((d) => d.sublabel);
+  const bottom = twoLines ? 40 : 26;
   const innerW = W - left - right;
   const innerH = height - top - bottom;
   // Side-by-side bars only go as high as the biggest part
@@ -89,6 +93,16 @@ export default function BarChart({
   const labelledKeys = data.filter((d) => d.label).map((d) => d.key);
   const every = Math.ceil(labelledKeys.length / fit);
   const shownLabels = new Set(labelledKeys.filter((_, i) => i % every === 0));
+  // The words under each labelled bar: its month too when it's the first
+  // labelled bar of that month
+  const labelText = new Map();
+  let lastGroup = null;
+  for (const d of data) {
+    if (!shownLabels.has(d.key)) continue;
+    const first = d.group !== undefined && d.group !== lastGroup;
+    labelText.set(d.key, first && d.longLabel ? d.longLabel : d.label);
+    lastGroup = d.group;
+  }
   function bar(d, i) {
     const x0 = left + band * i + band / 2 - fullW / 2;
     const base = top + innerH;
@@ -154,8 +168,13 @@ export default function BarChart({
           <g key={d.key}>
             {bar(d, i)}
             {shownLabels.has(d.key) && (
-              <text x={cx} y={height - 8} textAnchor="middle" fontSize="11" fill={colors.text}>
-                {d.label}
+              <text x={cx} y={height - (twoLines ? 22 : 8)} textAnchor="middle" fontSize="11" fill={colors.text}>
+                {labelText.get(d.key)}
+                {d.sublabel && (
+                  <tspan x={cx} dy="14" fontSize="10" opacity="0.7">
+                    {d.sublabel}
+                  </tspan>
+                )}
               </text>
             )}
             {!forPicture && (
