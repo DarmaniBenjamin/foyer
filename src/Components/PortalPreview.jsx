@@ -8,9 +8,10 @@
 // terms ticked, a voucher code typed.
 // It always looks like the site's own design (data-portal, see
 // index.css), whatever the admin site's light or dark mode is.
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { CircleAlert } from "lucide-react";
 import { BrandBadge, ConnectedMark, SignalBars, SignalChip } from "./PortalMotion";
+import WifiLoader from "./WifiLoader";
 import { COUNTRIES, formatMinutes, textOn } from "../data";
 
 const validEmail = (text) => /^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(text);
@@ -201,6 +202,41 @@ function check(site, answers, code, termsOk) {
   return null;
 }
 
+// After signing in, the Wi-Fi takes a few seconds to let the phone out
+// to the internet. Until the page "Continue" goes to can be reached, the
+// button says "Getting you online…" instead of doing nothing when tapped.
+// Gives up waiting after 45 seconds (then Continue just tries).
+function useOnline(waiting, url) {
+  const [online, setOnline] = useState(false);
+  useEffect(() => {
+    if (!waiting) return;
+    let stopped = false;
+    const started = Date.now();
+    async function tryOnce() {
+      const abort = new AbortController();
+      const timer = setTimeout(() => abort.abort(), 3000);
+      try {
+        // no-cors: only whether it answers matters, not what it says
+        await fetch(url, { mode: "no-cors", cache: "no-store", signal: abort.signal });
+        if (!stopped) setOnline(true);
+        return;
+      } catch {
+        // Not out yet
+      } finally {
+        clearTimeout(timer);
+      }
+      if (stopped) return;
+      if (Date.now() - started > 45_000) return setOnline(true);
+      setTimeout(tryOnce, 1000);
+    }
+    tryOnce();
+    return () => {
+      stopped = true;
+    };
+  }, [waiting, url]);
+  return !waiting || online;
+}
+
 // onSignIn({ answers, code }) → { error } or { minutes }: the guest page.
 // onConnect(): the editor's preview (just shows the "connected" page).
 export default function PortalPreview({
@@ -221,6 +257,12 @@ export default function PortalPreview({
   const success = page === "success" || result;
   // What the Wi-Fi signs show: waiting, connecting, connected
   const signal = success ? "on" : busy ? "connecting" : "search";
+  // A real guest (not a test or the editor's preview) waits for the
+  // Wi-Fi to let them out before Continue works
+  const online = useOnline(
+    Boolean(fullPage && result && !result.test && site.redirectUrl),
+    site.redirectUrl,
+  );
 
   const cardColor = look.cardColor ?? "#ffffff";
   // Text on the box: dark on a light box, white on a dark one
@@ -310,15 +352,25 @@ export default function PortalPreview({
                 You're on for {formatMinutes(result.minutes)}.
               </p>
             )}
-            {site.redirectUrl && (
-              <a
-                href={site.redirectUrl}
-                className="mt-5 flex h-12 w-full items-center justify-center rounded-xl text-base font-semibold"
-                style={buttonStyle}
-              >
-                Continue
-              </a>
-            )}
+            {site.redirectUrl &&
+              (online ? (
+                <a
+                  href={site.redirectUrl}
+                  className="pop-in mt-5 flex h-12 w-full items-center justify-center rounded-xl text-base font-semibold"
+                  style={buttonStyle}
+                >
+                  Continue
+                </a>
+              ) : (
+                <div
+                  role="status"
+                  className="mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-xl text-base font-semibold opacity-80"
+                  style={buttonStyle}
+                >
+                  <WifiLoader size={20} />
+                  Getting you online…
+                </div>
+              ))}
           </div>
         ) : (
           <form onSubmit={submit} noValidate className="portal-stagger">
