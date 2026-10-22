@@ -69,9 +69,13 @@ export function makeApp() {
         },
       }),
     );
+    // Any other address (/login, /sites/3/settings, a typo…) gets the app,
+    // which opens that page, or sends you to the dashboard / sign-in.
+    // root + dotfiles: SiteGround keeps apps in a hidden folder
+    // (~/.nodejs/…), and sendFile refuses those by default ("Not Found")
     app.get("/{*any}", (req, res) => {
       res.setHeader("Cache-Control", "no-cache");
-      res.sendFile(path.join(DIST, "index.html"));
+      res.sendFile("index.html", { root: DIST, dotfiles: "allow" });
     });
   } else {
     app.get("/{*any}", (req, res) =>
