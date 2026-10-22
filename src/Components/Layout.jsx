@@ -204,7 +204,12 @@ export default function Layout({ children }) {
           </div>
         </header>
 
-        <main className="flex-1 p-4 sm:p-6">{children}</main>
+        <main className="flex-1 p-4 sm:p-6">
+          {/* Comes in again (index.css, page-enter) on another page or site */}
+          <div key={`${pathname}|${currentSite?.id ?? "all"}`} className="page-enter">
+            {children}
+          </div>
+        </main>
       </div>
     </div>
   );

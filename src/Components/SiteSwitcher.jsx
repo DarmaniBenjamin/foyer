@@ -87,7 +87,7 @@ export default function SiteSwitcher({ onPicked, variant = "sidebar" }) {
     <div ref={boxRef} className={`relative ${inHeader ? "min-w-0" : ""}`}>
       {open && (
         <div
-          className={`z-50 rounded-xl border border-line bg-white p-2 shadow-xl ${
+          className={`pop-in z-50 rounded-xl border border-line bg-white p-2 shadow-xl ${
             inHeader
               ? "fixed inset-x-3 top-15 sm:absolute sm:inset-x-auto sm:top-full sm:right-0 sm:mt-2 sm:w-80"
               : "absolute right-0 bottom-full left-0 mb-2"

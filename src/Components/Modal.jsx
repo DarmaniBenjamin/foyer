@@ -33,12 +33,12 @@ export default function Modal({ title, onClose, onSubmit, footer, children }) {
 
   return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4 sm:p-6"
+      className="fade-in fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4 sm:p-6"
       onMouseDown={(e) => e.target === e.currentTarget && onClose()}
     >
       <Body
         {...bodyProps}
-        className="flex max-h-[calc(100dvh-2rem)] w-full max-w-lg flex-col rounded-xl bg-white shadow-xl sm:max-h-[calc(100dvh-3rem)]"
+        className="pop-in flex max-h-[calc(100dvh-2rem)] w-full max-w-lg flex-col rounded-xl bg-white shadow-xl sm:max-h-[calc(100dvh-3rem)]"
       >
         <div className="flex items-center justify-between border-b border-line px-5 py-4">
           <h2 className="text-base font-semibold">{title}</h2>

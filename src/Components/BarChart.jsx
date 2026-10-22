@@ -111,10 +111,14 @@ export default function BarChart({
   function bar(d, i) {
     const x0 = left + band * i + band / 2 - fullW / 2;
     const base = top + innerH;
+    // On screen the bars grow up one after another (index.css, chart-bar)
+    const grow = forPicture
+      ? {}
+      : { className: "chart-bar", style: { animationDelay: `${Math.min(i * 18, 400)}ms` } };
     if (!series) {
       const h = (d.value / max) * innerH;
       return h > 0 ? (
-        <path d={barPath(x0, base - h, barW, h)} fill={hover === i ? colors.hover : colors.bar} />
+        <path {...grow} d={barPath(x0, base - h, barW, h)} fill={hover === i ? colors.hover : colors.bar} />
       ) : null;
     }
     // Side by side, in the order of `series`. A day with only New (or
@@ -128,6 +132,7 @@ export default function BarChart({
       return (
         <path
           key={s.key}
+          {...grow}
           d={barPath(start + n * (barW + inGap), base - h, barW, h)}
           fill={colors.series[s.key]}
           opacity={hover !== null && hover !== i ? 0.8 : 1}

@@ -101,6 +101,72 @@ a.bg-white.border-line:hover,
 }
 
 /* ============================================================
+   Admin pages: moving bits
+   ============================================================
+   - page-enter: a page (or a newly picked site) slides in
+   - chart-bar: bars grow up from the bottom, one after another
+   - pop-in / fade-in: menus and pop-up boxes
+   Nothing moves for people who've asked their device for less motion. */
+@keyframes page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes bar-grow {
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.page-enter {
+  animation: page-enter 0.32s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.chart-bar {
+  transform-box: fill-box;
+  transform-origin: bottom;
+  animation: bar-grow 0.55s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.pop-in {
+  animation: pop-in 0.16s ease-out both;
+}
+.fade-in {
+  animation: fade-in 0.16s ease-out both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .page-enter,
+  .chart-bar,
+  .pop-in,
+  .fade-in {
+    animation: none;
+  }
+}
+
+/* ============================================================
    Dark mode: on when <html> has class "dark" (src/theme.js)
    ============================================================
    True black with blue light: the colours above are swapped for dark
