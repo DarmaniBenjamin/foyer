@@ -32,6 +32,7 @@ export async function testController(row) {
     result = {
       ok: true,
       message: found.message,
+      warning: found.warning ?? null,
       version: found.version ?? null,
       omadaId: found.omadaId ?? null,
       sites: found.sites ?? null,

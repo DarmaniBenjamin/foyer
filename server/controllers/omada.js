@@ -122,29 +122,27 @@ export async function test(controller) {
   const { version, omadaId } = await info(controller);
   if (!omadaId)
     throw new ControllerError("Omada didn't share its controller ID.");
-  const said = [`Omada ${version ?? ""}, controller ID ${omadaId}.`];
+  // The page only says "Connected", plus a warning when something
+  // that's still worth fixing didn't work
+  let warning = null;
   // The controller-wide Hotspot Operator (optional with the Open API)
   // With the Open API it only matters for sites set up by hand, so a
   // failed sign-in is a warning, not a failed test
   if (controller.username) {
     try {
       await login(controller, omadaId);
-      said.push("Signed in as the Hotspot Operator.");
     } catch (err) {
       if (!controller.openApi?.clientId) throw err;
-      said.push(`(The Hotspot Operator sign-in failed: ${err.message} It's only used for sites set up by hand; clear the Username to stop using it.)`);
+      warning = `The Hotspot Operator sign-in failed: ${err.message} It's only used for sites set up by hand; clear the Username to stop using it.`;
     }
   }
   // The Open API app
   if (controller.openApi?.clientId) {
     tokens.delete(controller.id);
     infoCache.set(controller.id, { version, omadaId, at: Date.now() });
-    const sites = await listSitesApi(controller);
-    said.push(`Open API works: ${sites.length} site${sites.length === 1 ? "" : "s"} (${sites.map((s) => s.name).join(", ")}).`);
+    await listSitesApi(controller);
   }
-  const unit = timeUnit(controller, version);
-  said.push(`Guest time is sent in ${unit === "ms" ? "milliseconds" : "microseconds"}.`);
-  return { version, omadaId, message: said.join(" ") };
+  return { version, omadaId, message: "Connected.", warning };
 }
 
 // The request body for one guest (exported for the tests)

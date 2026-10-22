@@ -113,12 +113,8 @@ export async function test(controller) {
   } catch {
     // not important
   }
-  const names = sites.map((s) => `${s.name} (${s.key})`).join(", ");
-  return {
-    version,
-    sites,
-    message: `Signed in to UniFi${version ? ` ${version}` : ""}. Sites: ${names || "none"}.`,
-  };
+  // The page only says "Connected" (the sites are picked in Site settings)
+  return { version, sites, message: "Connected." };
 }
 
 // Lets a guest's device on.

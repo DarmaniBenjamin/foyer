@@ -36,7 +36,10 @@ function TestResult({ test }) {
         <p className="font-medium">
           {test.ok ? "Connected" : "Couldn't connect"} · {timeAgo(test.at)}
         </p>
-        <p className="opacity-90">{test.message}</p>
+        {/* Working: just "Connected" (and a warning, if there is one) */}
+        {(test.ok ? test.warning : test.message) && (
+          <p className="opacity-90">{test.ok ? test.warning : test.message}</p>
+        )}
       </div>
     </div>
   );
