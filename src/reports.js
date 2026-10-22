@@ -4,8 +4,8 @@
 import { SHORT_MONTHS, WEEKDAYS, daysIn, startOfDay } from "./dates";
 
 // Popular times are counted in 2-hour blocks, like Spotipo's:
-// 00:00–02:00, 02:00–04:00 ... 22:00–24:00
-const clock = (h) => `${String(h).padStart(2, "0")}:00`;
+// 12 AM – 2 AM, 2 AM – 4 AM ... 10 PM – 12 AM
+const clock = (h) => `${h % 12 || 12} ${h % 24 < 12 ? "AM" : "PM"}`;
 
 // The sign-ins (connections that worked) for a site (or all: site =
 // null) in a range

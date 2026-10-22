@@ -41,10 +41,11 @@ function sheetName(name, used) {
 
 // ---------- Guest list (Excel) ----------
 
-// dateFormat: how First seen and Last seen are shown (ExcelDateFormat.jsx)
-export async function downloadGuestExcel({ sites, guests, connections, site, range, dateFormat }) {
-  const numFmt = dateFormat?.numFmt ?? "dd/mm/yyyy hh:mm";
-  const sample = dateFormat?.label?.replace(/ \(.*\)$/, "") ?? "21/10/2026 14:30";
+// First seen and Last seen are real dates (sorting and filters work),
+// shown as numbers with a 12-hour time: 21/10/2026 2:30 PM
+const EXCEL_DATE = "dd/mm/yyyy h:mm AM/PM";
+
+export async function downloadGuestExcel({ sites, guests, connections, site, range }) {
   const { default: ExcelJS } = await import("exceljs");
   const book = new ExcelJS.Workbook();
   book.creator = "Foyer";
@@ -63,8 +64,8 @@ export async function downloadGuestExcel({ sites, guests, connections, site, ran
     sheet.columns = [
       ...fields.map((f) => ({ header: f.label, key: f.key })),
       { header: "Sign-ins in period", key: "_signins" },
-      { header: "First seen", key: "_first", style: { numFmt } },
-      { header: "Last seen", key: "_last", style: { numFmt } },
+      { header: "First seen", key: "_first", style: { numFmt: EXCEL_DATE } },
+      { header: "Last seen", key: "_last", style: { numFmt: EXCEL_DATE } },
       { header: "Device (MAC)", key: "_mac" },
     ];
 
@@ -96,7 +97,7 @@ export async function downloadGuestExcel({ sites, guests, connections, site, ran
       let widest = String(column.header).length;
       column.eachCell({ includeEmpty: false }, (cell, n) => {
         if (n === 1) return;
-        const text = cell.value instanceof Date ? sample : String(cell.value ?? "");
+        const text = cell.value instanceof Date ? "21/10/2026 10:30 PM" : String(cell.value ?? "");
         widest = Math.max(widest, text.length);
       });
       column.width = Math.min(50, widest + 3);
@@ -271,7 +272,7 @@ export async function downloadWordReport({ sites, guests, connections, site, ran
       spacing: { before: 480 },
       children: [
         new TextRun({
-          text: `Made ${new Date().toLocaleString("en-GB", { day: "numeric", month: "long", year: "numeric", hour: "numeric", minute: "2-digit" })}`,
+          text: `Made ${new Date().toLocaleString("en-GB", { day: "numeric", month: "long", year: "numeric", hour: "numeric", minute: "2-digit", hour12: true })}`,
           color: "98A2B3",
           size: 18,
         }),

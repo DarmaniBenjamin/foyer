@@ -23,7 +23,6 @@ import { answerText, dateTime, guestEmail, guestName } from "../../guests";
 import SiteIcon from "../SiteIcon";
 import GuestModal from "../GuestModal";
 import DateRangePicker from "../DateRangePicker";
-import ExcelDateFormat, { useExcelDateFormat } from "../ExcelDateFormat";
 import { secondaryButton } from "../formStyles";
 
 const PAGE = 50;
@@ -117,13 +116,12 @@ export default function Guests() {
   ).length;
 
   const reset = () => setShown(PAGE);
-  const [dateFormat, setDateFormat] = useExcelDateFormat();
 
   async function download() {
     setDownloading(true);
     try {
       const { downloadGuestExcel } = await import("../../exports");
-      await downloadGuestExcel({ sites, guests, connections, site: currentSite, range, dateFormat });
+      await downloadGuestExcel({ sites, guests, connections, site: currentSite, range });
     } catch (err) {
       console.error(err);
       alert(`Couldn't make the Excel file: ${err.message}`);
@@ -155,7 +153,6 @@ export default function Guests() {
           )}
           Download Excel
         </button>
-        <ExcelDateFormat value={dateFormat} onChange={setDateFormat} />
       </div>
 
       <p className="max-w-2xl text-sm text-muted">
