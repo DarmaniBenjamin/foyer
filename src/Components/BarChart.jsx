@@ -98,14 +98,18 @@ export default function BarChart({
         <path d={barPath(x0, base - h, barW, h)} fill={hover === i ? colors.hover : colors.bar} />
       ) : null;
     }
-    // Side by side, in the order of `series`
-    return series.map((s, n) => {
+    // Side by side, in the order of `series`. A day with only New (or
+    // only Returning) guests has its one bar in the middle, so there's
+    // no empty space where the other bar would be.
+    const shown = series.filter((s) => (d.parts?.[s.key] ?? 0) > 0);
+    const shownW = barW * shown.length + inGap * Math.max(0, shown.length - 1);
+    const start = left + band * i + band / 2 - shownW / 2;
+    return shown.map((s, n) => {
       const h = ((d.parts?.[s.key] ?? 0) / max) * innerH;
-      if (h <= 0) return null;
       return (
         <path
           key={s.key}
-          d={barPath(x0 + n * (barW + inGap), base - h, barW, h)}
+          d={barPath(start + n * (barW + inGap), base - h, barW, h)}
           fill={colors.series[s.key]}
           opacity={hover !== null && hover !== i ? 0.8 : 1}
         />
