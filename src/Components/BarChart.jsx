@@ -12,12 +12,14 @@
 //   compare.
 // series: [{ key, name }] to split each day into bars (see chartColors.js)
 //
-// Every bar is the same thin width (BAR) on every graph, joined up with
-// only a hairline between them, so a graph's width comes from how many
-// bars it has, never from the screen. That's why the download and the
-// Word report are exactly the same as the page, on any screen. On a
-// narrow phone a wide graph scrolls sideways inside its card.
-import { useState } from "react";
+// Every bar is the same thin width (BAR) on every graph.
+// - On the page the graph fills its card: the bars are spread out evenly
+//   across it, so it fits any screen. On a phone too narrow for that,
+//   the bars get thinner to fit.
+// - As a picture (the download and the Word report) it's always the same
+//   fixed size, whatever the screen: the bars joined up, with only a
+//   hairline between them, so its width comes from how many bars it has.
+import { useLayoutEffect, useRef, useState } from "react";
 import { APP_COLORS } from "./chartColors";
 
 export const BAR = 14; // every bar's width
@@ -32,7 +34,7 @@ const bandOf = (series) => {
   return BAR * count + IN_GAP * (count - 1) + DAY_GAP;
 };
 
-// The graph's size: { width, height } (the picture adds its legend)
+// The picture's size: { width, height } (it adds its legend)
 export function chartSize(data, series, height = 240) {
   return {
     width: LEFT + bandOf(series) * Math.max(1, data.length) + RIGHT,
@@ -70,8 +72,20 @@ export default function BarChart({
   forPicture = false,
 }) {
   const [hover, setHover] = useState(null);
+  const boxRef = useRef(null);
+  const [measured, setMeasured] = useState(0); // the card's width
 
-  const W = chartSize(data, series, height).width;
+  useLayoutEffect(() => {
+    if (forPicture || !boxRef.current) return;
+    const box = boxRef.current;
+    const observer = new ResizeObserver(([entry]) => setMeasured(Math.round(entry.contentRect.width)));
+    observer.observe(box);
+    return () => observer.disconnect();
+  }, [forPicture]);
+
+  // The picture: its fixed size. On the page: the card's width.
+  const joined = chartSize(data, series, height).width;
+  const W = forPicture || !measured ? joined : Math.max(240, measured);
   // The picture has its legend drawn in (on screen it's above the chart),
   // so it's that much taller, and the bars stay the same size
   const legendH = forPicture && series ? 26 : 0;
@@ -93,10 +107,12 @@ export default function BarChart({
   const step = niceStep(maxValue / 4);
   const max = Math.max(step, Math.ceil(maxValue / step) * step);
   const ticks = Array.from({ length: Math.round(max / step) + 1 }, (_, i) => i * step);
-  const band = bandOf(series);
+  // Each day's (or hour's) share of the width; its bars sit in the middle
+  const band = innerW / Math.max(1, data.length);
   const count = series ? series.length : 1;
-  const barW = BAR;
-  const inGap = IN_GAP;
+  // BAR wide, or thinner when there isn't room (a phone)
+  const inGap = series && band > 8 ? IN_GAP : 0;
+  const barW = Math.max(1, Math.min(BAR, (band - Math.min(DAY_GAP, band * 0.1) - inGap * (count - 1)) / count));
   const fullW = barW * count + inGap * (count - 1);
   // Only as many labels under the bars as fit without overlapping. When
   // the full names don't fit under every bar, the short ones are used
@@ -224,7 +240,7 @@ export default function BarChart({
 
   const shown = hover !== null ? data[hover] : null;
   return (
-    <div className="w-full min-w-0 overflow-x-auto overflow-y-visible">
+    <div ref={boxRef} className="w-full min-w-0 overflow-x-auto overflow-y-visible">
       <div className="relative" style={{ width: W, minHeight: height }}>
       {svg}
       {shown && (
