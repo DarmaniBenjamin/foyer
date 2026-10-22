@@ -15,7 +15,6 @@ import { useState } from "react";
 import {
   CircleAlert,
   CircleCheck,
-  LoaderCircle,
   Lock,
   PlugZap,
   RefreshCw,
@@ -24,6 +23,7 @@ import {
   TriangleAlert,
   Wifi,
 } from "lucide-react";
+import WifiLoader from "./WifiLoader";
 import useData from "../useData";
 import { api } from "../api";
 import { CONTROLLER_KINDS, timeAgo } from "../data";
@@ -317,7 +317,7 @@ function AutoSetup({ site, draft, set, controller }) {
             Cancel
           </button>
           <button type="button" onClick={undo} disabled={busy === "undo"} className={dangerButton}>
-            {busy === "undo" ? <LoaderCircle size={16} className="animate-spin" /> : <RotateCcw size={16} />}
+            {busy === "undo" ? <WifiLoader size={16} /> : <RotateCcw size={16} />}
             Put it back
           </button>
         </>
@@ -394,7 +394,7 @@ function AutoSetup({ site, draft, set, controller }) {
       <Step n={1} title="Connect to the controller" done={Boolean(unifiSites)}>
         {!unifiSites && (
           <button type="button" onClick={connect} disabled={busy === "sites"} className={primaryButton}>
-            {busy === "sites" ? <LoaderCircle size={18} className="animate-spin" /> : <PlugZap size={18} />}
+            {busy === "sites" ? <WifiLoader size={18} /> : <PlugZap size={18} />}
             {busy === "sites" ? "Connecting…" : `Connect to ${controller.name}`}
           </button>
         )}
@@ -437,7 +437,7 @@ function AutoSetup({ site, draft, set, controller }) {
       {(wlans || busy === "wlans") && (
         <Step n={3} title="Pick the guest Wi-Fi network" done={Boolean(wlanId)}>
           {busy === "wlans" ? (
-            <LoaderCircle size={20} className="animate-spin text-muted" />
+            <WifiLoader size={20} className="text-muted" />
           ) : wlans.length === 0 ? (
             <p className="text-sm text-muted">
               That {label} site has no Wi-Fi networks yet. Make the guest network
@@ -528,7 +528,7 @@ function AutoSetup({ site, draft, set, controller }) {
             </div>
           )}
           <button type="button" onClick={run} disabled={busy === "setup"} className={primaryButton}>
-            {busy === "setup" ? <LoaderCircle size={18} className="animate-spin" /> : <Wifi size={18} />}
+            {busy === "setup" ? <WifiLoader size={18} /> : <Wifi size={18} />}
             {busy === "setup" ? "Setting up…" : `Set up on ${label}`}
           </button>
         </Step>
@@ -582,7 +582,7 @@ function OmadaGuide({ site, draft, controller }) {
         </p>
         <div className="flex flex-wrap items-center gap-3">
           <button type="button" onClick={runTest} disabled={testing} className={secondaryButton}>
-            {testing ? <LoaderCircle size={16} className="animate-spin" /> : <PlugZap size={16} />}
+            {testing ? <WifiLoader size={16} /> : <PlugZap size={16} />}
             Test connection
           </button>
           {test && (

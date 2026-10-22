@@ -101,6 +101,75 @@ a.bg-white.border-line:hover,
 }
 
 /* ============================================================
+   The loading animation (WifiLoader.jsx): a ring turning around a
+   Wi-Fi icon whose waves travel out from the dot
+   ============================================================ */
+@keyframes wifi-loader-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes wifi-loader-wave {
+  0% {
+    opacity: 0;
+    transform: scale(0.7);
+  }
+  30% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.15);
+  }
+}
+@keyframes wifi-loader-dot {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  20% {
+    transform: scale(1.35);
+  }
+}
+.wifi-loader-track {
+  opacity: 0.18;
+}
+.wifi-loader-ring {
+  stroke-dasharray: 20 80;
+  transform-origin: 14px 14px;
+  animation: wifi-loader-spin 1s linear infinite;
+}
+.wifi-loader path {
+  opacity: 0;
+  transform-origin: 12px 20px;
+  animation: wifi-loader-wave 1.5s ease-out infinite;
+}
+.wifi-loader path:nth-of-type(2) {
+  animation-delay: 0.25s;
+}
+.wifi-loader path:nth-of-type(3) {
+  animation-delay: 0.5s;
+}
+.wifi-loader-dot {
+  transform-origin: 12px 20px;
+  animation: wifi-loader-dot 1.5s ease-in-out infinite;
+}
+/* Less motion asked for: the ring still turns (so it's clearly busy),
+   slowly, and the icon stays still */
+@media (prefers-reduced-motion: reduce) {
+  .wifi-loader-ring {
+    animation-duration: 3s;
+  }
+  .wifi-loader path {
+    animation: none;
+    opacity: 1;
+  }
+  .wifi-loader-dot {
+    animation: none;
+  }
+}
+
+/* ============================================================
    Admin pages: moving bits
    ============================================================
    - page-enter: a page (or a newly picked site) slides in

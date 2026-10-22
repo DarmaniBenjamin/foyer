@@ -3,7 +3,8 @@
 // environment variables (the server checks both).
 import { useState } from "react";
 import { Navigate, useParams } from "react-router";
-import { LoaderCircle, UserPlus } from "lucide-react";
+import { UserPlus } from "lucide-react";
+import WifiLoader from "../WifiLoader";
 import useData from "../../useData";
 import { PASSWORD_RULE, validEmail } from "../../admins";
 import AuthShell from "../AuthShell";
@@ -81,7 +82,7 @@ export default function Setup() {
           <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
         )}
         <button type="submit" disabled={busy} className={`${primaryButton} w-full`}>
-          {busy ? <LoaderCircle size={18} className="animate-spin" /> : <UserPlus size={18} />}
+          {busy ? <WifiLoader size={18} /> : <UserPlus size={18} />}
           Make my admin account
         </button>
       </form>

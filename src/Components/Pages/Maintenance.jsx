@@ -12,13 +12,13 @@ import {
   Database,
   Download,
   HardDrive,
-  LoaderCircle,
   PlugZap,
   RefreshCw,
   Server,
   Trash2,
   Wrench,
 } from "lucide-react";
+import WifiLoader from "../WifiLoader";
 import useData from "../../useData";
 import { api } from "../../api";
 import { timeAgo } from "../../data";
@@ -163,7 +163,7 @@ function MaintenanceMode() {
                   <p className="text-xs text-amber-700">Since {timeAgo(site.maintenance.since)}</p>
                 )}
               </div>
-              {busy === site.id && <LoaderCircle size={16} className="animate-spin text-muted" />}
+              {busy === site.id && <WifiLoader size={16} className="text-muted" />}
             </div>
             <div className="sm:w-96">
               <ModePicker
@@ -233,7 +233,7 @@ function SystemHealth() {
       {error ? (
         <Status ok={false}>{error}</Status>
       ) : !health ? (
-        <LoaderCircle size={20} className="animate-spin text-muted" />
+        <WifiLoader size={20} className="text-muted" />
       ) : (
         <>
           <div className="grid gap-3 sm:grid-cols-2">
@@ -282,7 +282,7 @@ function SystemHealth() {
                 disabled={testing || !health.controllers.length}
                 className={`${secondaryButton} h-9`}
               >
-                {testing ? <LoaderCircle size={16} className="animate-spin" /> : <PlugZap size={16} />}
+                {testing ? <WifiLoader size={16} /> : <PlugZap size={16} />}
                 Test all
               </button>
             </div>
@@ -376,7 +376,7 @@ function CleanUp() {
           </select>
         </div>
         <button type="button" onClick={() => run(true)} disabled={busy} className={secondaryButton}>
-          {busy && !confirming ? <LoaderCircle size={16} className="animate-spin" /> : null}
+          {busy && !confirming ? <WifiLoader size={16} /> : null}
           Check what would go
         </button>
       </div>
@@ -414,7 +414,7 @@ function CleanUp() {
                 Cancel
               </button>
               <button type="button" onClick={() => run(false)} disabled={busy} className={dangerButton}>
-                {busy ? <LoaderCircle size={16} className="animate-spin" /> : <Trash2 size={16} />}
+                {busy ? <WifiLoader size={16} /> : <Trash2 size={16} />}
                 Delete
               </button>
             </>

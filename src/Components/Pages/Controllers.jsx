@@ -7,13 +7,13 @@ import { useState } from "react";
 import {
   CircleAlert,
   CircleCheck,
-  LoaderCircle,
   Pencil,
   PlugZap,
   Plus,
   Router,
   Trash2,
 } from "lucide-react";
+import WifiLoader from "../WifiLoader";
 import useData from "../../useData";
 import { CONTROLLER_KINDS, timeAgo } from "../../data";
 import ControllerModal from "../ControllerModal";
@@ -114,7 +114,7 @@ function ControllerCard({ controller, usedBy, isCurrent, onEdit, onDelete }) {
           className={`${primaryButton} flex-1 sm:flex-none`}
         >
           {testing ? (
-            <LoaderCircle size={18} className="animate-spin" />
+            <WifiLoader size={18} />
           ) : (
             <PlugZap size={18} />
           )}

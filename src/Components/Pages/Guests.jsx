@@ -9,12 +9,12 @@ import { useMemo, useState } from "react";
 import { Link } from "react-router";
 import {
   FileSpreadsheet,
-  LoaderCircle,
   Repeat,
   Search,
   UserPlus,
   Users,
 } from "lucide-react";
+import WifiLoader from "../WifiLoader";
 import useData from "../../useData";
 import { SIGN_IN_MODES } from "../../data";
 import { resolveRange } from "../../dates";
@@ -147,7 +147,7 @@ export default function Guests() {
           className={secondaryButton}
         >
           {downloading ? (
-            <LoaderCircle size={18} className="animate-spin" />
+            <WifiLoader size={18} />
           ) : (
             <FileSpreadsheet size={18} />
           )}

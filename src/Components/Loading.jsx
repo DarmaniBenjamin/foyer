@@ -1,6 +1,7 @@
-// The whole screen while Foyer starts: a spinner, or why it can't reach
+// The whole screen while Foyer starts: the Wi-Fi loader, or why it can't reach
 // the server with a Try again button
-import { LoaderCircle, WifiOff } from "lucide-react";
+import { WifiOff } from "lucide-react";
+import WifiLoader from "./WifiLoader";
 import useData from "../useData";
 import { secondaryButton } from "./formStyles";
 
@@ -17,7 +18,7 @@ export default function Loading() {
           </button>
         </>
       ) : (
-        <LoaderCircle size={32} className="animate-spin text-brand" aria-label="Loading" />
+        <WifiLoader size={56} className="text-brand" label="Loading" />
       )}
     </div>
   );

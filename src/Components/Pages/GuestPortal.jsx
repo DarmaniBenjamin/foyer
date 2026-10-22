@@ -18,7 +18,8 @@
 // on.
 import { useEffect, useState } from "react";
 import { useParams, useSearchParams } from "react-router";
-import { ArrowLeft, LoaderCircle, SearchX, WifiOff, Wrench } from "lucide-react";
+import { ArrowLeft, SearchX, WifiOff, Wrench } from "lucide-react";
+import WifiLoader from "../WifiLoader";
 import useData from "../../useData";
 import { api } from "../../api";
 import { pickAd } from "../../ads";
@@ -134,7 +135,7 @@ export default function GuestPortal() {
     <>
       {page === null ? (
         <div data-portal className="flex min-h-dvh items-center justify-center bg-[#f4f6fb]">
-          <LoaderCircle size={32} className="animate-spin text-gray-400" aria-label="Loading" />
+          <WifiLoader size={32} className="text-gray-400" label="Loading" />
         </div>
       ) : page === "missing" ? (
         <Notice

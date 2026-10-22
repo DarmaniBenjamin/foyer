@@ -3,7 +3,8 @@
 // picture (with the site and dates on it). With `series` (New /
 // Returning guests), it shows a legend and a column for each.
 import { useState } from "react";
-import { Download, LoaderCircle, Table2 } from "lucide-react";
+import { Download, Table2 } from "lucide-react";
+import WifiLoader from "./WifiLoader";
 import BarChart from "./BarChart";
 import { APP_COLORS } from "./chartColors";
 import useData from "../useData";
@@ -76,7 +77,7 @@ export default function ChartCard({ title, detail, data, series, unit, height })
               aria-label="Download the chart as a picture"
               title="Download as a picture"
             >
-              {saving ? <LoaderCircle size={16} className="animate-spin" /> : <Download size={16} />}
+              {saving ? <WifiLoader size={16} /> : <Download size={16} />}
             </button>
           )}
         </div>

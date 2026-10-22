@@ -7,8 +7,8 @@ import {
   CircleAlert,
   FileSpreadsheet,
   FileText,
-  LoaderCircle,
 } from "lucide-react";
+import WifiLoader from "../WifiLoader";
 import useData from "../../useData";
 import { formatRange, resolveRange } from "../../dates";
 import { buildReport, guestsIn } from "../../reports";
@@ -30,7 +30,7 @@ function DownloadButton({ icon, title, detail, onClick, busy, disabled }) {
     >
       <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand text-white">
         {busy ? (
-          <LoaderCircle size={22} className="animate-spin" />
+          <WifiLoader size={22} />
         ) : (
           <Icon size={22} />
         )}

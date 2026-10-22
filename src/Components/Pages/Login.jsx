@@ -2,7 +2,8 @@
 // go back to the page you were trying to open.
 import { useState } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router";
-import { LoaderCircle, LogIn } from "lucide-react";
+import { LogIn } from "lucide-react";
+import WifiLoader from "../WifiLoader";
 import useData from "../../useData";
 import AuthShell from "../AuthShell";
 import PasswordInput from "../PasswordInput";
@@ -65,7 +66,7 @@ export default function Login() {
           <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
         )}
         <button type="submit" disabled={busy} className={`${primaryButton} w-full`}>
-          {busy ? <LoaderCircle size={18} className="animate-spin" /> : <LogIn size={18} />}
+          {busy ? <WifiLoader size={18} /> : <LogIn size={18} />}
           Sign in
         </button>
         <p className="text-center text-xs text-muted">
