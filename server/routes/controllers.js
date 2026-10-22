@@ -9,6 +9,7 @@ import { requireAccess } from "../auth.js";
 import { seal } from "../secrets.js";
 import {
   ControllerError,
+  controllerPortal,
   controllerSites,
   controllerWlans,
   testController,
@@ -83,6 +84,11 @@ async function fromController(work) {
 // The UniFi sites on the controller (Site settings → Controller)
 controllersRouter.get("/:id/sites", async (req, res) => {
   res.json(await fromController(() => controllerSites(req.params.id)));
+});
+
+// What one of its UniFi sites' guest portal does now
+controllersRouter.get("/:id/sites/:key/portal", async (req, res) => {
+  res.json(await fromController(() => controllerPortal(req.params.id, String(req.params.key))));
 });
 
 // The Wi-Fi networks on one of its UniFi sites

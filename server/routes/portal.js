@@ -35,7 +35,7 @@ portalRouter.get("/:slug", async (req, res) => {
     .map(adOut)
     .filter((a) => adStatus(a, now) === "running")
     .map((a) => ({ ...a, views: undefined, clicks: undefined }));
-  res.json({ site: { ...siteOut(row), controllerId: undefined }, ads: running });
+  res.json({ site: { ...siteOut(row), controllerId: undefined, unifi: undefined }, ads: running });
 });
 
 // "k7qm 3rxa" and "K7QM-3RXA" are the same code

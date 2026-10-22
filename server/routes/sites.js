@@ -10,7 +10,7 @@ import { controllers, sites, users } from "../db/schema.js";
 import { requireAccess } from "../auth.js";
 import { SIGN_IN_MODES, SITE_COLORS, makeSite, makeSlug } from "../../src/data.js";
 import { Problem, siteIn, siteOut, text } from "../shapes.js";
-import { ControllerError, setUpUnifi } from "../controllers/index.js";
+import { ControllerError, setUpUnifi, undoUnifi } from "../controllers/index.js";
 
 export const sitesRouter = Router();
 sitesRouter.use(requireAccess("sites"));
@@ -59,6 +59,11 @@ sitesRouter.patch("/:id", async (req, res) => {
     .from(sites)
     .where(sql`${sites.slug} = ${slug} and ${sites.id} <> ${id}`);
   if (clash) throw new Problem("Another site already uses that address name.");
+  const [old] = await db.select({ settings: sites.settings }).from(sites).where(eq(sites.id, id));
+  if (!old) throw new Problem("That site was already deleted.", 404);
+  // The UniFi backup isn't on the page, so keep it
+  const settings = siteIn(body);
+  if (old.settings?.unifiBackup) settings.unifiBackup = old.settings.unifiBackup;
   const [row] = await db
     .update(sites)
     .set({
@@ -66,7 +71,7 @@ sitesRouter.patch("/:id", async (req, res) => {
       slug,
       controllerId: await checkController(body.controllerId),
       active: body.active !== false,
-      settings: siteIn(body),
+      settings,
     })
     .where(eq(sites.id, id))
     .returning();
@@ -132,13 +137,23 @@ sitesRouter.post("/:id/unifi-setup", requireAccess("controllers"), async (req, r
   const foyerIp = await ipv4Of(req.hostname);
   const allowHosts = [...new Set([portalIp, foyerIp].filter(Boolean))];
 
-  let done;
+  let result;
   try {
-    ({ done } = await setUpUnifi(controllerId, siteKey, { wlanId, portalIp, allowHosts }));
+    result = await setUpUnifi(controllerId, siteKey, { wlanId, portalIp, allowHosts });
   } catch (err) {
     if (err instanceof ControllerError) throw new Problem(err.message);
     throw err;
   }
+  const { done, before } = result;
+
+  // The backup for Undo: what the UniFi site had before Foyer first set
+  // it up. Setting it up again (another Wi-Fi network) keeps that first
+  // backup and adds the new network's old on/off.
+  const kept = row.settings?.unifiBackup;
+  const unifiBackup =
+    kept && kept.controllerId === controllerId && kept.siteKey === siteKey
+      ? { ...kept, wlans: { ...before.wlans, ...kept.wlans } }
+      : { controllerId, siteKey, guestAccess: before.guestAccess, wlans: before.wlans, at: Date.now() };
 
   const unifi = {
     siteName: text(body.siteName, 120) || siteKey,
@@ -152,9 +167,31 @@ sitesRouter.post("/:id/unifi-setup", requireAccess("controllers"), async (req, r
     .update(sites)
     .set({
       controllerId,
-      settings: sql`${sites.settings} || ${JSON.stringify({ siteKey, unifi })}::jsonb`,
+      settings: sql`${sites.settings} || ${JSON.stringify({ siteKey, unifi, unifiBackup })}::jsonb`,
     })
     .where(eq(sites.id, id))
     .returning();
   res.json({ site: siteOut(saved), done });
+});
+
+// Site settings → Controller → Undo: puts the UniFi site's guest portal
+// settings and Wi-Fi network back how they were before Foyer set it up
+sitesRouter.post("/:id/unifi-undo", requireAccess("controllers"), async (req, res) => {
+  const id = Number(req.params.id);
+  const [row] = await db.select().from(sites).where(eq(sites.id, id));
+  if (!row) throw new Problem("That site was already deleted.", 404);
+  const backup = row.settings?.unifiBackup;
+  if (!backup) throw new Problem("There's nothing to undo for this site.");
+  try {
+    await undoUnifi(backup.controllerId, backup.siteKey, backup);
+  } catch (err) {
+    if (err instanceof ControllerError) throw new Problem(err.message);
+    throw err;
+  }
+  const [saved] = await db
+    .update(sites)
+    .set({ settings: sql`(${sites.settings} - 'unifiBackup') || '{"unifi": null}'::jsonb` })
+    .where(eq(sites.id, id))
+    .returning();
+  res.json(siteOut(saved));
 });

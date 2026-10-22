@@ -326,6 +326,17 @@ export default function DataProvider({ children }) {
     }
   }
 
+  // Site settings → Controller → Undo. Returns "" or what's wrong.
+  async function undoUnifi(siteId) {
+    try {
+      const site = await api(`/sites/${siteId}/unifi-undo`, { method: "POST" });
+      change("sites", (list) => list.map((s) => (s.id === siteId ? site : s)));
+      return "";
+    } catch (err) {
+      return err.message;
+    }
+  }
+
   function deleteSite(id) {
     setData((d) => ({
       ...d,
@@ -446,6 +457,7 @@ export default function DataProvider({ children }) {
     updateSite,
     setMaintenance,
     setUpUnifi,
+    undoUnifi,
     deleteSite,
     addVouchers,
     deleteVouchers,

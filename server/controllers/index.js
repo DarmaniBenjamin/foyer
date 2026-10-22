@@ -91,9 +91,24 @@ export async function controllerWlans(id, siteKey) {
   return unifi.listWlans(controller, siteKey);
 }
 
-// Points a UniFi site's guest portal at Foyer (see unifi.js setUpPortal)
+// What a UniFi site's guest portal does now (see unifi.js portalState)
+export async function controllerPortal(id, siteKey) {
+  const controller = await controllerRow(id);
+  if (controller.kind !== "unifi") throw new ControllerError("Only for UniFi.");
+  return unifi.portalState(controller, siteKey);
+}
+
+// Points a UniFi site's guest portal at Foyer (see unifi.js setUpPortal).
+// Returns { done, before }.
 export async function setUpUnifi(id, siteKey, options) {
   const controller = await controllerRow(id);
   if (controller.kind !== "unifi") throw new ControllerError("Only for UniFi.");
-  return { controller, done: await unifi.setUpPortal(controller, siteKey, options) };
+  return unifi.setUpPortal(controller, siteKey, options);
+}
+
+// Undo: puts back what was there before (see unifi.js restorePortal)
+export async function undoUnifi(id, siteKey, before) {
+  const controller = await controllerRow(id);
+  if (controller.kind !== "unifi") throw new ControllerError("Only for UniFi.");
+  return unifi.restorePortal(controller, siteKey, before);
 }

@@ -180,6 +180,19 @@ export async function listWlans(controller, siteKey) {
   }));
 }
 
+// What the UniFi site's guest portal does now, so the page can warn
+// before Foyer takes it over: { enabled, external, address }
+export async function portalState(controller, siteKey) {
+  const got = await call(controller, "GET", `/api/s/${encodeURIComponent(siteKey)}/get/setting`);
+  if (got.json?.meta?.rc !== "ok") throw failed(got, "share its guest portal settings");
+  const g = got.json.data.find((s) => s.key === "guest_access") ?? {};
+  return {
+    enabled: Boolean(g.portal_enabled),
+    external: g.auth === "custom",
+    address: g.custom_ip || g.portal_hostname || null,
+  };
+}
+
 // Points the UniFi site's guest portal at Foyer and turns it on for one
 // Wi-Fi network, like Spotipo does:
 //   - Guest portal (Hotspot): on, authentication "External portal
@@ -191,7 +204,8 @@ export async function listWlans(controller, siteKey) {
 // The rest of the guest settings are left as they are. The guest portal
 // settings belong to the whole UniFi site, so any other Wi-Fi network
 // there with the guest portal on uses Foyer too.
-// Returns the steps done, in words.
+// Returns { done: the steps in words, before: what was there before, for
+// Undo (restorePortal) }.
 export async function setUpPortal(controller, siteKey, { wlanId, portalIp, allowHosts }) {
   const site = `/api/s/${encodeURIComponent(siteKey)}`;
   const done = [];
@@ -224,12 +238,33 @@ export async function setUpPortal(controller, siteKey, { wlanId, portalIp, allow
   done.push(`Guest portal on, with External portal server ${portalIp}`);
   done.push(`Pre-authorization access for ${wanted.join(", ")}`);
 
-  // 2. The Wi-Fi network
+  // 2. The Wi-Fi network (and whether its guest portal was on before)
+  const old = await call(controller, "GET", `${site}/rest/wlanconf/${encodeURIComponent(wlanId)}`);
+  const wasGuest = Boolean(old.json?.data?.[0]?.is_guest);
   const wlan = await call(controller, "PUT", `${site}/rest/wlanconf/${encodeURIComponent(wlanId)}`, {
     is_guest: true,
   });
   if (wlan.json?.meta?.rc !== "ok") throw failed(wlan, "turn on the guest portal for that Wi-Fi network");
   const name = wlan.json.data?.[0]?.name;
   done.push(`Guest portal turned on for the Wi-Fi network${name ? ` "${name}"` : ""}`);
-  return done;
+  return { done, before: { guestAccess: current, wlans: { [wlanId]: wasGuest } } };
+}
+
+// Undo: puts back the guest portal settings and the Wi-Fi networks'
+// guest portal on/off from before Foyer set the site up
+export async function restorePortal(controller, siteKey, before) {
+  const site = `/api/s/${encodeURIComponent(siteKey)}`;
+  const g = before.guestAccess;
+  let saved = g._id ? await call(controller, "PUT", `${site}/rest/setting/guest_access/${g._id}`, g) : null;
+  if (saved?.json?.meta?.rc !== "ok")
+    saved = await call(controller, "POST", `${site}/set/setting/guest_access`, g);
+  if (saved.json?.meta?.rc !== "ok") throw failed(saved, "put back the guest portal settings");
+  for (const [wlanId, isGuest] of Object.entries(before.wlans ?? {})) {
+    const res = await call(controller, "PUT", `${site}/rest/wlanconf/${encodeURIComponent(wlanId)}`, {
+      is_guest: isGuest,
+    });
+    // A Wi-Fi network deleted since then is fine to skip
+    if (res.json?.meta?.rc !== "ok" && res.status !== 400 && res.status !== 404)
+      throw failed(res, "put back the Wi-Fi network's guest portal");
+  }
 }

@@ -44,20 +44,30 @@ export const controllerOut = (c) => ({
 // Kept as columns; everything else is in settings
 const SITE_COLUMNS = ["id", "name", "slug", "controllerId", "active", "createdAt"];
 
-export const siteOut = (s) => ({
-  ...s.settings,
-  id: s.id,
-  name: s.name,
-  slug: s.slug,
-  controllerId: s.controllerId,
-  active: s.active,
-});
+// unifiBackup (the UniFi settings from before "Set up on UniFi", for
+// Undo) stays on the server: it can hold the controller's secrets. The
+// pages only learn whether there is one (unifiUndo).
+export const siteOut = (s) => {
+  const { unifiBackup, ...settings } = s.settings ?? {};
+  return {
+    ...settings,
+    unifiUndo: Boolean(unifiBackup),
+    id: s.id,
+    name: s.name,
+    slug: s.slug,
+    controllerId: s.controllerId,
+    active: s.active,
+  };
+};
 
 // A site from the editor → the columns and settings to save
 export function siteIn(body) {
   const settings = {};
   for (const [key, value] of Object.entries(body ?? {}))
     if (!SITE_COLUMNS.includes(key)) settings[key] = value;
+  // Worked out by the server, never saved from a page
+  delete settings.unifiBackup;
+  delete settings.unifiUndo;
   for (const key of ["look"])
     if (settings[key]) {
       settings[key] = { ...settings[key] };

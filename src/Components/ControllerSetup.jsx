@@ -5,7 +5,8 @@
 // search) → pick the Wi-Fi network → "Set up on UniFi". Foyer then turns
 // on the guest portal with External portal server (your Linode), adds
 // the pre-authorization access and turns the guest portal on for that
-// Wi-Fi network.
+// Wi-Fi network. It keeps what was there before, so Undo can put it back,
+// and warns first when the UniFi site already uses another portal.
 //
 // Omada: the Hotspot Operator account can't change settings, so it's
 // done by hand in Omada, with the steps and addresses shown here.
@@ -17,7 +18,9 @@ import {
   Lock,
   PlugZap,
   RefreshCw,
+  RotateCcw,
   Search,
+  TriangleAlert,
   Wifi,
 } from "lucide-react";
 import useData from "../useData";
@@ -25,7 +28,14 @@ import { api } from "../api";
 import { CONTROLLER_KINDS, timeAgo } from "../data";
 import CopyBox from "./CopyBox";
 import Modal from "./Modal";
-import { hintClass, inputClass, labelClass, primaryButton, secondaryButton } from "./formStyles";
+import {
+  dangerButton,
+  hintClass,
+  inputClass,
+  labelClass,
+  primaryButton,
+  secondaryButton,
+} from "./formStyles";
 
 function Step({ n, title, done, children }) {
   return (
@@ -174,8 +184,18 @@ function ManualUnifi({ draft, set }) {
   );
 }
 
+// Whether the UniFi site's guest portal already goes somewhere else
+function portalNow(portal, ours) {
+  if (!portal?.enabled) return null;
+  if (!portal.external) return "UniFi's own guest portal";
+  if (portal.address && portal.address !== ours) return `another portal (${portal.address})`;
+  return null;
+}
+
 function UnifiSetup({ site, draft, set, controller }) {
-  const { setUpUnifi } = useData();
+  const { setUpUnifi, undoUnifi } = useData();
+  const [portal, setPortal] = useState(null); // what the UniFi site does now
+  const [undoing, setUndoing] = useState(false); // the Undo box is open
   const [changing, setChanging] = useState(false);
   const [unifiSites, setUnifiSites] = useState(null);
   const [wlans, setWlans] = useState(null);
@@ -218,6 +238,10 @@ function UnifiSetup({ site, draft, set, controller }) {
     setSiteKey(key);
     setWlanId(null);
     setDone(null);
+    setPortal(null);
+    api(`/controllers/${controller.id}/sites/${encodeURIComponent(key)}/portal`)
+      .then(setPortal)
+      .catch(() => setPortal(null));
     load("wlans", `/controllers/${controller.id}/sites/${encodeURIComponent(key)}/wlans`, (list) => {
       setWlans(list);
       const guest = list.filter((w) => w.guestPortal);
@@ -245,10 +269,51 @@ function UnifiSetup({ site, draft, set, controller }) {
       controllerId: result.site.controllerId,
       siteKey: result.site.siteKey,
       unifi: result.site.unifi,
+      unifiUndo: result.site.unifiUndo,
     });
     setDone(result.done);
     setChanging(false);
   }
+
+  async function undo() {
+    setBusy("undo");
+    setError("");
+    const problem = await undoUnifi(site.id);
+    setBusy("");
+    setUndoing(false);
+    if (problem) return setError(problem);
+    set({ unifi: null, unifiUndo: false });
+    setDone(null);
+    setUnifiSites(null);
+    setWlans(null);
+    setWlanId(null);
+    setSiteKey(null);
+  }
+
+  const undoBox = undoing && (
+    <Modal
+      title="Undo the UniFi setup?"
+      onClose={() => setUndoing(false)}
+      footer={
+        <>
+          <button type="button" onClick={() => setUndoing(false)} className={secondaryButton}>
+            Cancel
+          </button>
+          <button type="button" onClick={undo} disabled={busy === "undo"} className={dangerButton}>
+            {busy === "undo" ? <LoaderCircle size={16} className="animate-spin" /> : <RotateCcw size={16} />}
+            Put it back
+          </button>
+        </>
+      }
+    >
+      <p className="text-sm text-muted">
+        The UniFi site's guest portal settings and the Wi-Fi network go back
+        to exactly how they were before Foyer set them up, including the
+        portal it used before (e.g. Spotipo). Guests stop seeing this site's
+        Foyer page.
+      </p>
+    </Modal>
+  );
 
   if (setUp)
     return (
@@ -280,17 +345,27 @@ function UnifiSetup({ site, draft, set, controller }) {
         <p className="text-sm text-muted">
           Join that Wi-Fi on a phone: this site's sign-in page should open.
         </p>
-        <button
-          type="button"
-          onClick={() => {
-            setChanging(true);
-            connect();
-          }}
-          className={secondaryButton}
-        >
-          <RefreshCw size={16} />
-          Change site or Wi-Fi
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              setChanging(true);
+              connect();
+            }}
+            className={secondaryButton}
+          >
+            <RefreshCw size={16} />
+            Change site or Wi-Fi
+          </button>
+          {site.unifiUndo && (
+            <button type="button" onClick={() => setUndoing(true)} className={secondaryButton}>
+              <RotateCcw size={16} />
+              Undo
+            </button>
+          )}
+        </div>
+        <Problem text={error} />
+        {undoBox}
       </div>
     );
 
@@ -384,6 +459,16 @@ function UnifiSetup({ site, draft, set, controller }) {
             The guest portal settings are shared by the whole UniFi site, so
             any other Wi-Fi there with the guest portal on uses Foyer too.
           </p>
+          {portalNow(portal, draft.unifi?.portalIp) && (
+            <p className="flex gap-2 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-700">
+              <TriangleAlert size={16} className="mt-0.5 shrink-0" />
+              <span>
+                This UniFi site uses {portalNow(portal, draft.unifi?.portalIp)} right now.
+                Setting up switches its guests to Foyer. Foyer keeps the old
+                settings, so you can undo it afterwards.
+              </span>
+            </p>
+          )}
           <div>
             <label className={labelClass} htmlFor="portal-ip">
               Portal server IP (your Linode)
