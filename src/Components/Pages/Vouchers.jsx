@@ -168,7 +168,7 @@ export default function Vouchers() {
       </div>
 
       {currentSite && currentSite.mode !== "voucher" && (
-        <div className="flex gap-3 rounded-2xl border border-amber-200/60 bg-amber-50 p-4 text-sm text-amber-700">
+        <div className="flex gap-3 rounded-xl border border-amber-200/60 bg-amber-50 p-4 text-sm text-amber-700">
           <TriangleAlert size={18} className="mt-0.5 shrink-0" />
           <p>
             {currentSite.name} signs guests in with{" "}
@@ -197,8 +197,8 @@ export default function Vouchers() {
               setStatus(status === value ? "all" : value);
               setShown(PAGE);
             }}
-            className={`rounded-2xl border bg-white p-4 text-left transition hover:-translate-y-0.5 hover:shadow-md ${
-              status === value ? "border-brand/50 ring-4 ring-brand/10" : "border-line"
+            className={`rounded-xl border bg-white p-4 text-left transition hover:-translate-y-0.5 hover:shadow-md ${
+              status === value ? "border-brand/50 ring-[3px] ring-brand/10" : "border-line"
             }`}
           >
             <p className="text-sm text-muted">{label}</p>
@@ -207,7 +207,7 @@ export default function Vouchers() {
         ))}
       </div>
 
-      <div className="rounded-2xl border border-line bg-white">
+      <div className="rounded-xl border border-line bg-white">
         {/* Filters */}
         <div className="flex flex-col gap-3 border-b border-line p-4 lg:flex-row lg:items-center">
           <div className="flex gap-1 overflow-x-auto">
@@ -237,7 +237,7 @@ export default function Vouchers() {
                 setBatch(e.target.value);
                 setShown(PAGE);
               }}
-              className="h-10 min-w-0 rounded-xl border border-line bg-white px-3 text-base outline-none focus:border-brand sm:text-sm"
+              className="h-9 min-w-0 rounded-lg border border-line bg-white px-3 text-base outline-none focus:border-brand sm:text-sm"
               aria-label="Batch"
             >
               <option value="">All batches</option>
@@ -257,7 +257,7 @@ export default function Vouchers() {
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Find a code"
                 autoCapitalize="characters"
-                className="h-10 w-full rounded-xl border border-line bg-white pr-3 pl-9 text-base outline-none focus:border-brand sm:w-44 sm:text-sm"
+                className="h-9 w-full rounded-lg border border-line bg-white pr-3 pl-9 text-base outline-none focus:border-brand sm:w-44 sm:text-sm"
               />
             </div>
           </div>

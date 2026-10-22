@@ -37,7 +37,7 @@ export default function ChartCard({ title, detail, data, series, unit, height })
     }
   }
   return (
-    <section className="min-w-0 rounded-2xl border border-line bg-white p-5">
+    <section className="min-w-0 rounded-xl border border-line bg-white p-5">
       <div className="mb-4 flex items-start justify-between gap-3">
         <div className="min-w-0">
           <h3 className="font-semibold">{title}</h3>

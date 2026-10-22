@@ -26,9 +26,9 @@ function DownloadButton({ icon, title, detail, onClick, busy, disabled }) {
       type="button"
       onClick={onClick}
       disabled={busy || disabled}
-      className="group flex w-full items-center gap-4 rounded-2xl border border-line bg-white p-4 text-left transition hover:-translate-y-0.5 hover:border-brand/30 hover:shadow-md disabled:pointer-events-none disabled:opacity-60"
+      className="group flex w-full items-center gap-4 rounded-xl border border-line bg-white p-4 text-left transition hover:-translate-y-0.5 hover:border-brand/30 hover:shadow-md disabled:pointer-events-none disabled:opacity-60"
     >
-      <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-brand text-white">
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand text-white">
         {busy ? (
           <LoaderCircle size={22} className="animate-spin" />
         ) : (
@@ -132,7 +132,7 @@ export default function Reports() {
         />
       </div>
       {error && (
-        <p className="flex gap-2 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">
+        <p className="flex gap-2 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
           <CircleAlert size={16} className="mt-0.5 shrink-0" />
           {error}
         </p>
@@ -184,7 +184,7 @@ export default function Reports() {
       </div>
 
       {!currentSite && (
-        <section className="rounded-2xl border border-line bg-white">
+        <section className="rounded-xl border border-line bg-white">
           <h3 className="px-5 pt-5 pb-3 font-semibold">Sites</h3>
           <div className="overflow-x-auto">
             <table className="w-full text-sm whitespace-nowrap">

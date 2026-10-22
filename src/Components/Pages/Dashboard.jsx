@@ -76,7 +76,7 @@ export default function Dashboard() {
             height={220}
           />
         ) : (
-          <section className="rounded-2xl border border-line bg-white p-5">
+          <section className="rounded-xl border border-line bg-white p-5">
             <h3 className="mb-4 font-semibold">Sites</h3>
             <div className="space-y-3">
               {report.siteRows.map((r) => (
@@ -108,7 +108,7 @@ export default function Dashboard() {
           </section>
         )}
 
-        <section className="rounded-2xl border border-line bg-white p-5">
+        <section className="rounded-xl border border-line bg-white p-5">
           <h3 className="mb-3 font-semibold">Latest sign-ins</h3>
           {report.latest.length === 0 ? (
             <p className="py-10 text-center text-sm text-muted">

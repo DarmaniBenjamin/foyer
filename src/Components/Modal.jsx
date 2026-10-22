@@ -38,7 +38,7 @@ export default function Modal({ title, onClose, onSubmit, footer, children }) {
     >
       <Body
         {...bodyProps}
-        className="flex max-h-[calc(100dvh-2rem)] w-full max-w-lg flex-col rounded-2xl bg-white shadow-xl sm:max-h-[calc(100dvh-3rem)]"
+        className="flex max-h-[calc(100dvh-2rem)] w-full max-w-lg flex-col rounded-xl bg-white shadow-xl sm:max-h-[calc(100dvh-3rem)]"
       >
         <div className="flex items-center justify-between border-b border-line px-5 py-4">
           <h2 className="text-base font-semibold">{title}</h2>

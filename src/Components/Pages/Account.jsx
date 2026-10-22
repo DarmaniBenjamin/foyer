@@ -18,7 +18,7 @@ function Saved({ show }) {
 
 function Card({ title, children }) {
   return (
-    <section className="rounded-2xl border border-line bg-white p-5">
+    <section className="rounded-xl border border-line bg-white p-5">
       <h3 className="mb-4 font-semibold">{title}</h3>
       {children}
     </section>
@@ -105,7 +105,7 @@ export default function Account() {
             />
           </div>
           {profileError && (
-            <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">
+            <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
               {profileError}
             </p>
           )}
@@ -157,7 +157,7 @@ export default function Account() {
             </div>
           </div>
           {passwordError && (
-            <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">
+            <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
               {passwordError}
             </p>
           )}

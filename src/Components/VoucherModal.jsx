@@ -168,7 +168,7 @@ export default function VoucherModal({ siteId, onMade, onPrint, onClose }) {
             ))}
           </select>
           {chosen && chosen.mode !== "voucher" && (
-            <p className="mt-2 flex gap-2 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-700">
+            <p className="mt-2 flex gap-2 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-700">
               <TriangleAlert size={16} className="mt-0.5 shrink-0" />
               {chosen.name} signs guests in with{" "}
               {SIGN_IN_MODES[chosen.mode].label}, so guests won't be asked for
@@ -212,7 +212,7 @@ export default function VoucherModal({ siteId, onMade, onPrint, onClose }) {
                 key={m}
                 type="button"
                 onClick={() => setMinutes(m)}
-                className={`h-10 rounded-xl border px-3 text-sm font-medium transition ${
+                className={`h-9 rounded-lg border px-3 text-sm font-medium transition ${
                   minutes === m
                     ? "border-brand bg-brand/10 text-brand"
                     : "border-line hover:border-brand/40 hover:bg-brand/5"
@@ -282,7 +282,7 @@ export default function VoucherModal({ siteId, onMade, onPrint, onClose }) {
         </div>
 
         {error && (
-          <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">
+          <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
             {error}
           </p>
         )}

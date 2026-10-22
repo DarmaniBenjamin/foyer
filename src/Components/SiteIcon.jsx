@@ -4,8 +4,8 @@ import { initials } from "../data";
 export default function SiteIcon({ site, size = "md" }) {
   const sizes = {
     sm: "h-7 w-7 text-[11px] rounded-lg",
-    md: "h-9 w-9 text-xs rounded-xl",
-    lg: "h-12 w-12 text-sm rounded-2xl",
+    md: "h-9 w-9 text-xs rounded-lg",
+    lg: "h-10 w-10 text-sm rounded-xl",
   };
   return (
     <span

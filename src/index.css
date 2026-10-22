@@ -4,15 +4,16 @@
    bg-brand, text-muted, border-line. To change the blue, change
    --color-brand (and --color-brand-soft, a very light version of it). */
 @theme {
-  --font-sans: "Poppins", system-ui, sans-serif;
-  --color-brand: #1d64d8;
-  --color-brand-soft: #eaf1fd;
-  --color-page: #f5f8fc;
-  --color-line: #e3e8f0;
-  --color-ink: #0f1b2d;
-  --color-muted: #5f6b7d;
+  --font-sans: "Geist", system-ui, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, monospace;
+  --color-brand: #2563eb;
+  --color-brand-soft: #eaf0fe;
+  --color-page: #f7f8fa;
+  --color-line: #e4e7ec;
+  --color-ink: #0b0d12;
+  --color-muted: #667085;
   --color-card: #ffffff;
-  --color-brand-2: #6d5dfc;
+  --color-brand-2: #3b82f6;
 }
 
 @layer base {
@@ -20,22 +21,34 @@
     background-color: var(--color-page);
     color: var(--color-ink);
   }
-  /* A soft blue and violet glow behind the whole app (it stays put while
+  /* A soft blue glow at the top of the whole app (it stays put while
      the page scrolls) */
   body {
     min-height: 100dvh;
     background-image:
-      radial-gradient(1100px 520px at 0% -10%, var(--glow-1), transparent 70%),
-      radial-gradient(900px 480px at 100% -5%, var(--glow-2), transparent 70%);
+      radial-gradient(900px 420px at 15% -12%, var(--glow-1), transparent 70%),
+      radial-gradient(700px 380px at 95% -8%, var(--glow-2), transparent 70%);
     background-attachment: fixed;
+    -webkit-font-smoothing: antialiased;
+    letter-spacing: -0.006em;
   }
   :root {
-    --glow-1: rgb(29 100 216 / 0.1);
-    --glow-2: rgb(109 93 252 / 0.08);
+    --glow-1: rgb(37 99 235 / 0.12);
+    --glow-2: rgb(59 130 246 / 0.08);
+    /* The glow around cards, buttons and the active menu item */
+    --glow-card: 0 1px 2px rgb(16 24 40 / 0.04), 0 8px 28px -14px rgb(37 99 235 / 0.22);
+    --glow-card-hover: 0 1px 2px rgb(16 24 40 / 0.05), 0 12px 32px -12px rgb(37 99 235 / 0.32);
+    --glow-button: 0 0 0 1px rgb(37 99 235 / 0.9), 0 4px 16px -4px rgb(37 99 235 / 0.55),
+      inset 0 1px 0 rgb(255 255 255 / 0.18);
   }
   body {
     @apply font-sans;
     overflow-wrap: anywhere;
+  }
+  h1,
+  h2,
+  h3 {
+    letter-spacing: -0.02em;
   }
   button {
     cursor: pointer;
@@ -43,19 +56,43 @@
 }
 
 /* Brand-coloured things (buttons, the logo, the active page marker)
-   get a blue-to-violet gradient */
+   get a light-to-deep blue */
 .bg-brand {
   background-image: linear-gradient(
-    135deg,
-    var(--color-brand),
-    color-mix(in oklab, var(--color-brand) 55%, var(--color-brand-2))
+    180deg,
+    color-mix(in oklab, var(--color-brand) 80%, var(--color-brand-2)),
+    var(--color-brand)
   );
+}
+
+/* Primary buttons glow blue */
+.btn-primary {
+  box-shadow: var(--glow-button);
+}
+.btn-primary:hover {
+  box-shadow: var(--glow-button), 0 6px 22px -4px rgb(37 99 235 / 0.6);
+}
+
+/* Cards (white boxes with a border, not the form boxes) have a soft
+   blue glow under them */
+:is(div, section, li, article, aside, a).bg-white.border-line,
+:is(div, section, li, article).bg-white.border {
+  box-shadow: var(--glow-card);
+}
+a.bg-white.border-line:hover,
+.hover\:shadow-md:hover {
+  box-shadow: var(--glow-card-hover);
+}
+
+/* The active menu item */
+.nav-active {
+  box-shadow: inset 0 0 0 1px rgb(37 99 235 / 0.18), 0 0 20px -6px rgb(37 99 235 / 0.35);
 }
 
 /* The sidebar and top bar are see-through, so the glow shows through */
 .app-sidebar {
-  background-color: rgb(255 255 255 / 0.8);
-  backdrop-filter: blur(16px);
+  background-color: rgb(255 255 255 / 0.75);
+  backdrop-filter: blur(16px) saturate(1.4);
 }
 @media (max-width: 1023px) {
   .app-sidebar {
@@ -66,43 +103,48 @@
 /* ============================================================
    Dark mode: on when <html> has class "dark" (src/theme.js)
    ============================================================
-   The colours above are swapped for dark ones, and white boxes
-   (bg-white) become dark cards, so the pages need no changes. */
+   True black with blue light: the colours above are swapped for dark
+   ones, and white boxes (bg-white) become near-black cards, so the
+   pages need no changes. */
 html.dark {
   color-scheme: dark;
   --color-brand: #3b82f6;
-  --color-brand-2: #8b5cf6;
-  --color-brand-soft: #111d3a;
-  --color-page: #05070d;
-  --color-line: #1a2232;
-  --color-ink: #e8edf5;
-  --color-muted: #8b97ab;
-  --color-card: #0b111c;
+  --color-brand-2: #60a5fa;
+  --color-brand-soft: #0d1729;
+  --color-page: #000000;
+  --color-line: #1f1f23;
+  --color-ink: #ededef;
+  --color-muted: #8b8b94;
+  --color-card: #0a0a0b;
   --glow-1: rgb(59 130 246 / 0.16);
-  --glow-2: rgb(139 92 246 / 0.12);
+  --glow-2: rgb(37 99 235 / 0.1);
+  --glow-card: inset 0 1px 0 rgb(255 255 255 / 0.04), 0 0 0 1px rgb(255 255 255 / 0.01),
+    0 10px 40px -18px rgb(59 130 246 / 0.28);
+  --glow-card-hover: inset 0 1px 0 rgb(255 255 255 / 0.06), 0 0 0 1px rgb(59 130 246 / 0.18),
+    0 12px 44px -14px rgb(59 130 246 / 0.4);
+  --glow-button: 0 0 0 1px rgb(96 165 250 / 0.5), 0 0 22px -4px rgb(59 130 246 / 0.7),
+    inset 0 1px 0 rgb(255 255 255 / 0.2);
 }
-/* Cards: a touch lighter than the page, with a faint top edge */
+/* Cards: a touch lighter than the page */
 .dark .bg-white {
   background-color: var(--color-card);
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.04);
 }
 .dark .bg-white\/90 {
-  background-color: rgb(5 7 13 / 0.7);
+  background-color: rgb(0 0 0 / 0.7);
 }
 .dark .bg-white\/95 {
-  background-color: rgb(11 17 28 / 0.92);
+  background-color: rgb(10 10 11 / 0.92);
 }
 .dark .app-sidebar {
-  background-color: rgb(8 12 20 / 0.75);
+  background-color: rgb(5 5 6 / 0.78);
+}
+.dark .nav-active {
+  box-shadow: inset 0 0 0 1px rgb(59 130 246 / 0.3), 0 0 24px -6px rgb(59 130 246 / 0.55);
 }
 @media (max-width: 1023px) {
   .dark .app-sidebar {
     background-color: var(--color-card);
   }
-}
-/* Primary buttons glow a little */
-.dark .btn-glow {
-  box-shadow: 0 8px 24px -8px rgb(59 130 246 / 0.6);
 }
 /* The dark cover behind menus and pop-ups */
 .dark .bg-ink\/40 {
@@ -129,8 +171,13 @@ html.dark {
 .dark .bg-emerald-50 {
   background-color: rgb(6 78 59 / 0.35);
 }
-.dark .text-emerald-800 {
+.dark .text-emerald-800,
+.dark .text-emerald-700,
+.dark .text-emerald-600 {
   color: #6ee7b7;
+}
+.dark .bg-emerald-100 {
+  background-color: rgb(6 78 59 / 0.5);
 }
 .dark .bg-amber-50 {
   background-color: rgb(120 53 15 / 0.35);
@@ -146,6 +193,9 @@ html.dark {
 }
 .dark [data-portal] .bg-white {
   background-color: #ffffff;
+  box-shadow: none;
+}
+[data-portal] .bg-white {
   box-shadow: none;
 }
 .dark [data-portal] .bg-white\/90 {

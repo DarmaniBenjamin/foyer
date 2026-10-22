@@ -78,7 +78,7 @@ export default function Setup() {
           />
         </div>
         {error && (
-          <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
+          <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
         )}
         <button type="submit" disabled={busy} className={`${primaryButton} w-full`}>
           {busy ? <LoaderCircle size={18} className="animate-spin" /> : <UserPlus size={18} />}

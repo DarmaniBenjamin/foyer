@@ -27,7 +27,7 @@ function TestResult({ test }) {
   const Icon = test.ok ? CircleCheck : CircleAlert;
   return (
     <div
-      className={`flex gap-2 rounded-xl px-3 py-2 text-sm ${
+      className={`flex gap-2 rounded-lg px-3 py-2 text-sm ${
         test.ok ? "bg-emerald-50 text-emerald-800" : "bg-red-50 text-red-700"
       }`}
     >
@@ -55,12 +55,12 @@ function ControllerCard({ controller, usedBy, isCurrent, onEdit, onDelete }) {
 
   return (
     <div
-      className={`flex flex-col gap-4 rounded-2xl border bg-white p-5 transition hover:shadow-md ${
-        isCurrent ? "border-brand/50 ring-4 ring-brand/10" : "border-line"
+      className={`flex flex-col gap-4 rounded-xl border bg-white p-5 transition hover:shadow-md ${
+        isCurrent ? "border-brand/50 ring-[3px] ring-brand/10" : "border-line"
       }`}
     >
       <div className="flex items-start gap-3">
-        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-soft text-brand">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand">
           <Router size={22} />
         </span>
         <div className="min-w-0 flex-1">
@@ -182,7 +182,7 @@ export default function Controllers() {
       </div>
 
       {controllers.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-line bg-white px-6 py-14 text-center">
+        <div className="rounded-xl border border-dashed border-line bg-white px-6 py-14 text-center">
           <p className="font-medium">No controllers yet</p>
           <p className="mt-1 text-sm text-muted">
             Add your UniFi or Omada controller to start.

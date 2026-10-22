@@ -19,19 +19,16 @@ function SidebarLink({ link, onClick }) {
       end={link.path === "/"}
       onClick={onClick}
       className={({ isActive }) =>
-        `relative flex h-11 items-center gap-3 rounded-xl px-4 text-sm font-medium transition-colors ${
+        `relative flex h-9 items-center gap-2.5 rounded-lg px-3 text-[13px] font-medium transition ${
           isActive
-            ? "bg-brand/10 text-brand"
+            ? "nav-active bg-brand/10 text-brand"
             : "text-muted hover:bg-brand/5 hover:text-ink"
         }`
       }
     >
       {({ isActive }) => (
         <>
-          {isActive && (
-            <span className="absolute top-2 bottom-2 left-0 w-1 rounded-r-full bg-brand" />
-          )}
-          <Icon size={20} />
+          <Icon size={17} strokeWidth={isActive ? 2.2 : 1.8} />
           {link.label}
         </>
       )}
@@ -58,7 +55,7 @@ function Sidebar({ open, onClose }) {
       >
         <div className="flex h-16 items-center justify-between px-5">
           <div className="flex items-center gap-2">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand text-white shadow-md shadow-brand/30">
+            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand text-white shadow-md shadow-brand/30">
               <Wifi size={20} />
             </span>
             <span className="text-lg font-semibold">{APP_NAME}</span>
@@ -74,10 +71,12 @@ function Sidebar({ open, onClose }) {
         </div>
 
         <nav className="flex flex-1 flex-col gap-1 overflow-y-auto px-3 py-2">
-          {/* "Sites" (the list) only on All sites; with one site picked,
-              "Site settings" opens that site instead */}
+          {/* "Sites" (the list) and "Controllers" only on All sites; with
+              one site picked, "Site settings" opens that site instead
+              (its controller is set up there) */}
           {navLinks
             .filter((link) => can(link.area))
+            .filter((link) => !(currentSite && link.path === "/controllers"))
             .map((link) =>
               link.path === "/sites" && currentSite
                 ? { ...link, path: `/sites/${currentSite.id}`, label: "Site settings", icon: Settings2 }
@@ -96,7 +95,7 @@ function Sidebar({ open, onClose }) {
             <Link
               to="/account"
               onClick={onClose}
-              className="flex min-w-0 flex-1 items-center gap-3 rounded-xl px-2 py-1.5 transition hover:bg-brand/5"
+              className="flex min-w-0 flex-1 items-center gap-3 rounded-lg px-2 py-1.5 transition hover:bg-brand/5"
             >
               <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-soft text-xs font-semibold text-brand">
                 {adminInitials(currentAdmin?.name ?? "")}
@@ -121,7 +120,7 @@ function Sidebar({ open, onClose }) {
                 signOut();
                 navigate("/login");
               }}
-              className="shrink-0 rounded-xl p-2.5 text-muted transition-colors hover:bg-red-50 hover:text-red-600"
+              className="shrink-0 rounded-lg p-2.5 text-muted transition-colors hover:bg-red-50 hover:text-red-600"
               aria-label="Sign out"
               title="Sign out"
             >

@@ -72,7 +72,7 @@ function Toast({ message, onClose }) {
   }, [message, onClose]);
   return (
     <div className="fixed inset-x-0 bottom-4 z-[60] flex justify-center px-4" role="alert">
-      <div className="flex max-w-md items-start gap-3 rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700 shadow-xl ring-1 ring-red-200">
+      <div className="flex max-w-md items-start gap-3 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700 shadow-xl ring-1 ring-red-200">
         <CircleAlert size={18} className="mt-0.5 shrink-0" />
         <p className="flex-1">{message}</p>
         <button type="button" onClick={onClose} aria-label="Close" className="shrink-0">
@@ -314,6 +314,18 @@ export default function DataProvider({ children }) {
     }
   }
 
+  // Site settings → Controller → Set up on UniFi. Returns
+  // { site, done: [steps in words] } or { error }.
+  async function setUpUnifi(siteId, body) {
+    try {
+      const result = await api(`/sites/${siteId}/unifi-setup`, { method: "POST", body });
+      change("sites", (list) => list.map((s) => (s.id === siteId ? result.site : s)));
+      return result;
+    } catch (err) {
+      return { error: err.message };
+    }
+  }
+
   function deleteSite(id) {
     setData((d) => ({
       ...d,
@@ -433,6 +445,7 @@ export default function DataProvider({ children }) {
     addSite,
     updateSite,
     setMaintenance,
+    setUpUnifi,
     deleteSite,
     addVouchers,
     deleteVouchers,

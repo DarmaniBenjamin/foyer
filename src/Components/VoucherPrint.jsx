@@ -20,7 +20,7 @@ function Card({ voucher, site }) {
         borderRadius: 12,
         overflow: "hidden",
         breakInside: "avoid",
-        fontFamily: "Poppins, system-ui, sans-serif",
+        fontFamily: "Geist, system-ui, sans-serif",
         color: "#101828",
         background: "#fff",
       }}

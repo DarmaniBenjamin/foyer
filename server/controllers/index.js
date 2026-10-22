@@ -67,3 +67,33 @@ export async function authorizeGuest(siteRow, ctx, access) {
     access,
   );
 }
+
+// ---------- Site settings → Controller ----------
+
+async function controllerRow(id) {
+  const [row] = await db.select().from(controllers).where(eq(controllers.id, Number(id)));
+  if (!row) throw new ControllerError("That controller was removed.");
+  return withPassword(row);
+}
+
+// The sites on a controller: [{ key, name }] (UniFi only; Omada is set
+// up by hand)
+export async function controllerSites(id) {
+  const controller = await controllerRow(id);
+  if (controller.kind !== "unifi")
+    throw new ControllerError("Omada sites are set up by hand. Follow the steps on the page.");
+  return unifi.listSites(controller);
+}
+
+export async function controllerWlans(id, siteKey) {
+  const controller = await controllerRow(id);
+  if (controller.kind !== "unifi") throw new ControllerError("Only for UniFi.");
+  return unifi.listWlans(controller, siteKey);
+}
+
+// Points a UniFi site's guest portal at Foyer (see unifi.js setUpPortal)
+export async function setUpUnifi(id, siteKey, options) {
+  const controller = await controllerRow(id);
+  if (controller.kind !== "unifi") throw new ControllerError("Only for UniFi.");
+  return { controller, done: await unifi.setUpPortal(controller, siteKey, options) };
+}

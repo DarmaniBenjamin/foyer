@@ -4,9 +4,10 @@
 //
 // data: [{ key, label, title, value, parts }]
 //   label: under the bar ("" for none). title: the tooltip's heading.
-//   parts (only with `series`): { new: 3, returning: 12 }, stacked with
-//   the first series on top.
-// series: [{ key, name }] to split each bar (see chartColors.js)
+//   parts (only with `series`): { new: 3, returning: 12 }, drawn as
+//   bars side by side (first series on the left) so they're easy to
+//   compare.
+// series: [{ key, name }] to split each day into bars (see chartColors.js)
 //
 // On screen it's drawn at the width of its box (measured), so the text
 // stays the same size on a phone and a big screen.
@@ -26,11 +27,9 @@ function niceStep(rough) {
 const compact = (n) =>
   n >= 1000 ? `${(n / 1000).toFixed(n >= 10000 ? 0 : 1).replace(/\.0$/, "")}K` : String(n);
 
-// A bar (or the top part of a stacked bar): square at the bottom, 4px
-// rounded at the top. Lower parts of a stack are plain rectangles.
-function barPath(x, y, w, h, rounded = true) {
-  if (!rounded) return `M${x},${y + h} V${y} H${x + w} V${y + h} Z`;
-  const r = Math.min(4, w / 2, h);
+// A bar: square at the bottom, rounded at the top
+function barPath(x, y, w, h) {
+  const r = Math.min(3, w / 2, h);
   return `M${x},${y + h} V${y + r} Q${x},${y} ${x + r},${y} H${x + w - r} Q${x + w},${y} ${x + w},${y + r} V${y + h} Z`;
 }
 
@@ -67,44 +66,48 @@ export default function BarChart({
   const bottom = 26;
   const innerW = W - left - right;
   const innerH = height - top - bottom;
-  const maxValue = Math.max(0, ...data.map((d) => d.value));
+  // Side-by-side bars only go as high as the biggest part
+  const maxValue = Math.max(
+    0,
+    ...data.map((d) =>
+      series ? Math.max(0, ...series.map((s) => d.parts?.[s.key] ?? 0)) : d.value,
+    ),
+  );
   const step = niceStep(maxValue / 4);
   const max = Math.max(step, Math.ceil(maxValue / step) * step);
   const ticks = Array.from({ length: Math.round(max / step) + 1 }, (_, i) => i * step);
   const band = innerW / Math.max(1, data.length);
-  const barW = Math.max(2, Math.min(24, band - 2));
+  // Thin bars with space between the days: a bar (or a group of bars
+  // side by side) takes at most 60% of its day's width
+  const groupW = Math.max(2, band * 0.6);
+  const count = series ? series.length : 1;
+  const inGap = series && groupW > 8 ? Math.min(2, groupW * 0.1) : 0;
+  const barW = Math.max(1.5, Math.min(series ? 10 : 16, (groupW - inGap * (count - 1)) / count));
+  const fullW = barW * count + inGap * (count - 1);
   // Only as many labels under the bars as fit without overlapping
   const fit = Math.max(2, Math.floor(innerW / 34));
   const labelledKeys = data.filter((d) => d.label).map((d) => d.key);
   const every = Math.ceil(labelledKeys.length / fit);
   const shownLabels = new Set(labelledKeys.filter((_, i) => i % every === 0));
-  // Bottom to top: the last series sits at the bottom
-  const stack = series ? [...series].reverse() : null;
-
   function bar(d, i) {
-    const x = left + band * i + band / 2 - barW / 2;
+    const x0 = left + band * i + band / 2 - fullW / 2;
     const base = top + innerH;
-    if (!stack) {
+    if (!series) {
       const h = (d.value / max) * innerH;
       return h > 0 ? (
-        <path d={barPath(x, base - h, barW, h)} fill={hover === i ? colors.hover : colors.bar} />
+        <path d={barPath(x0, base - h, barW, h)} fill={hover === i ? colors.hover : colors.bar} />
       ) : null;
     }
-    // Stacked: each part on top of the one below, with a 2px gap
-    const parts = stack.filter((s) => d.parts?.[s.key] > 0);
-    let y = base;
-    return parts.map((s, n) => {
-      const full = (d.parts[s.key] / max) * innerH;
-      const gap = n > 0 ? Math.min(2, full / 2) : 0;
-      const h = full - gap;
-      y -= full;
-      const isTop = n === parts.length - 1;
+    // Side by side, in the order of `series`
+    return series.map((s, n) => {
+      const h = ((d.parts?.[s.key] ?? 0) / max) * innerH;
+      if (h <= 0) return null;
       return (
         <path
           key={s.key}
-          d={barPath(x, y, barW, h, isTop)}
+          d={barPath(x0 + n * (barW + inGap), base - h, barW, h)}
           fill={colors.series[s.key]}
-          opacity={hover !== null && hover !== i ? 0.85 : 1}
+          opacity={hover !== null && hover !== i ? 0.8 : 1}
         />
       );
     });

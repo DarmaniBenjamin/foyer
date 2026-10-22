@@ -30,7 +30,7 @@ function toTime(text, endOfDay) {
 }
 
 const choice = (on) =>
-  `rounded-xl border px-3 text-sm font-semibold transition ${
+  `rounded-lg border px-3 text-sm font-semibold transition ${
     on
       ? "border-brand bg-brand/10 text-brand"
       : "border-line text-muted hover:border-brand/40 hover:bg-brand/5"
@@ -194,7 +194,7 @@ export default function AdModal({ ad, siteId, onSave, onClose }) {
                 key={s}
                 type="button"
                 onClick={() => setSeconds(s)}
-                className={`${choice(seconds === s)} h-10`}
+                className={`${choice(seconds === s)} h-9`}
               >
                 {s} seconds
               </button>
@@ -240,7 +240,7 @@ export default function AdModal({ ad, siteId, onSave, onClose }) {
         </label>
 
         {error && (
-          <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
+          <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
         )}
       </div>
     </Modal>

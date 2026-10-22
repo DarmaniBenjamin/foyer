@@ -3,7 +3,8 @@
 // "All sites" for an overview of every site.
 //
 // While you're editing a site (Sites → a site), switching opens the
-// site you picked instead.
+// site you picked instead. From Sites or Controllers (only in the menu
+// on All sites), picking a site opens its Site settings.
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { Check, ChevronsUpDown, LayoutGrid, Search } from "lucide-react";
@@ -13,7 +14,7 @@ import SiteIcon from "./SiteIcon";
 
 function AllSitesIcon() {
   return (
-    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-soft text-brand">
+    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand">
       <LayoutGrid size={18} />
     </span>
   );
@@ -24,7 +25,7 @@ function Option({ selected, onClick, icon, name, detail }) {
     <button
       type="button"
       onClick={onClick}
-      className={`flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left transition-colors ${
+      className={`flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left transition-colors ${
         selected ? "bg-brand/10" : "hover:bg-brand/5"
       }`}
     >
@@ -65,6 +66,8 @@ export default function SiteSwitcher({ onPicked }) {
     pickSite(id);
     if (/^\/sites\/\d+/.test(pathname))
       navigate(id === ALL_SITES ? "/sites" : `/sites/${id}`);
+    else if (id !== ALL_SITES && /^\/(sites|controllers)\/?$/.test(pathname))
+      navigate(`/sites/${id}`);
     setOpen(false);
     setSearch("");
     onPicked?.();
@@ -81,7 +84,7 @@ export default function SiteSwitcher({ onPicked }) {
   return (
     <div ref={boxRef} className="relative">
       {open && (
-        <div className="absolute right-0 bottom-full left-0 z-50 mb-2 rounded-2xl border border-line bg-white p-2 shadow-xl">
+        <div className="absolute right-0 bottom-full left-0 z-50 mb-2 rounded-xl border border-line bg-white p-2 shadow-xl">
           {sites.length > 5 && (
             <div className="relative mb-2">
               <Search
@@ -93,7 +96,7 @@ export default function SiteSwitcher({ onPicked }) {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Find a site"
-                className="h-10 w-full rounded-xl border border-line pr-3 pl-9 text-base outline-none focus:border-brand sm:text-sm"
+                className="h-9 w-full rounded-lg border border-line pr-3 pl-9 text-base outline-none focus:border-brand sm:text-sm"
               />
             </div>
           )}
@@ -128,7 +131,7 @@ export default function SiteSwitcher({ onPicked }) {
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="flex w-full items-center gap-3 rounded-xl border border-line px-2 py-2 text-left transition hover:border-brand/40 hover:bg-brand/5"
+        className="flex w-full items-center gap-3 rounded-lg border border-line px-2 py-2 text-left transition hover:border-brand/40 hover:bg-brand/5"
       >
         {currentSite ? <SiteIcon site={currentSite} /> : <AllSitesIcon />}
         <span className="min-w-0 flex-1">

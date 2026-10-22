@@ -58,7 +58,7 @@ export default function LogoPicker({ value, onChange, kind = "logo" }) {
   return (
     <div>
       <div className="flex items-center gap-3">
-        <div className="flex h-20 w-32 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-dashed border-line bg-page p-1">
+        <div className="flex h-20 w-32 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-dashed border-line bg-page p-1">
           {value ? (
             <img
               src={value}

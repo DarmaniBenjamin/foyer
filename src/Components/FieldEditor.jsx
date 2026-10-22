@@ -27,7 +27,7 @@ function OptionsInput({ options, onChange }) {
               .filter(Boolean),
           );
         }}
-        className="w-full rounded-xl border border-line px-3 py-2 text-base outline-none focus:border-brand focus:ring-4 focus:ring-brand/15 sm:text-sm"
+        className="w-full rounded-lg border border-line px-3 py-2 text-base outline-none focus:border-brand focus:ring-[3px] focus:ring-brand/15 sm:text-sm"
       />
     </label>
   );
@@ -37,7 +37,7 @@ function FieldRow({ field, index, count, onChange, onMove, onRemove }) {
   const iconButton =
     "rounded-lg p-2 text-muted transition hover:bg-page hover:text-ink disabled:opacity-30 disabled:hover:bg-transparent";
   return (
-    <div className="space-y-3 rounded-2xl border border-line bg-white p-4">
+    <div className="space-y-3 rounded-xl border border-line bg-white p-4">
       <div className="flex items-center gap-2">
         <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand-soft text-xs font-semibold text-brand">
           {index + 1}
@@ -63,7 +63,7 @@ function FieldRow({ field, index, count, onChange, onMove, onRemove }) {
             </option>
           ))}
         </select>
-        <label className="flex h-11 cursor-pointer items-center gap-2 rounded-xl border border-line px-3 text-sm hover:bg-brand/5">
+        <label className="flex h-9 cursor-pointer items-center gap-2 rounded-lg border border-line px-3 text-sm hover:bg-brand/5">
           <input
             type="checkbox"
             checked={field.required}
@@ -102,7 +102,7 @@ function FieldRow({ field, index, count, onChange, onMove, onRemove }) {
         </div>
       </div>
       {field.type === "checkbox" && (
-        <label className="flex cursor-pointer items-start gap-2 rounded-xl bg-page px-3 py-2 text-sm">
+        <label className="flex cursor-pointer items-start gap-2 rounded-lg bg-page px-3 py-2 text-sm">
           <input
             type="checkbox"
             checked={Boolean(field.consent)}
@@ -158,7 +158,7 @@ export default function FieldEditor({ fields, onChange }) {
   return (
     <div className="space-y-3">
       {fields.length === 0 && (
-        <p className="rounded-2xl border border-dashed border-line bg-white px-4 py-6 text-center text-sm text-muted">
+        <p className="rounded-xl border border-dashed border-line bg-white px-4 py-6 text-center text-sm text-muted">
           No questions yet. Guests would only press Connect.
         </p>
       )}
@@ -175,7 +175,7 @@ export default function FieldEditor({ fields, onChange }) {
       ))}
 
       {adding ? (
-        <div className="rounded-2xl border border-brand/30 bg-brand-soft/50 p-3">
+        <div className="rounded-xl border border-brand/30 bg-brand-soft/50 p-3">
           <p className="mb-2 text-sm font-medium">Add a question</p>
           <div className="flex flex-wrap gap-2">
             {presets.map((preset) => (
@@ -214,7 +214,7 @@ export default function FieldEditor({ fields, onChange }) {
             <button
               type="button"
               onClick={() => setAdding(false)}
-              className="h-11 px-3 text-sm font-medium text-muted hover:text-ink"
+              className="h-9 px-3 text-sm font-medium text-muted hover:text-ink"
             >
               Cancel
             </button>

@@ -31,7 +31,7 @@ export default function ThemeSwitch() {
 
   return (
     <div
-      className="grid grid-cols-3 gap-1 rounded-xl border border-line p-1"
+      className="grid grid-cols-3 gap-1 rounded-lg border border-line p-1"
       role="radiogroup"
       aria-label="Theme"
     >

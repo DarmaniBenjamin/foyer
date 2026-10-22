@@ -22,8 +22,8 @@ function SiteCard({ site, controller, selected, onOpen }) {
     <button
       type="button"
       onClick={onOpen}
-      className={`group flex w-full items-center gap-4 rounded-2xl border bg-white p-4 text-left transition hover:-translate-y-0.5 hover:border-brand/30 hover:shadow-md ${
-        selected ? "border-brand/50 ring-4 ring-brand/10" : "border-line"
+      className={`group flex w-full items-center gap-4 rounded-xl border bg-white p-4 text-left transition hover:-translate-y-0.5 hover:border-brand/30 hover:shadow-md ${
+        selected ? "border-brand/50 ring-[3px] ring-brand/10" : "border-line"
       }`}
     >
       <SiteIcon site={site} size="lg" />
@@ -115,13 +115,13 @@ export default function Sites() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Find a site"
-            className="h-11 w-full rounded-xl border border-line bg-white pr-3 pl-10 text-base outline-none focus:border-brand focus:ring-4 focus:ring-brand/15 sm:text-sm"
+            className="h-9 w-full rounded-lg border border-line bg-white pr-3 pl-10 text-base outline-none focus:border-brand focus:ring-[3px] focus:ring-brand/15 sm:text-sm"
           />
         </div>
       )}
 
       {sites.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-line bg-white px-6 py-14 text-center">
+        <div className="rounded-xl border border-dashed border-line bg-white px-6 py-14 text-center">
           <p className="font-medium">No sites yet</p>
           <p className="mt-1 text-sm text-muted">
             Add your first client site to make its sign-in page.

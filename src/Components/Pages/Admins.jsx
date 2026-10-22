@@ -32,7 +32,7 @@ import {
 } from "../formStyles";
 
 const choice = (on) =>
-  `rounded-xl border text-sm font-semibold transition ${
+  `rounded-lg border text-sm font-semibold transition ${
     on
       ? "border-brand bg-brand/10 text-brand"
       : "border-line text-muted hover:border-brand/40 hover:bg-brand/5"
@@ -174,7 +174,7 @@ function UserModal({ user, isYou, sites, emailsTaken, onSave, onClose }) {
           <>
             <div>
               <span className={labelClass}>Sites they can see</span>
-              <div className="max-h-48 space-y-1 overflow-y-auto rounded-xl border border-line p-2">
+              <div className="max-h-48 space-y-1 overflow-y-auto rounded-lg border border-line p-2">
                 {sites.map((site) => (
                   <label
                     key={site.id}
@@ -199,7 +199,7 @@ function UserModal({ user, isYou, sites, emailsTaken, onSave, onClose }) {
                 They always see the Dashboard and Reports for their sites, and
                 never Sites, Controllers or Users.
               </p>
-              <div className="divide-y divide-line rounded-xl border border-line">
+              <div className="divide-y divide-line rounded-lg border border-line">
                 {ACCESS_AREAS.map((area) => (
                   <div
                     key={area.key}
@@ -231,7 +231,7 @@ function UserModal({ user, isYou, sites, emailsTaken, onSave, onClose }) {
         )}
 
         {error && (
-          <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">
+          <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
             {error}
           </p>
         )}
@@ -245,7 +245,7 @@ function UserRow({ user, you, sites, onEdit, onRemove }) {
   const allowed = ACCESS_AREAS.filter((a) => user.access?.[a.key] !== "none");
   return (
     <div className="flex items-start gap-3 p-4">
-      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-soft text-sm font-semibold text-brand">
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-soft text-sm font-semibold text-brand">
         {adminInitials(user.name)}
       </span>
       <div className="min-w-0 flex-1">
@@ -361,7 +361,7 @@ export default function Admins() {
             <h2 className="font-semibold">{group.title}</h2>
             <p className="text-sm text-muted">{group.hint}</p>
           </div>
-          <div className="divide-y divide-line rounded-2xl border border-line bg-white">
+          <div className="divide-y divide-line rounded-xl border border-line bg-white">
             {group.people.map((user) => (
               <UserRow
                 key={user.id}

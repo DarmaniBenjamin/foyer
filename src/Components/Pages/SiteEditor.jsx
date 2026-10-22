@@ -1,6 +1,6 @@
 // One site's settings, with a live preview of its sign-in page.
-//   Details: name, controller, portal on/off, the address to put in the
-//            controller, country, time zone and the email check
+//   Details: name, controller (and setting it up), portal on/off, the
+//            portal address, country, time zone and the email check
 //   Sign-in: form questions, terms or voucher
 //   Look:    logo, background picture, colours, the box and words
 //   Access:  how long guests stay on, speed and data limits
@@ -9,9 +9,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import {
   ArrowLeft,
-  Check,
   Clock,
-  Copy,
   ListChecks,
   Palette,
   Settings2,
@@ -19,7 +17,6 @@ import {
 } from "lucide-react";
 import useData from "../../useData";
 import {
-  CONTROLLER_KINDS,
   COUNTRIES,
   SIGN_IN_MODES,
   TIMEZONES,
@@ -27,6 +24,8 @@ import {
   makeSlug,
 } from "../../data";
 import SiteIcon from "../SiteIcon";
+import CopyBox from "../CopyBox";
+import ControllerSetup from "../ControllerSetup";
 import PortalPreview from "../PortalPreview";
 import FieldEditor from "../FieldEditor";
 import LogoPicker from "../LogoPicker";
@@ -50,13 +49,13 @@ const TABS = [
 const TIME_CHOICES = [30, 60, 120, 240, 480, 720, 1440];
 
 const textareaClass =
-  "w-full rounded-xl border border-line bg-white px-3 py-2 text-base outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/15 sm:text-sm";
+  "w-full rounded-lg border border-line bg-white px-3 py-2 text-base outline-none transition focus:border-brand focus:ring-[3px] focus:ring-brand/15 sm:text-sm";
 
 // ---------- Small pieces ----------
 
 function Section({ title, hint, children }) {
   return (
-    <section className="space-y-4 rounded-2xl border border-line bg-white p-5">
+    <section className="space-y-4 rounded-xl border border-line bg-white p-5">
       <div>
         <h3 className="font-semibold">{title}</h3>
         {hint && <p className="mt-0.5 text-sm text-muted">{hint}</p>}
@@ -102,7 +101,7 @@ function ColorField({ id, label, value, onChange }) {
             setText(e.target.value);
             onChange(e.target.value);
           }}
-          className="h-11 w-14 shrink-0 cursor-pointer rounded-xl border border-line bg-white p-1"
+          className="h-9 w-14 shrink-0 cursor-pointer rounded-lg border border-line bg-white p-1"
           aria-label={`${label} picker`}
         />
         <input
@@ -120,33 +119,6 @@ function ColorField({ id, label, value, onChange }) {
   );
 }
 
-function CopyBox({ text }) {
-  const [copied, setCopied] = useState(false);
-  async function copy() {
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    } catch {
-      // Copying isn't allowed here (e.g. a phone on plain http): the
-      // address can still be selected and copied by hand
-    }
-  }
-  return (
-    <div className="flex items-center gap-2 rounded-xl border border-line bg-page p-1 pl-3">
-      <code className="min-w-0 flex-1 truncate text-sm select-all">{text}</code>
-      <button
-        type="button"
-        onClick={copy}
-        className="flex h-9 shrink-0 items-center gap-1.5 rounded-lg bg-white px-3 text-sm font-medium shadow-sm hover:text-brand"
-      >
-        {copied ? <Check size={16} /> : <Copy size={16} />}
-        {copied ? "Copied" : "Copy"}
-      </button>
-    </div>
-  );
-}
-
 // "2.5" ↔ 2500 kbps; empty = no limit
 const toMbps = (kbps) => (kbps ? String(kbps / 1000) : "");
 const toKbps = (text) => {
@@ -156,9 +128,7 @@ const toKbps = (text) => {
 
 // ---------- The tabs ----------
 
-function DetailsTab({ draft, set, controllers, slugsTaken, onDelete }) {
-  const controller = controllers.find((c) => c.id === draft.controllerId);
-  const origin = window.location.origin;
+function DetailsTab({ site, draft, set, slugsTaken, onDelete }) {
   return (
     <>
       <Section title="Site">
@@ -185,49 +155,12 @@ function DetailsTab({ draft, set, controllers, slugsTaken, onDelete }) {
         title="Controller"
         hint="Where this site's access points are managed. Guests are let on through it."
       >
-        <div>
-          <label className={labelClass} htmlFor="site-controller">
-            Controller
-          </label>
-          <select
-            id="site-controller"
-            value={draft.controllerId ?? ""}
-            onChange={(e) => set({ controllerId: Number(e.target.value) || null })}
-            className={inputClass}
-          >
-            <option value="">Pick a controller</option>
-            {controllers.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name} ({CONTROLLER_KINDS[c.kind].label})
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {controller?.kind === "unifi" && (
-          <div>
-            <label className={labelClass} htmlFor="site-key">
-              UniFi site name
-            </label>
-            <input
-              id="site-key"
-              value={draft.siteKey}
-              onChange={(e) => set({ siteKey: e.target.value.trim() })}
-              autoCapitalize="none"
-              autoCorrect="off"
-              className={`${inputClass} font-mono`}
-            />
-            <p className={hintClass}>
-              "default" for the first site, otherwise the short code in the
-              controller's address bar: /manage/<b>abc123de</b>/dashboard.
-            </p>
-          </div>
-        )}
+        <ControllerSetup site={site} draft={draft} set={set} />
       </Section>
 
       <Section
         title="Portal address"
-        hint="What to put in the controller so its guests come to this sign-in page."
+        hint="This site's sign-in page is at /p/ and this name."
       >
         <div>
           <label className={labelClass} htmlFor="site-slug">
@@ -250,33 +183,11 @@ function DetailsTab({ draft, set, controllers, slugsTaken, onDelete }) {
             className={`${inputClass} font-mono`}
           />
           <p className={hintClass}>
-            Changing it means changing it in the controller too.
+            For Omada it's part of the portal address, so changing it means
+            changing it in Omada too.
           </p>
         </div>
-
-        {controller?.kind === "omada" && (
-          <div className="space-y-2 text-sm">
-            <p className="text-muted">
-              In Omada: <b>Site Settings → Authentication → Portal</b>, add a
-              portal with <b>External Portal Server</b> and this{" "}
-              <b>Custom Portal Server URL</b>:
-            </p>
-            <CopyBox text={`${origin}/omada/${draft.slug}`} />
-          </div>
-        )}
-        {controller?.kind === "unifi" && (
-          <div className="space-y-2 text-sm">
-            <p className="text-muted">
-              In UniFi: <b>Hotspot / Guest portal</b>, authentication{" "}
-              <b>External portal server</b>, set to your Linode's IP address.
-              The Linode's nginx sends guests on to:
-            </p>
-            <CopyBox text={`${origin}/guest/s/${draft.siteKey || "default"}/`} />
-          </div>
-        )}
-        {!controller && (
-          <p className="text-sm text-muted">Pick a controller first.</p>
-        )}
+        <CopyBox text={`${window.location.origin}/p/${draft.slug}`} />
       </Section>
 
       <Section title="Guests and time">
@@ -326,7 +237,7 @@ function DetailsTab({ draft, set, controllers, slugsTaken, onDelete }) {
         />
       </Section>
 
-      <section className="flex flex-col gap-3 rounded-2xl border border-red-200 bg-white p-5 sm:flex-row sm:items-center sm:justify-between">
+      <section className="flex flex-col gap-3 rounded-xl border border-red-200 bg-white p-5 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h3 className="font-semibold text-red-700">Delete site</h3>
           <p className="text-sm text-muted">
@@ -357,7 +268,7 @@ function SignInTab({ draft, set, setLook }) {
                   ...(value === "terms" ? { requireTerms: true } : {}),
                 })
               }
-              className={`rounded-xl border p-3 text-left transition ${
+              className={`rounded-lg border p-3 text-left transition ${
                 draft.mode === value
                   ? "border-brand bg-brand/10"
                   : "border-line hover:border-brand/40 hover:bg-brand/5"
@@ -514,7 +425,7 @@ function LookTab({ draft, setLook, onPreviewPage }) {
                 key={value}
                 type="button"
                 onClick={() => setLook({ labels: value })}
-                className={`h-11 rounded-xl border text-sm font-semibold transition ${
+                className={`h-9 rounded-lg border text-sm font-semibold transition ${
                   (look.labels ?? "above") === value
                     ? "border-brand bg-brand/10 text-brand"
                     : "border-line text-muted hover:border-brand/40 hover:bg-brand/5"
@@ -574,7 +485,7 @@ function AccessTab({ draft, set }) {
                 setOtherTime(false);
                 set({ minutes: m });
               }}
-              className={`h-10 rounded-xl border px-3 text-sm font-medium transition ${
+              className={`h-9 rounded-lg border px-3 text-sm font-medium transition ${
                 !otherTime && draft.minutes === m
                   ? "border-brand bg-brand/10 text-brand"
                   : "border-line hover:border-brand/40 hover:bg-brand/5"
@@ -586,7 +497,7 @@ function AccessTab({ draft, set }) {
           <button
             type="button"
             onClick={() => setOtherTime(true)}
-            className={`h-10 rounded-xl border px-3 text-sm font-medium transition ${
+            className={`h-9 rounded-lg border px-3 text-sm font-medium transition ${
               otherTime
                 ? "border-brand bg-brand/10 text-brand"
                 : "border-line hover:border-brand/40 hover:bg-brand/5"
@@ -664,7 +575,7 @@ function PhonePreview({ draft, page, onPage }) {
   ];
   return (
     <div className="flex flex-col items-center gap-3">
-      <div className="flex rounded-xl border border-line bg-white p-1">
+      <div className="flex rounded-lg border border-line bg-white p-1">
         {pages.map(([value, label]) => (
           <button
             key={value}
@@ -718,9 +629,17 @@ function problemWith(draft, slugsTaken) {
 
 // ---------- The page ----------
 
+// The same settings, whatever order their keys are in
+const sorted = (v) =>
+  Array.isArray(v)
+    ? v.map(sorted)
+    : v && typeof v === "object"
+      ? Object.fromEntries(Object.keys(v).sort().map((k) => [k, sorted(v[k])]))
+      : v;
+const same = (a, b) => JSON.stringify(sorted(a)) === JSON.stringify(sorted(b));
+
 function SiteEditor({ siteId }) {
-  const { sites, controllers, currentSite, pickSite, updateSite, deleteSite } =
-    useData();
+  const { sites, currentSite, pickSite, updateSite, deleteSite } = useData();
   const navigate = useNavigate();
   const site = sites.find((s) => s.id === siteId);
 
@@ -731,7 +650,7 @@ function SiteEditor({ siteId }) {
   const [error, setError] = useState("");
   const [deleting, setDeleting] = useState(false);
 
-  const dirty = site && JSON.stringify(draft) !== JSON.stringify(site);
+  const dirty = site && !same(draft, site);
   const slugsTaken = sites.filter((s) => s.id !== siteId).map((s) => s.slug);
 
   // Opening a site picks it in the site switcher too
@@ -750,7 +669,7 @@ function SiteEditor({ siteId }) {
 
   if (!site)
     return (
-      <div className="rounded-2xl border border-line bg-white px-6 py-14 text-center">
+      <div className="rounded-xl border border-line bg-white px-6 py-14 text-center">
         <p className="font-medium">That site doesn't exist</p>
         <Link to="/sites" className="mt-2 inline-block text-sm font-medium text-brand">
           Back to sites
@@ -788,7 +707,7 @@ function SiteEditor({ siteId }) {
       <div className="flex items-center gap-3">
         <Link
           to="/sites"
-          className="rounded-xl border border-line bg-white p-2.5 text-muted transition hover:border-brand/40 hover:text-brand"
+          className="rounded-lg border border-line bg-white p-2.5 text-muted transition hover:border-brand/40 hover:text-brand"
           aria-label="All sites"
         >
           <ArrowLeft size={18} />
@@ -806,7 +725,7 @@ function SiteEditor({ siteId }) {
       </div>
 
       {/* Phones and tablets: settings or preview, one at a time */}
-      <div className="flex rounded-xl border border-line bg-white p-1 lg:hidden">
+      <div className="flex rounded-lg border border-line bg-white p-1 lg:hidden">
         {[
           ["settings", "Settings"],
           ["preview", "Preview"],
@@ -826,7 +745,7 @@ function SiteEditor({ siteId }) {
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
         <div className={`min-w-0 space-y-4 ${mobileView === "preview" ? "hidden lg:block" : ""}`}>
-          <div className="flex gap-1 overflow-x-auto rounded-xl border border-line bg-white p-1">
+          <div className="flex gap-1 overflow-x-auto rounded-lg border border-line bg-white p-1">
             {TABS.map(({ id, label, icon }) => {
               const Icon = icon;
               return (
@@ -834,7 +753,7 @@ function SiteEditor({ siteId }) {
                   key={id}
                   type="button"
                   onClick={() => setTab(id)}
-                  className={`flex h-10 flex-1 items-center justify-center gap-2 rounded-lg px-2 text-sm font-semibold whitespace-nowrap transition sm:px-3 ${
+                  className={`flex h-9 flex-1 items-center justify-center gap-2 rounded-lg px-2 text-sm font-semibold whitespace-nowrap transition sm:px-3 ${
                     tab === id
                       ? "bg-brand/10 text-brand"
                       : "text-muted hover:bg-brand/5 hover:text-ink"
@@ -849,9 +768,9 @@ function SiteEditor({ siteId }) {
 
           {tab === "details" && (
             <DetailsTab
+              site={site}
               draft={draft}
               set={set}
-              controllers={controllers}
               slugsTaken={slugsTaken}
               onDelete={() => setDeleting(true)}
             />

@@ -154,3 +154,82 @@ export async function authorize(controller, siteKey, guest, access) {
     `UniFi didn't authorize the guest (${res.status}${msg ? `: ${msg}` : ""}).`,
   );
 }
+
+// ---------- Setting a site up from Foyer (Site settings → Controller) ----------
+
+function failed(res, what) {
+  const msg = res.json?.meta?.msg ?? "";
+  if (res.status === 403 || /NoPermission/i.test(msg))
+    return new ControllerError(
+      `The UniFi account can't ${what}. Give it full admin rights (Super Admin or Site Admin) on that site.`,
+    );
+  return new ControllerError(`UniFi didn't ${what} (${res.status}${msg ? `: ${msg}` : ""}).`);
+}
+
+// The Wi-Fi networks on one UniFi site:
+// [{ id, name, enabled, guestPortal, security }]
+export async function listWlans(controller, siteKey) {
+  const res = await call(controller, "GET", `/api/s/${encodeURIComponent(siteKey)}/rest/wlanconf`);
+  if (res.json?.meta?.rc !== "ok") throw failed(res, "list the Wi-Fi networks");
+  return res.json.data.map((w) => ({
+    id: w._id,
+    name: w.name,
+    enabled: w.enabled !== false,
+    guestPortal: Boolean(w.is_guest),
+    security: w.security === "open" ? "Open" : String(w.security ?? "").toUpperCase() || "Secured",
+  }));
+}
+
+// Points the UniFi site's guest portal at Foyer and turns it on for one
+// Wi-Fi network, like Spotipo does:
+//   - Guest portal (Hotspot): on, authentication "External portal
+//     server", custom portal IP = portalIp (the Linode, whose nginx
+//     forwards guests to Foyer)
+//   - Pre-authorization access: each of allowHosts (so phones can reach
+//     the sign-in page before they're let on)
+//   - The Wi-Fi network: guest portal on
+// The rest of the guest settings are left as they are. The guest portal
+// settings belong to the whole UniFi site, so any other Wi-Fi network
+// there with the guest portal on uses Foyer too.
+// Returns the steps done, in words.
+export async function setUpPortal(controller, siteKey, { wlanId, portalIp, allowHosts }) {
+  const site = `/api/s/${encodeURIComponent(siteKey)}`;
+  const done = [];
+
+  // 1. The guest portal settings
+  const got = await call(controller, "GET", `${site}/get/setting`);
+  if (got.json?.meta?.rc !== "ok") throw failed(got, "share its guest portal settings");
+  const current = got.json.data.find((s) => s.key === "guest_access") ?? { key: "guest_access" };
+  const subnets = Object.entries(current)
+    .filter(([k, v]) => /^allowed_subnet_\d+$/.test(k) && v)
+    .map(([, v]) => v);
+  const wanted = allowHosts.map((h) => (h.includes("/") ? h : `${h}/32`));
+  const allAllowed = [...subnets, ...wanted.filter((w) => !subnets.includes(w))];
+  const settings = {
+    ...current,
+    portal_enabled: true,
+    auth: "custom",
+    custom_ip: portalIp,
+    portal_use_hostname: false,
+  };
+  for (const k of Object.keys(settings)) if (/^allowed_subnet_\d+$/.test(k)) delete settings[k];
+  allAllowed.forEach((s, i) => (settings[`allowed_subnet_${i + 1}`] = s));
+
+  let saved = current._id
+    ? await call(controller, "PUT", `${site}/rest/setting/guest_access/${current._id}`, settings)
+    : null;
+  if (saved?.json?.meta?.rc !== "ok")
+    saved = await call(controller, "POST", `${site}/set/setting/guest_access`, settings);
+  if (saved.json?.meta?.rc !== "ok") throw failed(saved, "save the guest portal settings");
+  done.push(`Guest portal on, with External portal server ${portalIp}`);
+  done.push(`Pre-authorization access for ${wanted.join(", ")}`);
+
+  // 2. The Wi-Fi network
+  const wlan = await call(controller, "PUT", `${site}/rest/wlanconf/${encodeURIComponent(wlanId)}`, {
+    is_guest: true,
+  });
+  if (wlan.json?.meta?.rc !== "ok") throw failed(wlan, "turn on the guest portal for that Wi-Fi network");
+  const name = wlan.json.data?.[0]?.name;
+  done.push(`Guest portal turned on for the Wi-Fi network${name ? ` "${name}"` : ""}`);
+  return done;
+}

@@ -45,8 +45,8 @@ const SORTS = [
 function Stat({ icon, label, value }) {
   const Icon = icon;
   return (
-    <div className="flex items-center gap-3 rounded-2xl border border-line bg-white p-3 sm:p-4">
-      <span className="hidden h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-soft text-brand sm:flex">
+    <div className="flex items-center gap-3 rounded-xl border border-line bg-white p-3 sm:p-4">
+      <span className="hidden h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand sm:flex">
         <Icon size={20} />
       </span>
       <div className="min-w-0">
@@ -58,7 +58,7 @@ function Stat({ icon, label, value }) {
 }
 
 const selectClass =
-  "h-10 min-w-0 rounded-xl border border-line bg-white px-3 text-base outline-none focus:border-brand sm:text-sm";
+  "h-9 min-w-0 rounded-lg border border-line bg-white px-3 text-base outline-none focus:border-brand sm:text-sm";
 
 export default function Guests() {
   const {
@@ -162,7 +162,7 @@ export default function Guests() {
       </p>
 
       {currentSite && currentSite.mode !== "form" && (
-        <p className="rounded-2xl border border-line bg-white p-4 text-sm text-muted">
+        <p className="rounded-xl border border-line bg-white p-4 text-sm text-muted">
           {currentSite.name} signs guests in with{" "}
           <b className="text-ink">{SIGN_IN_MODES[currentSite.mode].label}</b>, so
           there are no answers, only devices.{" "}
@@ -187,7 +187,7 @@ export default function Guests() {
         <Stat icon={Repeat} label="Came back" value={returning} />
       </div>
 
-      <div className="rounded-2xl border border-line bg-white">
+      <div className="rounded-xl border border-line bg-white">
         <div className="flex flex-col gap-2 border-b border-line p-4 sm:flex-row sm:items-center">
           <div className="relative sm:max-w-xs sm:flex-1">
             <Search
@@ -201,7 +201,7 @@ export default function Guests() {
                 reset();
               }}
               placeholder="Find a name, email, answer or MAC"
-              className="h-10 w-full rounded-xl border border-line bg-white pr-3 pl-9 text-base outline-none focus:border-brand sm:text-sm"
+              className="h-9 w-full rounded-lg border border-line bg-white pr-3 pl-9 text-base outline-none focus:border-brand sm:text-sm"
             />
           </div>
           <div className="flex gap-2 sm:ml-auto">

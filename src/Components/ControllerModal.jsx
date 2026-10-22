@@ -94,7 +94,7 @@ export default function ControllerModal({ controller, onSave, onClose }) {
                 key={value}
                 type="button"
                 onClick={() => setKind(value)}
-                className={`h-11 rounded-xl border text-sm font-semibold transition ${
+                className={`h-9 rounded-lg border text-sm font-semibold transition ${
                   kind === value
                     ? "border-brand bg-brand/10 text-brand"
                     : "border-line text-muted hover:border-brand/40 hover:bg-brand/5"
@@ -202,7 +202,7 @@ export default function ControllerModal({ controller, onSave, onClose }) {
           </div>
         )}
 
-        <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-line p-3 hover:bg-brand/5">
+        <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-line p-3 hover:bg-brand/5">
           <input
             type="checkbox"
             checked={allowSelfSigned}
@@ -220,7 +220,7 @@ export default function ControllerModal({ controller, onSave, onClose }) {
         </label>
 
         {error && (
-          <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">
+          <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
             {error}
           </p>
         )}

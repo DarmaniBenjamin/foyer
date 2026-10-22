@@ -7,7 +7,12 @@ import { db } from "../db/index.js";
 import { controllers } from "../db/schema.js";
 import { requireAccess } from "../auth.js";
 import { seal } from "../secrets.js";
-import { testController } from "../controllers/index.js";
+import {
+  ControllerError,
+  controllerSites,
+  controllerWlans,
+  testController,
+} from "../controllers/index.js";
 import { Problem, controllerOut, text } from "../shapes.js";
 
 export const controllersRouter = Router();
@@ -63,6 +68,26 @@ controllersRouter.post("/:id/test", async (req, res) => {
   const [row] = await db.select().from(controllers).where(eq(controllers.id, Number(req.params.id)));
   if (!row) throw new Problem("That controller was already removed.", 404);
   res.json(controllerOut(await testController(row)));
+});
+
+// A controller that can't be reached or refuses: words for the page
+async function fromController(work) {
+  try {
+    return await work();
+  } catch (err) {
+    if (err instanceof ControllerError) throw new Problem(err.message);
+    throw err;
+  }
+}
+
+// The UniFi sites on the controller (Site settings → Controller)
+controllersRouter.get("/:id/sites", async (req, res) => {
+  res.json(await fromController(() => controllerSites(req.params.id)));
+});
+
+// The Wi-Fi networks on one of its UniFi sites
+controllersRouter.get("/:id/sites/:key/wlans", async (req, res) => {
+  res.json(await fromController(() => controllerWlans(req.params.id, String(req.params.key))));
 });
 
 controllersRouter.delete("/:id", async (req, res) => {

@@ -83,7 +83,7 @@ export default function NewSiteModal({ onCreate, onClose }) {
                 key={value}
                 type="button"
                 onClick={() => setMode(value)}
-                className={`rounded-xl border p-3 text-left transition ${
+                className={`rounded-lg border p-3 text-left transition ${
                   mode === value
                     ? "border-brand bg-brand/10"
                     : "border-line hover:border-brand/40 hover:bg-brand/5"
@@ -101,7 +101,7 @@ export default function NewSiteModal({ onCreate, onClose }) {
         </div>
 
         {error && (
-          <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">
+          <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
             {error}
           </p>
         )}

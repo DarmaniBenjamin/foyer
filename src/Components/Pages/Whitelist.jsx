@@ -106,7 +106,7 @@ export default function Whitelist() {
         )}
       </div>
 
-      <div className="rounded-2xl border border-line bg-white">
+      <div className="rounded-xl border border-line bg-white">
         <div className="border-b border-line p-4">
           <div className="relative max-w-sm">
             <Search
@@ -117,7 +117,7 @@ export default function Whitelist() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Find a MAC address or note"
-              className="h-10 w-full rounded-xl border border-line bg-white pr-3 pl-9 text-base outline-none focus:border-brand sm:text-sm"
+              className="h-9 w-full rounded-lg border border-line bg-white pr-3 pl-9 text-base outline-none focus:border-brand sm:text-sm"
             />
           </div>
         </div>

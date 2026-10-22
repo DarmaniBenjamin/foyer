@@ -91,7 +91,7 @@ export default function Ads() {
         ].map(([label, value]) => (
           <div
             key={label}
-            className="rounded-2xl border border-line bg-white p-3 sm:p-4"
+            className="rounded-xl border border-line bg-white p-3 sm:p-4"
           >
             <p className="text-xs text-muted sm:text-sm">{label}</p>
             <p className="text-xl font-semibold">{value.toLocaleString()}</p>
@@ -100,7 +100,7 @@ export default function Ads() {
       </div>
 
       {list.length === 0 ? (
-        <div className="rounded-2xl border border-line bg-white px-6 py-14 text-center">
+        <div className="rounded-xl border border-line bg-white px-6 py-14 text-center">
           <p className="font-medium">No splash ads yet</p>
           {canEdit && (
             <p className="mt-1 text-sm text-muted">Press New ad to add one.</p>
@@ -114,7 +114,7 @@ export default function Ads() {
             return (
               <div
                 key={ad.id}
-                className="flex flex-col overflow-hidden rounded-2xl border border-line bg-white"
+                className="flex flex-col overflow-hidden rounded-xl border border-line bg-white"
               >
                 <button
                   type="button"

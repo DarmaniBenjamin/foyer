@@ -66,7 +66,7 @@ function MonthPicker({ range, onPick, now }) {
               disabled={future}
               onClick={() => onPick(monthRange(year, month))}
               title={`${MONTHS[month]} ${year}`}
-              className={`h-10 rounded-lg text-sm font-medium transition disabled:opacity-30 ${
+              className={`h-9 rounded-lg text-sm font-medium transition disabled:opacity-30 ${
                 active
                   ? "bg-brand text-white"
                   : "hover:bg-brand/10 hover:text-brand disabled:hover:bg-transparent disabled:hover:text-inherit"
@@ -217,7 +217,7 @@ export default function DateRangePicker({ value, onChange }) {
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="flex h-11 items-center gap-2 rounded-xl border border-line bg-white px-3 text-sm font-semibold transition hover:border-brand/40 hover:bg-brand/5"
+        className="flex h-9 items-center gap-2 rounded-lg border border-line bg-white px-3 text-sm font-semibold transition hover:border-brand/40 hover:bg-brand/5"
         aria-expanded={open}
       >
         <CalendarDays size={18} className="text-brand" />
@@ -226,7 +226,7 @@ export default function DateRangePicker({ value, onChange }) {
       </button>
 
       {open && (
-        <div className="absolute top-full left-0 z-40 mt-2 w-[min(calc(100vw-2rem),36rem)] rounded-2xl border border-line bg-white p-2 shadow-xl sm:grid sm:grid-cols-[11rem_minmax(0,1fr)] sm:gap-2">
+        <div className="absolute top-full left-0 z-40 mt-2 w-[min(calc(100vw-2rem),36rem)] rounded-xl border border-line bg-white p-2 shadow-xl sm:grid sm:grid-cols-[11rem_minmax(0,1fr)] sm:gap-2">
           <div className="grid grid-cols-2 gap-0.5 sm:block sm:space-y-0.5 sm:border-r sm:border-line sm:pr-2">
             {PRESETS.map(([preset, label]) => {
               const active = value?.preset === preset;

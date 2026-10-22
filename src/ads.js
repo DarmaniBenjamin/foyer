@@ -49,8 +49,8 @@ function examplePicture(title, line, from, to) {
 <rect width="1080" height="1350" fill="url(#g)"/>
 <circle cx="900" cy="220" r="260" fill="#fff" opacity="0.08"/>
 <circle cx="140" cy="1180" r="320" fill="#fff" opacity="0.06"/>
-<text x="540" y="640" font-family="Poppins, Arial, sans-serif" font-size="110" font-weight="700" fill="#fff" text-anchor="middle">${title}</text>
-<text x="540" y="760" font-family="Poppins, Arial, sans-serif" font-size="52" fill="#fff" opacity="0.9" text-anchor="middle">${line}</text>
+<text x="540" y="640" font-family="Geist, Arial, sans-serif" font-size="110" font-weight="700" fill="#fff" text-anchor="middle">${title}</text>
+<text x="540" y="760" font-family="Geist, Arial, sans-serif" font-size="52" fill="#fff" opacity="0.9" text-anchor="middle">${line}</text>
 </svg>`;
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 }

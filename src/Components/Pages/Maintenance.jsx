@@ -45,9 +45,9 @@ const megabytes = (bytes) =>
 function Card({ icon, title, hint, action, children }) {
   const Icon = icon;
   return (
-    <section className="space-y-4 rounded-2xl border border-line bg-white p-5">
+    <section className="space-y-4 rounded-xl border border-line bg-white p-5">
       <div className="flex items-start gap-3">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-soft text-brand">
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand">
           <Icon size={20} />
         </span>
         <div className="min-w-0 flex-1">
@@ -63,7 +63,7 @@ function Card({ icon, title, hint, action, children }) {
 
 function ModePicker({ value, onPick, busy }) {
   return (
-    <div className="grid grid-cols-3 gap-1 rounded-xl border border-line p-1">
+    <div className="grid grid-cols-3 gap-1 rounded-lg border border-line p-1">
       {MODES.map(([mode, label]) => (
         <button
           key={mode}
@@ -111,7 +111,7 @@ function MaintenanceMode() {
     >
       <div className="grid gap-2 sm:grid-cols-3">
         {MODES.map(([mode, label, detail]) => (
-          <div key={mode} className="rounded-xl bg-page px-3 py-2">
+          <div key={mode} className="rounded-lg bg-page px-3 py-2">
             <p className="text-sm font-medium">{label}</p>
             <p className="text-xs text-muted">{detail}</p>
           </div>
@@ -128,14 +128,14 @@ function MaintenanceMode() {
           onChange={(e) => setMessage(e.target.value)}
           rows={2}
           maxLength={500}
-          className="w-full rounded-xl border border-line bg-white px-3 py-2 text-base outline-none focus:border-brand focus:ring-4 focus:ring-brand/15 sm:text-sm"
+          className="w-full rounded-lg border border-line bg-white px-3 py-2 text-base outline-none focus:border-brand focus:ring-[3px] focus:ring-brand/15 sm:text-sm"
         />
         <p className="mt-1 text-xs text-muted">
           Used when you next switch a site to Maintenance page.
         </p>
       </div>
 
-      <div className="divide-y divide-line rounded-xl border border-line">
+      <div className="divide-y divide-line rounded-lg border border-line">
         <div className="flex flex-col gap-2 bg-page/60 p-3 sm:flex-row sm:items-center">
           <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold">All sites</p>
@@ -175,7 +175,7 @@ function MaintenanceMode() {
           </div>
         ))}
       </div>
-      {error && <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
+      {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
     </Card>
   );
 }
@@ -237,7 +237,7 @@ function SystemHealth() {
       ) : (
         <>
           <div className="grid gap-3 sm:grid-cols-2">
-            <div className="rounded-xl border border-line p-3">
+            <div className="rounded-lg border border-line p-3">
               <p className="mb-1 flex items-center gap-2 text-sm text-muted">
                 <Server size={16} /> Server
               </p>
@@ -247,7 +247,7 @@ function SystemHealth() {
                 {health.server.memoryMb} MB memory
               </p>
             </div>
-            <div className="rounded-xl border border-line p-3">
+            <div className="rounded-lg border border-line p-3">
               <p className="mb-1 flex items-center gap-2 text-sm text-muted">
                 <Database size={16} /> Database
               </p>
@@ -266,7 +266,7 @@ function SystemHealth() {
               ["Sign-ins", health.counts.connections],
               ["Vouchers", health.counts.vouchers],
             ].map(([label, n]) => (
-              <div key={label} className="rounded-xl bg-page px-3 py-2">
+              <div key={label} className="rounded-lg bg-page px-3 py-2">
                 <p className="text-xs text-muted">{label}</p>
                 <p className="font-semibold">{n.toLocaleString()}</p>
               </div>
@@ -289,7 +289,7 @@ function SystemHealth() {
             {health.controllers.length === 0 ? (
               <p className="text-sm text-muted">No controllers yet.</p>
             ) : (
-              <ul className="divide-y divide-line rounded-xl border border-line">
+              <ul className="divide-y divide-line rounded-lg border border-line">
                 {health.controllers.map((c) => (
                   <li key={c.id} className="flex flex-col gap-1 p-3 sm:flex-row sm:items-center sm:gap-3">
                     <span className="min-w-0 flex-1 truncate text-sm font-medium">{c.name}</span>
@@ -366,7 +366,7 @@ function CleanUp() {
               setFound(null);
               setDone(null);
             }}
-            className="h-11 rounded-xl border border-line bg-white px-3 text-base outline-none focus:border-brand sm:text-sm"
+            className="h-9 rounded-lg border border-line bg-white px-3 text-base outline-none focus:border-brand sm:text-sm"
           >
             {[6, 12, 24, 36, 60].map((n) => (
               <option key={n} value={n}>
@@ -382,7 +382,7 @@ function CleanUp() {
       </div>
 
       {found && (
-        <div className="flex flex-col gap-3 rounded-xl bg-page p-3 sm:flex-row sm:items-center">
+        <div className="flex flex-col gap-3 rounded-lg bg-page p-3 sm:flex-row sm:items-center">
           <p className="flex-1 text-sm">
             {nothing
               ? `Nothing older than ${day(found.before)}.`
@@ -397,12 +397,12 @@ function CleanUp() {
         </div>
       )}
       {done && (
-        <p className="rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+        <p className="rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
           Deleted {done.connections.toLocaleString()} sign-ins and{" "}
           {done.guests.toLocaleString()} guests from before {day(done.before)}.
         </p>
       )}
-      {error && <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
+      {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
 
       {confirming && (
         <Modal
