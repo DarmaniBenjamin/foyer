@@ -15,6 +15,8 @@
     "db:demo": "node server/db/demo.js"
   },
   "dependencies": {
+    "@fontsource/geist": "^5.3.0",
+    "@fontsource/geist-mono": "^5.3.0",
     "@tailwindcss/vite": "^4.3.3",
     "@vitejs/plugin-react": "^6.1.2",
     "bcryptjs": "^3.0.3",

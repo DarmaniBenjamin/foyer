@@ -221,6 +221,10 @@ export async function setUpPortal(controller, siteKey, { wlanId, portalIp, allow
     auth: "custom",
     custom_ip: portalIp,
     portal_use_hostname: false,
+    // HTTPS redirection off: with it on, UniFi answers https:// sites
+    // itself before the guest is on, with a certificate that isn't
+    // theirs, and Android shows "This site is not secure"
+    redirect_https: false,
   };
   for (const k of Object.keys(settings)) if (/^allowed_subnet_\d+$/.test(k)) delete settings[k];
   allAllowed.forEach((s, i) => (settings[`allowed_subnet_${i + 1}`] = s));
