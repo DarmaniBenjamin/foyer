@@ -29,7 +29,14 @@ export function makeApp() {
   app.use("/api", express.json({ limit: "15mb" }));
   // copy: which running copy of the app answered (a host may run several)
   app.get("/api/health", (req, res) =>
-    res.json({ server: "ok", database: "ok", copy: process.pid, upSeconds: Math.round(process.uptime()) }),
+    res.json({
+      server: "ok",
+      database: "ok",
+      // false: controllers can't be saved until SECRET_KEY is added
+      secretKey: Boolean(process.env.SECRET_KEY) || !PRODUCTION,
+      copy: process.pid,
+      upSeconds: Math.round(process.uptime()),
+    }),
   );
   app.use("/api", loadSession);
   // Every open tab hears about changes (live.js)
@@ -56,6 +63,8 @@ export function makeApp() {
     if (res.headersSent) return next(err);
     if (err.status && err.status < 500)
       return res.status(err.status).json({ error: err.message });
+    // A server setting that's missing, in words for whoever set it up
+    if (err.expose) return res.status(500).json({ error: err.message });
     if (err.type === "entity.too.large")
       return res.status(413).json({ error: "That's too big to save. Use smaller pictures." });
     console.error(`${req.method} ${req.originalUrl}:`, err);

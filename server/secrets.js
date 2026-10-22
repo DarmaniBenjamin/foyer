@@ -23,8 +23,12 @@ function getKey() {
     return key;
   }
   if (PRODUCTION)
-    throw new Error(
-      "SECRET_KEY isn't set. Add it to the environment variables (a long random code) and restart.",
+    // expose: the page shows these words instead of "Something went wrong"
+    throw Object.assign(
+      new Error(
+        "SECRET_KEY isn't set on the server. Add it to the environment variables (a long random code, see .env.example), then redeploy.",
+      ),
+      { expose: true },
     );
   const file = path.join(ROOT, ".secret-key");
   try {

@@ -108,6 +108,8 @@ async function attempt() {
     state = "ready";
     letThrough();
     console.log("✓ Foyer is ready");
+    if (!process.env.SECRET_KEY && process.env.NODE_ENV === "production")
+      console.warn("✗ SECRET_KEY isn't set: controllers can't be saved until it's added.");
   } catch (err) {
     reason = err.message;
     state = "failed";
