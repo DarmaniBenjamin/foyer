@@ -20,6 +20,7 @@ import { useLayoutEffect, useRef, useState } from "react";
 import { APP_COLORS } from "./chartColors";
 
 const PICTURE_WIDTH = 720; // a picture's width when there's no screen size
+const SINGLE_BAR = 14; // the widest a bar gets on the Popular times graphs
 
 // Clean steps for the side numbers: 1, 2, 5, 10, 20, 50...
 function niceStep(rough) {
@@ -91,7 +92,10 @@ export default function BarChart({
   const count = series ? series.length : 1;
   const dayGap = Math.min(2, band * 0.1);
   const inGap = series && band > 8 ? 1 : 0;
-  const barW = Math.max(1, Math.min(80, (band - dayGap - inGap * (count - 1)) / count));
+  // Popular times (one bar each, no series) are kept as thin as one of
+  // the sign-ins graph's bars, so they don't come out fat
+  const widest = series ? 80 : SINGLE_BAR;
+  const barW = Math.max(1, Math.min(widest, (band - dayGap - inGap * (count - 1)) / count));
   const fullW = barW * count + inGap * (count - 1);
   // Only as many labels under the bars as fit without overlapping
   const fit = Math.max(2, Math.floor(innerW / 34));
