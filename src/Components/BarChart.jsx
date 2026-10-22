@@ -104,7 +104,9 @@ export default function BarChart({
       series ? Math.max(0, ...series.map((s) => d.parts?.[s.key] ?? 0)) : d.value,
     ),
   );
-  const step = niceStep(maxValue / 4);
+  // About 6 steps on the side (0, 10, 20 … 60), so a bar of 50 next to one
+  // of 20 is easy to read off
+  const step = niceStep(maxValue / 6);
   const max = Math.max(step, Math.ceil(maxValue / step) * step);
   const ticks = Array.from({ length: Math.round(max / step) + 1 }, (_, i) => i * step);
   // Each day's (or hour's) share of the width; its bars sit in the middle
@@ -124,7 +126,11 @@ export default function BarChart({
     labelled.every((d) => d.short) &&
     widestOf((d) => d.longLabel || d.label) > band;
   const labelOf = (d) => (useShort ? d.short : d.label);
-  const widest = useShort ? widestOf((d) => d.short) : widestOf((d) => d.longLabel || d.label);
+  // Spaced by the everyday labels ("12", "Wed"); the month name on the
+  // first day ("1 Oct") is a little wider, but its neighbours are short
+  const widest = useShort
+    ? widestOf((d) => d.short)
+    : Math.max(widestOf((d) => d.label), widestOf((d) => d.sublabel ?? ""));
   const every = Math.max(1, Math.ceil(widest / band));
   const shownLabels = new Set(labelled.map((d) => d.key).filter((_, i) => i % every === 0));
   // The words under each labelled bar: its month too when it's the first
