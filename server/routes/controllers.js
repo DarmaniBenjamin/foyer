@@ -33,11 +33,23 @@ function controllerIn(body, { editing }) {
   if (!out.name) throw new Problem("Give the controller a name.");
   if (!/^https?:\/\/[^\s/]+/i.test(url))
     throw new Problem("The address should look like https://unifi.example.com:8443");
-  if (!out.username) throw new Problem("Enter the username.");
+  // Omada with an Open API app: Foyer makes each site's Hotspot
+  // Operator, so a controller-wide one isn't needed
+  const clientId = kind === "omada" ? text(body?.openApiClientId, 200) : "";
+  const secret = String(body?.openApiSecret ?? "");
+  if (clientId) {
+    // Empty secret when editing = keep the saved one (filled in by the route)
+    out.openApi = { clientId, ...(secret ? { secretSealed: seal(secret) } : {}) };
+    if (!secret && !editing) throw new Problem("Enter the Open API Client Secret.");
+  } else out.openApi = null;
+  if (!out.username && !clientId) throw new Problem("Enter the username.");
   // Empty when editing = keep the saved password
   const password = String(body?.password ?? "");
   if (password) out.passwordSealed = seal(password);
-  else if (!editing) throw new Problem("Enter the password.");
+  else if (!editing) {
+    if (!clientId) throw new Problem("Enter the password.");
+    out.passwordSealed = seal("");
+  }
   return out;
 }
 
@@ -57,6 +69,13 @@ controllersRouter.patch("/:id", async (req, res) => {
     Object.keys(body).length === 1 && "lastTest" in body
       ? { lastTest: body.lastTest }
       : controllerIn(body, { editing: true });
+  // An Open API Client ID without a new secret keeps the saved secret
+  if (changes.openApi && !changes.openApi.secretSealed) {
+    const [old] = await db.select().from(controllers).where(eq(controllers.id, id));
+    if (!old?.openApi?.secretSealed || old.openApi.clientId !== changes.openApi.clientId)
+      throw new Problem("Enter the Open API Client Secret.");
+    changes.openApi.secretSealed = old.openApi.secretSealed;
+  }
   // A changed address, login or password: the old test no longer says much
   if (!("lastTest" in changes)) changes.lastTest = null;
   const [row] = await db.update(controllers).set(changes).where(eq(controllers.id, id)).returning();

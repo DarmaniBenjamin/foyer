@@ -9,8 +9,16 @@ import { db } from "../db/index.js";
 import { controllers, sites, users } from "../db/schema.js";
 import { requireAccess } from "../auth.js";
 import { SIGN_IN_MODES, SITE_COLORS, makeSite, makeSlug } from "../../src/data.js";
-import { Problem, siteIn, siteOut, text } from "../shapes.js";
-import { ControllerError, setUpUnifi, undoUnifi } from "../controllers/index.js";
+import crypto from "node:crypto";
+import { Problem, SERVER_ONLY, siteIn, siteOut, text } from "../shapes.js";
+import { seal } from "../secrets.js";
+import {
+  ControllerError,
+  setUpOmada,
+  setUpUnifi,
+  undoOmada,
+  undoUnifi,
+} from "../controllers/index.js";
 
 export const sitesRouter = Router();
 sitesRouter.use(requireAccess("sites"));
@@ -61,9 +69,9 @@ sitesRouter.patch("/:id", async (req, res) => {
   if (clash) throw new Problem("Another site already uses that address name.");
   const [old] = await db.select({ settings: sites.settings }).from(sites).where(eq(sites.id, id));
   if (!old) throw new Problem("That site was already deleted.", 404);
-  // The UniFi backup isn't on the page, so keep it
+  // The backups and the Omada operator aren't on the page, so keep them
   const settings = siteIn(body);
-  if (old.settings?.unifiBackup) settings.unifiBackup = old.settings.unifiBackup;
+  for (const key of SERVER_ONLY) if (old.settings?.[key]) settings[key] = old.settings[key];
   const [row] = await db
     .update(sites)
     .set({
@@ -191,6 +199,98 @@ sitesRouter.post("/:id/unifi-undo", requireAccess("controllers"), async (req, re
   const [saved] = await db
     .update(sites)
     .set({ settings: sql`(${sites.settings} - 'unifiBackup') || '{"unifi": null}'::jsonb` })
+    .where(eq(sites.id, id))
+    .returning();
+  res.json(siteOut(saved));
+});
+
+// A controller that can't be reached or refuses: words for the page
+async function onController(work) {
+  try {
+    return await work();
+  } catch (err) {
+    if (err instanceof ControllerError) throw new Problem(err.message);
+    throw err;
+  }
+}
+
+// Site settings → Controller → Set up on Omada (with the Open API).
+// { controllerId, siteKey (Omada site ID), siteName, wlanId, wlanName }
+// Makes the portal, the Pre-Authentication Access entry and the site's
+// own Hotspot Operator, and saves it all on the site.
+sitesRouter.post("/:id/omada-setup", requireAccess("controllers"), async (req, res) => {
+  const id = Number(req.params.id);
+  const [row] = await db.select().from(sites).where(eq(sites.id, id));
+  if (!row) throw new Problem("That site was already deleted.", 404);
+  const body = req.body ?? {};
+  const controllerId = await checkController(body.controllerId);
+  if (!controllerId) throw new Problem("Pick a controller.");
+  const siteKey = text(body.siteKey, 60);
+  const wlanId = text(body.wlanId, 60);
+  if (!siteKey) throw new Problem("Pick the Omada site.");
+  if (!wlanId) throw new Problem("Pick the Wi-Fi network.");
+
+  // Guests come to this site's Omada address on Foyer
+  const origin = `${req.protocol}://${req.get("host")}`;
+  const portalUrl = `${origin}/omada/${row.slug}`;
+  const operatorName = `foyer-${row.slug}`.slice(0, 60);
+  const operatorPassword = crypto.randomBytes(18).toString("base64url");
+
+  const { done, before } = await onController(() =>
+    setUpOmada(controllerId, siteKey, {
+      ssidId: wlanId,
+      portalName: `Foyer ${row.name}`.slice(0, 120),
+      portalUrl,
+      host: req.hostname,
+      minutes: row.settings?.minutes,
+      operatorName,
+      operatorPassword,
+    }),
+  );
+
+  // The backup for Undo: what the Omada site had before Foyer first set
+  // it up (setting it up again keeps that first backup)
+  const kept = row.settings?.omadaBackup;
+  const omadaBackup =
+    kept && kept.controllerId === controllerId && kept.before.siteId === siteKey
+      ? kept
+      : { controllerId, operatorName, before, at: Date.now() };
+  const omada = {
+    siteName: text(body.siteName, 120) || siteKey,
+    wlanId,
+    wlanName: text(body.wlanName, 120),
+    portalUrl,
+    host: req.hostname,
+    operator: operatorName,
+    setupAt: Date.now(),
+  };
+  const omadaOperator = { name: operatorName, passwordSealed: seal(operatorPassword) };
+  const [saved] = await db
+    .update(sites)
+    .set({
+      controllerId,
+      settings: sql`${sites.settings} || ${JSON.stringify({ omadaSite: siteKey, omada, omadaBackup, omadaOperator })}::jsonb`,
+    })
+    .where(eq(sites.id, id))
+    .returning();
+  res.json({ site: siteOut(saved), done });
+});
+
+// Site settings → Controller → Undo (Omada): the other portals and
+// Pre-Authentication Access back how they were, Foyer's portal and
+// operator gone
+sitesRouter.post("/:id/omada-undo", requireAccess("controllers"), async (req, res) => {
+  const id = Number(req.params.id);
+  const [row] = await db.select().from(sites).where(eq(sites.id, id));
+  if (!row) throw new Problem("That site was already deleted.", 404);
+  const backup = row.settings?.omadaBackup;
+  if (!backup) throw new Problem("There's nothing to undo for this site.");
+  await onController(() => undoOmada(backup.controllerId, backup.before, backup.operatorName));
+  const [saved] = await db
+    .update(sites)
+    .set({
+      settings: sql`(${sites.settings} - 'omadaBackup' - 'omadaOperator') || '{"omada": null}'::jsonb`,
+    })
     .where(eq(sites.id, id))
     .returning();
   res.json(siteOut(saved));

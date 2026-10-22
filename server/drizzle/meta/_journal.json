@@ -8,6 +8,13 @@
       "when": 1792613312657,
       "tag": "0000_first_tables",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1792636175990,
+      "tag": "0001_omada_open_api",
+      "breakpoints": true
     }
   ]
 }

@@ -122,13 +122,22 @@ export async function test(controller) {
   const { version, omadaId } = await info(controller);
   if (!omadaId)
     throw new ControllerError("Omada didn't share its controller ID.");
-  await login(controller, omadaId);
+  const said = [`Omada ${version ?? ""}, controller ID ${omadaId}.`];
+  // The controller-wide Hotspot Operator (optional with the Open API)
+  if (controller.username) {
+    await login(controller, omadaId);
+    said.push("Signed in as the Hotspot Operator.");
+  }
+  // The Open API app
+  if (controller.openApi?.clientId) {
+    tokens.delete(controller.id);
+    infoCache.set(controller.id, { version, omadaId, at: Date.now() });
+    const sites = await listSitesApi(controller);
+    said.push(`Open API works: ${sites.length} site${sites.length === 1 ? "" : "s"} (${sites.map((s) => s.name).join(", ")}).`);
+  }
   const unit = timeUnit(controller, version);
-  return {
-    version,
-    omadaId,
-    message: `Signed in to Omada ${version ?? ""} as a Hotspot Operator. Controller ID ${omadaId}. Guest time is sent in ${unit === "ms" ? "milliseconds" : "microseconds"}.`,
-  };
+  said.push(`Guest time is sent in ${unit === "ms" ? "milliseconds" : "microseconds"}.`);
+  return { version, omadaId, message: said.join(" ") };
 }
 
 // The request body for one guest (exported for the tests)
@@ -213,4 +222,232 @@ export async function authorize(controller, guest, access) {
       `Omada didn't authorize the guest (${res.json?.errorCode ?? res.status}${res.json?.msg ? `: ${res.json.msg}` : ""}).`,
     );
   }
+}
+
+
+// ---------- Open API: setting a site up from Foyer ----------
+//
+// An Open API app (Global view → Settings → Platform Integration →
+// Open API, "Client Credentials", an admin role with the sites ticked)
+// lets Foyer read the sites and Wi-Fi networks, make the portal, the
+// Pre-Authentication Access entry and a Hotspot Operator for each site.
+// controller.openApi: { clientId, secret }
+
+const tokens = new Map(); // controller id → { token, until, stamp }
+
+async function apiToken(controller, omadaId, fresh = false) {
+  const stamp = `${controller.url}|${controller.openApi.clientId}|${controller.openApi.secret}`;
+  const saved = tokens.get(controller.id);
+  if (!fresh && saved && saved.stamp === stamp && Date.now() < saved.until) return saved.token;
+  const res = await request(controller, "POST", "/openapi/authorize/token?grant_type=client_credentials", {
+    body: {
+      omadacId: omadaId,
+      client_id: controller.openApi.clientId,
+      client_secret: controller.openApi.secret,
+    },
+  });
+  if (res.json?.errorCode !== 0 || !res.json.result?.accessToken)
+    throw new ControllerError(
+      res.json?.errorCode === -44106
+        ? "Omada refused the Open API Client ID or Secret. Check them on the controller in Foyer."
+        : `Omada's Open API sign-in failed (${res.json?.errorCode ?? res.status}${res.json?.msg ? `: ${res.json.msg}` : ""}).`,
+    );
+  const token = res.json.result.accessToken;
+  const life = (res.json.result.expiresIn ?? 7200) * 1000;
+  tokens.set(controller.id, { token, until: Date.now() + life - 60_000, stamp });
+  return token;
+}
+
+// One Open API call: path after /openapi/v1/<controller ID> (or a whole
+// /openapi/v2/... path with {omadacId}). Returns the result.
+export async function api(controller, method, path, body) {
+  if (!controller.openApi?.clientId || !controller.openApi?.secret)
+    throw new ControllerError("Add the Open API Client ID and Secret to the controller first.");
+  const { omadaId } = await details(controller);
+  if (!omadaId) throw new ControllerError("Press Test connection on the controller first.");
+  const full = path.startsWith("/openapi/")
+    ? path.replace("{omadacId}", omadaId)
+    : `/openapi/v1/${omadaId}${path}`;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const token = await apiToken(controller, omadaId, attempt > 0);
+    const res = await request(controller, method, full, {
+      body,
+      headers: { Authorization: `AccessToken=${token}` },
+    });
+    const code = res.json?.errorCode;
+    if (code === 0) return res.json.result;
+    if (attempt === 0 && (res.status === 401 || [-44112, -44113].includes(code))) continue;
+    throw new ControllerError(
+      code === -1005 || res.status === 403
+        ? "The Open API app isn't allowed to do that. Give it an admin role, with this site ticked."
+        : `Omada said no (${code ?? res.status}${res.json?.msg ? `: ${res.json.msg}` : ""}).`,
+    );
+  }
+}
+
+// The sites on the controller: [{ key: site ID, name }]
+export async function listSitesApi(controller) {
+  const result = await api(controller, "GET", "/sites?page=1&pageSize=1000");
+  return (result?.data ?? []).map((s) => ({ key: s.siteId, name: s.name }));
+}
+
+const portalsOf = async (controller, siteId) =>
+  (await api(controller, "GET", `/sites/${siteId}/portals`)) ?? [];
+
+// The Wi-Fi networks on one Omada site, with the portal each is in:
+// [{ id, name, enabled, guestPortal, portal, security }]
+export async function listWlansApi(controller, siteId) {
+  const result = await api(
+    controller,
+    "GET",
+    `/openapi/v2/{omadacId}/sites/${siteId}/wireless-network/ssids?page=1&pageSize=1000`,
+  );
+  const portals = await portalsOf(controller, siteId);
+  return (result?.data ?? []).map((w) => {
+    const id = w.id ?? w.ssidId;
+    const portal = portals.find((p) => (p.ssidList ?? []).includes(id));
+    return {
+      id,
+      name: w.name,
+      enabled: true,
+      guestPortal: Boolean(portal),
+      portal: portal?.name ?? null,
+      security: w.security === 0 ? "Open" : "Secured",
+    };
+  });
+}
+
+// What the site's portals do now, for the warning before setting up:
+// { portals: [{ id, name, ssids }] }
+export async function portalStateApi(controller, siteId) {
+  const portals = await portalsOf(controller, siteId);
+  return { portals: portals.map((p) => ({ id: p.id, name: p.name, ssids: p.ssidList ?? [] })) };
+}
+
+// A portal's settings as Omada gives them, ready to send back
+const portalBody = (detail) => {
+  const { id: _id, siteId: _site, ...rest } = detail ?? {};
+  return rest;
+};
+
+const OPERATOR_NOTE = "Made by Foyer to let guests on. Don't delete.";
+
+// Sets one Omada site up for Foyer:
+//   1. the Wi-Fi network comes off any other portal (e.g. Spotipo's)
+//   2. a "Foyer <name>" portal, External Portal Server = portalUrl
+//   3. Pre-Authentication Access for Foyer's address (host)
+//   4. a Hotspot Operator for this site, to let guests on
+// Returns { done: steps in words, before: for Undo, operator }
+export async function setUpPortalApi(
+  controller,
+  siteId,
+  { ssidId, portalName, portalUrl, host, minutes, operatorName, operatorPassword },
+) {
+  const done = [];
+  const before = { siteId, portals: [], createdPortalId: null, accessControl: null };
+  const portals = await portalsOf(controller, siteId);
+
+  // 1. Off any other portal
+  for (const p of portals) {
+    if (p.name === portalName || !(p.ssidList ?? []).includes(ssidId)) continue;
+    const detail = await api(controller, "GET", `/sites/${siteId}/portal/${p.id}`);
+    before.portals.push({ id: p.id, detail: portalBody(detail) });
+    const ssidList = (detail.ssidList ?? []).filter((x) => x !== ssidId);
+    const left = ssidList.length + (detail.networkList ?? []).length;
+    await api(controller, "PATCH", `/sites/${siteId}/portal/${p.id}`, {
+      ...portalBody(detail),
+      ssidList,
+      // A portal with nothing left on it is turned off, not deleted
+      enable: left > 0 ? detail.enable : false,
+    });
+    done.push(`Wi-Fi taken off the portal "${p.name}"`);
+  }
+
+  // 2. Foyer's portal
+  const url = new URL(portalUrl);
+  const ours = {
+    name: portalName,
+    enable: true,
+    authType: 4,
+    authTimeout: { customTimeout: Math.max(1, Math.min(1_000_000, minutes || 120)), customTimeoutUnit: 1 },
+    httpsRedirectEnable: true,
+    landingPage: 1,
+    externalPortal: {
+      hostType: 2,
+      serverUrlScheme: url.protocol.replace(":", ""),
+      serverUrl: `${url.host}${url.pathname}`,
+    },
+  };
+  const existing = portals.find((p) => p.name === portalName);
+  if (existing) {
+    const detail = await api(controller, "GET", `/sites/${siteId}/portal/${existing.id}`);
+    before.portals.push({ id: existing.id, detail: portalBody(detail) });
+    const ssidList = [...new Set([...(detail.ssidList ?? []), ssidId])];
+    await api(controller, "PATCH", `/sites/${siteId}/portal/${existing.id}`, {
+      ...portalBody(detail),
+      ...ours,
+      ssidList,
+      networkList: detail.networkList ?? [],
+    });
+    done.push(`Portal "${portalName}" updated: External Portal Server ${portalUrl}`);
+  } else {
+    await api(controller, "POST", `/sites/${siteId}/portal`, { ...ours, ssidList: [ssidId], networkList: [] });
+    const made = (await portalsOf(controller, siteId)).find((p) => p.name === portalName);
+    before.createdPortalId = made?.id ?? null;
+    done.push(`Portal "${portalName}" made: External Portal Server ${portalUrl}`);
+  }
+
+  // 3. Pre-Authentication Access
+  const access = await api(controller, "GET", `/sites/${siteId}/setting/access-control`);
+  before.accessControl = access;
+  const policies = access?.preAuthAccessPolicies ?? [];
+  if (!access?.preAuthAccessEnable || !policies.some((p) => p.type === 2 && p.url === host)) {
+    await api(controller, "PATCH", `/sites/${siteId}/setting/access-control`, {
+      ...access,
+      preAuthAccessEnable: true,
+      preAuthAccessPolicies: [
+        ...policies.filter((p) => !(p.type === 2 && p.url === host)),
+        { type: 2, url: host, description: "Foyer" },
+      ],
+    });
+  }
+  done.push(`Pre-Authentication Access for ${host}`);
+
+  // 4. The site's own Hotspot Operator (made again with a new password)
+  const list = await api(
+    controller,
+    "GET",
+    `/sites/${siteId}/hotspot/operators?page=1&pageSize=1000&searchKey=${encodeURIComponent(operatorName)}`,
+  );
+  for (const op of list?.data ?? [])
+    if (op.name === operatorName) await api(controller, "DELETE", `/sites/${siteId}/hotspot/operators/${op.id}`);
+  await api(controller, "POST", `/sites/${siteId}/hotspot/operators`, {
+    name: operatorName,
+    password: operatorPassword,
+    note: OPERATOR_NOTE,
+    operatorRoleType: 0,
+    selectedSites: [siteId],
+  });
+  done.push(`Hotspot Operator "${operatorName}" made for letting guests on`);
+
+  return { done, before };
+}
+
+// Undo: the other portals and Pre-Authentication Access as they were,
+// Foyer's portal and operator gone
+export async function restorePortalApi(controller, before, operatorName) {
+  const siteId = before.siteId;
+  for (const p of before.portals)
+    await api(controller, "PATCH", `/sites/${siteId}/portal/${p.id}`, p.detail);
+  if (before.createdPortalId)
+    await api(controller, "DELETE", `/sites/${siteId}/portal/${before.createdPortalId}`);
+  if (before.accessControl)
+    await api(controller, "PATCH", `/sites/${siteId}/setting/access-control`, before.accessControl);
+  const list = await api(
+    controller,
+    "GET",
+    `/sites/${siteId}/hotspot/operators?page=1&pageSize=1000&searchKey=${encodeURIComponent(operatorName)}`,
+  );
+  for (const op of list?.data ?? [])
+    if (op.name === operatorName) await api(controller, "DELETE", `/sites/${siteId}/hotspot/operators/${op.id}`);
 }

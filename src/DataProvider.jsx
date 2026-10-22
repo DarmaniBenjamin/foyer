@@ -326,10 +326,22 @@ export default function DataProvider({ children }) {
     }
   }
 
-  // Site settings → Controller → Undo. Returns "" or what's wrong.
-  async function undoUnifi(siteId) {
+  // The same for Omada (with the controller's Open API)
+  async function setUpOmada(siteId, body) {
     try {
-      const site = await api(`/sites/${siteId}/unifi-undo`, { method: "POST" });
+      const result = await api(`/sites/${siteId}/omada-setup`, { method: "POST", body });
+      change("sites", (list) => list.map((s) => (s.id === siteId ? result.site : s)));
+      return result;
+    } catch (err) {
+      return { error: err.message };
+    }
+  }
+
+  // Site settings → Controller → Undo (kind: "unifi" or "omada").
+  // Returns "" or what's wrong.
+  async function undoUnifi(siteId, kind = "unifi") {
+    try {
+      const site = await api(`/sites/${siteId}/${kind}-undo`, { method: "POST" });
       change("sites", (list) => list.map((s) => (s.id === siteId ? site : s)));
       return "";
     } catch (err) {
@@ -457,6 +469,7 @@ export default function DataProvider({ children }) {
     updateSite,
     setMaintenance,
     setUpUnifi,
+    setUpOmada,
     undoUnifi,
     deleteSite,
     addVouchers,

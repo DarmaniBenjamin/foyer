@@ -54,6 +54,10 @@ export const controllers = pgTable("controllers", {
   allowSelfSigned: boolean("allow_self_signed").notNull().default(false),
   timeUnit: text("time_unit").notNull().default("auto"),
   lastTest: jsonb("last_test"),
+  // Omada only: an Open API app (Global view → Settings → Platform
+  // Integration → Open API), for setting sites up from Foyer:
+  // { clientId, secretSealed }
+  openApi: jsonb("open_api"),
   createdAt: createdAt(),
 });
 

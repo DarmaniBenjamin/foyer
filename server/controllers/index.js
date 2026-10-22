@@ -11,7 +11,14 @@ import * as omada from "./omada.js";
 
 export { ControllerError };
 
-const withPassword = (row) => ({ ...row, password: unseal(row.passwordSealed) });
+// The controller with its password (and Open API secret) unlocked
+const withPassword = (row) => ({
+  ...row,
+  password: unseal(row.passwordSealed),
+  openApi: row.openApi?.clientId
+    ? { clientId: row.openApi.clientId, secret: unseal(row.openApi.secretSealed) }
+    : null,
+});
 
 // Test connection. The result is saved on the controller (lastTest), so
 // the Controllers page shows when each one last worked. For Omada it
@@ -59,7 +66,14 @@ export async function authorizeGuest(siteRow, ctx, access) {
     throw new ControllerError(
       `This site uses a ${controller.kind === "omada" ? "Omada" : "UniFi"} controller, but the guest came from ${ctx.kind === "omada" ? "Omada" : "UniFi"}.`,
     );
-  if (controller.kind === "omada") return omada.authorize(controller, ctx.raw, access);
+  if (controller.kind === "omada") {
+    // A site set up from Foyer has its own Hotspot Operator
+    const op = siteRow.settings?.omadaOperator;
+    const as = op
+      ? { ...controller, id: `${controller.id}:${op.name}`, username: op.name, password: unseal(op.passwordSealed) }
+      : controller;
+    return omada.authorize(as, ctx.raw, access);
+  }
   return unifi.authorize(
     controller,
     ctx.siteKey || siteRow.settings?.siteKey || "default",
@@ -76,26 +90,38 @@ async function controllerRow(id) {
   return withPassword(row);
 }
 
-// The sites on a controller: [{ key, name }] (UniFi only; Omada is set
-// up by hand)
+// The sites on a controller: [{ key, name }] (Omada: with the Open API)
 export async function controllerSites(id) {
   const controller = await controllerRow(id);
-  if (controller.kind !== "unifi")
-    throw new ControllerError("Omada sites are set up by hand. Follow the steps on the page.");
+  if (controller.kind === "omada") return omada.listSitesApi(controller);
   return unifi.listSites(controller);
 }
 
 export async function controllerWlans(id, siteKey) {
   const controller = await controllerRow(id);
-  if (controller.kind !== "unifi") throw new ControllerError("Only for UniFi.");
+  if (controller.kind === "omada") return omada.listWlansApi(controller, siteKey);
   return unifi.listWlans(controller, siteKey);
 }
 
-// What a UniFi site's guest portal does now (see unifi.js portalState)
+// What a site's guest portal does now (unifi.js portalState, omada.js
+// portalStateApi)
 export async function controllerPortal(id, siteKey) {
   const controller = await controllerRow(id);
-  if (controller.kind !== "unifi") throw new ControllerError("Only for UniFi.");
+  if (controller.kind === "omada") return omada.portalStateApi(controller, siteKey);
   return unifi.portalState(controller, siteKey);
+}
+
+// Sets an Omada site up for Foyer (see omada.js setUpPortalApi)
+export async function setUpOmada(id, siteId, options) {
+  const controller = await controllerRow(id);
+  if (controller.kind !== "omada") throw new ControllerError("Only for Omada.");
+  return omada.setUpPortalApi(controller, siteId, options);
+}
+
+export async function undoOmada(id, before, operatorName) {
+  const controller = await controllerRow(id);
+  if (controller.kind !== "omada") throw new ControllerError("Only for Omada.");
+  return omada.restorePortalApi(controller, before, operatorName);
 }
 
 // Points a UniFi site's guest portal at Foyer (see unifi.js setUpPortal).

@@ -37,6 +37,8 @@ export const controllerOut = (c) => ({
   allowSelfSigned: c.allowSelfSigned,
   timeUnit: c.timeUnit,
   lastTest: c.lastTest ?? null,
+  // Never the secret, only whether there is one
+  openApi: c.openApi?.clientId ? { clientId: c.openApi.clientId } : null,
 });
 
 // ---------- Sites ----------
@@ -44,14 +46,20 @@ export const controllerOut = (c) => ({
 // Kept as columns; everything else is in settings
 const SITE_COLUMNS = ["id", "name", "slug", "controllerId", "active", "createdAt"];
 
-// unifiBackup (the UniFi settings from before "Set up on UniFi", for
-// Undo) stays on the server: it can hold the controller's secrets. The
-// pages only learn whether there is one (unifiUndo).
+// Kept on the server only, never sent to a page: the controller settings
+// from before "Set up on UniFi/Omada" (for Undo; they can hold the
+// controller's secrets) and the site's own Omada Hotspot Operator. The
+// pages only learn whether there's something to undo (unifiUndo,
+// omadaUndo).
+export const SERVER_ONLY = ["unifiBackup", "omadaBackup", "omadaOperator"];
+
 export const siteOut = (s) => {
-  const { unifiBackup, ...settings } = s.settings ?? {};
+  const settings = { ...(s.settings ?? {}) };
+  for (const key of SERVER_ONLY) delete settings[key];
   return {
     ...settings,
-    unifiUndo: Boolean(unifiBackup),
+    unifiUndo: Boolean(s.settings?.unifiBackup),
+    omadaUndo: Boolean(s.settings?.omadaBackup),
     id: s.id,
     name: s.name,
     slug: s.slug,
@@ -66,8 +74,7 @@ export function siteIn(body) {
   for (const [key, value] of Object.entries(body ?? {}))
     if (!SITE_COLUMNS.includes(key)) settings[key] = value;
   // Worked out by the server, never saved from a page
-  delete settings.unifiBackup;
-  delete settings.unifiUndo;
+  for (const key of [...SERVER_ONLY, "unifiUndo", "omadaUndo"]) delete settings[key];
   for (const key of ["look"])
     if (settings[key]) {
       settings[key] = { ...settings[key] };

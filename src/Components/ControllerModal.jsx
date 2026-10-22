@@ -20,9 +20,9 @@ const HELP = {
   },
   omada: {
     url: "https://omada.yourdomain.com:8043",
-    user: "Hotspot Operator username",
+    user: "Hotspot Operator username (optional with the Open API)",
     userHint:
-      "An operator from Hotspot Manager → Operators (not an admin account), with the portal's sites ticked.",
+      "An operator from Hotspot Manager → Operators, with the portal's sites ticked. Not needed when the Open API is filled in: Foyer then makes an operator for each site it sets up.",
   },
 };
 
@@ -39,6 +39,9 @@ export default function ControllerModal({ controller, onSave, onClose }) {
     controller?.allowSelfSigned ?? false,
   );
   const [timeUnit, setTimeUnit] = useState(controller?.timeUnit ?? "auto");
+  const [clientId, setClientId] = useState(controller?.openApi?.clientId ?? "");
+  const [secret, setSecret] = useState("");
+  const hadSecret = Boolean(controller?.openApi?.clientId);
   const [error, setError] = useState("");
 
   const help = HELP[kind];
@@ -52,8 +55,11 @@ export default function ControllerModal({ controller, onSave, onClose }) {
     } catch {
       return setError(`Enter the full address, like ${help.url}`);
     }
-    if (!username.trim()) return setError("Enter the username.");
-    if (!editing && !password) return setError("Enter the password.");
+    const withApi = kind === "omada" && clientId.trim();
+    if (!username.trim() && !withApi) return setError("Enter the username.");
+    if (!editing && !password && !withApi) return setError("Enter the password.");
+    if (withApi && !secret && !(hadSecret && clientId.trim() === controller.openApi.clientId))
+      return setError("Enter the Open API Client Secret.");
 
     // Blur first, so an iPhone's keyboard doesn't stay up after closing
     document.activeElement?.blur();
@@ -66,6 +72,9 @@ export default function ControllerModal({ controller, onSave, onClose }) {
       timeUnit,
       // Empty when editing = keep the saved password
       ...(password ? { password } : {}),
+      ...(kind === "omada"
+        ? { openApiClientId: clientId.trim(), ...(secret ? { openApiSecret: secret } : {}) }
+        : {}),
     });
   }
 
@@ -180,6 +189,46 @@ export default function ControllerModal({ controller, onSave, onClose }) {
             </button>
           </div>
         </div>
+
+        {kind === "omada" && (
+          <div className="space-y-3 rounded-lg border border-line p-3">
+            <div>
+              <p className="text-sm font-medium">Open API (to set sites up from Foyer)</p>
+              <p className={hintClass}>
+                In Omada: <b>Global view → Settings → Platform Integration → Open API → Add New
+                App</b>, mode <b>Client Credentials</b>, an admin role with the sites ticked.
+              </p>
+            </div>
+            <div>
+              <label className={labelClass} htmlFor="ctl-client">
+                Client ID
+              </label>
+              <input
+                id="ctl-client"
+                value={clientId}
+                onChange={(e) => setClientId(e.target.value)}
+                autoCapitalize="none"
+                autoCorrect="off"
+                autoComplete="off"
+                className={`${inputClass} font-mono`}
+              />
+            </div>
+            <div>
+              <label className={labelClass} htmlFor="ctl-secret">
+                Client Secret
+              </label>
+              <input
+                id="ctl-secret"
+                type="password"
+                value={secret}
+                onChange={(e) => setSecret(e.target.value)}
+                autoComplete="new-password"
+                placeholder={hadSecret ? "Leave empty to keep the current one" : ""}
+                className={`${inputClass} font-mono`}
+              />
+            </div>
+          </div>
+        )}
 
         {kind === "omada" && (
           <div>
