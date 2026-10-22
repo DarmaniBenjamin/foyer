@@ -1,7 +1,8 @@
 // Starting Foyer: "npm start" (SiteGround runs this too).
 //
 //   1. bring the database up to date (db/migrate.js)
-//   2. start the web server on the PORT the host gives
+//   2. make the first admin from ADMIN_* if they're set (firstAdmin.js)
+//   3. start the web server on the PORT the host gives
 //
 // If the database can't be reached yet (wrong password, not created...),
 // the server still starts, but only to show it's not ready: the site
@@ -70,6 +71,8 @@ server.listen(...listenTarget(), () => {
 async function attempt() {
   try {
     await migrateDatabase();
+    const { makeFirstAdmin } = await import("./firstAdmin.js");
+    await makeFirstAdmin();
     const { makeApp } = await import("./app.js");
     handler = makeApp();
     console.log("✓ Foyer is ready");
