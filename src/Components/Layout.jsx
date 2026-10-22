@@ -2,7 +2,7 @@
 // menu on phones) and the top bar with the page's name.
 import { useEffect, useState } from "react";
 import { Link, NavLink, useLocation, useNavigate } from "react-router";
-import { ExternalLink, LogOut, Menu, Wifi, X } from "lucide-react";
+import { ExternalLink, LogOut, Menu, Settings2, Wifi, X } from "lucide-react";
 import { navLinks, getPageTitle } from "./navLinks";
 import { APP_NAME } from "../brand";
 import SiteSwitcher from "./SiteSwitcher";
@@ -40,7 +40,7 @@ function SidebarLink({ link, onClick }) {
 }
 
 function Sidebar({ open, onClose }) {
-  const { currentAdmin, isClient, can, signOut } = useData();
+  const { currentAdmin, isClient, can, signOut, currentSite } = useData();
   const navigate = useNavigate();
   return (
     <>
@@ -74,8 +74,15 @@ function Sidebar({ open, onClose }) {
         </div>
 
         <nav className="flex flex-1 flex-col gap-1 overflow-y-auto px-3 py-2">
+          {/* "Sites" (the list) only on All sites; with one site picked,
+              "Site settings" opens that site instead */}
           {navLinks
             .filter((link) => can(link.area))
+            .map((link) =>
+              link.path === "/sites" && currentSite
+                ? { ...link, path: `/sites/${currentSite.id}`, label: "Site settings", icon: Settings2 }
+                : link,
+            )
             .map((link) => (
               <SidebarLink key={link.path} link={link} onClick={onClose} />
             ))}

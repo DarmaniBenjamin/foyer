@@ -23,6 +23,7 @@ import GuestPortal from "./Components/Pages/GuestPortal";
 import Setup from "./Components/Pages/Setup";
 import Whitelist from "./Components/Pages/Whitelist";
 import Ads from "./Components/Pages/Ads";
+import Maintenance from "./Components/Pages/Maintenance";
 
 // The page, if the signed-in person has access to its area
 const only = (area, page) => <RequireAccess area={area}>{page}</RequireAccess>;
@@ -42,6 +43,7 @@ function AdminPages() {
           <Route path="/reports" element={<Reports />} />
           <Route path="/controllers" element={only("controllers", <Controllers />)} />
           <Route path="/admins" element={only("admins", <Admins />)} />
+          <Route path="/maintenance" element={only("maintenance", <Maintenance />)} />
           <Route path="/account" element={<Account />} />
           <Route path="*" element={<NotFound />} />
         </Routes>

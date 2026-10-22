@@ -18,7 +18,7 @@
 // on.
 import { useEffect, useState } from "react";
 import { useParams, useSearchParams } from "react-router";
-import { ArrowLeft, LoaderCircle, SearchX, WifiOff } from "lucide-react";
+import { ArrowLeft, LoaderCircle, SearchX, WifiOff, Wrench } from "lucide-react";
 import useData from "../../useData";
 import { api } from "../../api";
 import { pickAd } from "../../ads";
@@ -153,6 +153,12 @@ export default function GuestPortal() {
           icon={WifiOff}
           title={`${site.name} Wi-Fi`}
           text="Wi-Fi sign-in isn't available right now. Please ask the staff."
+        />
+      ) : site.maintenance?.mode === "notice" ? (
+        <Notice
+          icon={Wrench}
+          title={`${site.name} Wi-Fi is under maintenance`}
+          text={site.maintenance.message || "We're working on the Wi-Fi. Please try again a little later."}
         />
       ) : (
         <Portal

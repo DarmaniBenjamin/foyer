@@ -58,6 +58,8 @@ portalRouter.post("/:slug/signin", async (req, res) => {
   const row = await findSite(req.params.slug);
   const site = siteOut(row);
   if (!site.active) throw new Problem("Wi-Fi sign-in isn't available right now.");
+  if (site.maintenance?.mode === "notice")
+    throw new Problem("The Wi-Fi is under maintenance. Please try again later.");
   const ctx = open(req.body?.ctx, req.body?.sig);
   if (req.body?.ctx && !ctx)
     throw new Problem("This sign-in page has expired. Turn the Wi-Fi off and on again to get a new one.");

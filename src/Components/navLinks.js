@@ -12,6 +12,7 @@ import {
   ShieldCheck,
   Ticket,
   Users,
+  Wrench,
 } from "lucide-react";
 
 export const navLinks = [
@@ -24,12 +25,14 @@ export const navLinks = [
   { path: "/reports", label: "Reports", icon: ChartColumn, area: "reports" },
   { path: "/controllers", label: "Controllers", icon: Router, area: "controllers" },
   { path: "/admins", label: "Users", icon: ShieldCheck, area: "admins" },
+  { path: "/maintenance", label: "Maintenance", icon: Wrench, area: "maintenance" },
 ];
 
 // The page name for an address, for the top bar and the browser tab
 export function getPageTitle(pathname) {
   if (pathname === "/") return "Dashboard";
   if (pathname.startsWith("/account")) return "My account";
+  if (/^\/sites\/\d+/.test(pathname)) return "Site settings";
   const link = navLinks.find(
     (l) => l.path !== "/" && pathname.startsWith(l.path),
   );

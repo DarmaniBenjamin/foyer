@@ -298,6 +298,22 @@ export default function DataProvider({ children }) {
     send(`/sites/${id}`, { method: "PATCH", body: whole });
   }
 
+  // Maintenance mode (Maintenance page). siteIds: [1, 2] or "all";
+  // mode: "off", "notice" or "open". Returns "" or what's wrong.
+  async function setMaintenance(siteIds, mode, message) {
+    try {
+      const changed = await api("/maintenance/mode", {
+        method: "PUT",
+        body: { siteIds, mode, message },
+      });
+      const byId = new Map(changed.map((s) => [s.id, s]));
+      change("sites", (list) => list.map((s) => byId.get(s.id) ?? s));
+      return "";
+    } catch (err) {
+      return err.message;
+    }
+  }
+
   function deleteSite(id) {
     setData((d) => ({
       ...d,
@@ -384,6 +400,8 @@ export default function DataProvider({ children }) {
       setStatus("loading");
       start();
     },
+    // Loads everything again from the server (e.g. after a clean-up)
+    reload: () => loadData().catch(() => {}),
     needsSetup,
     admins: data.users,
     currentAdmin,
@@ -414,6 +432,7 @@ export default function DataProvider({ children }) {
     deleteController,
     addSite,
     updateSite,
+    setMaintenance,
     deleteSite,
     addVouchers,
     deleteVouchers,

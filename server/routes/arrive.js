@@ -8,7 +8,9 @@
 //   Omada:  /omada/<site's address name>?clientMac=…&apMac=…
 //
 // A device on the site's whitelist is let on straight away, without the
-// sign-in page.
+// sign-in page. So is everyone while the site is in maintenance mode
+// "Let guests on" (Maintenance page); in "Maintenance page" mode they
+// see that page instead.
 import { Router } from "express";
 import { and, eq, gt, isNull, or, sql } from "drizzle-orm";
 import { db } from "../db/index.js";
@@ -53,9 +55,32 @@ async function letWhitelistedOn(site, ctx) {
   }
 }
 
+// Maintenance mode "Let guests on": everyone, with the site's own time
+// and limits. true if it worked.
+async function letEveryoneOn(site, ctx) {
+  const s = site.settings ?? {};
+  try {
+    await authorizeGuest(site, ctx, {
+      minutes: s.minutes ?? 120,
+      downKbps: s.downKbps ?? null,
+      upKbps: s.upKbps ?? null,
+      dataMb: s.dataMb ?? null,
+    });
+    return true;
+  } catch (err) {
+    console.error(`Maintenance mode, ${ctx.mac} at ${site.name}: ${err.message}`);
+    return false;
+  }
+}
+
 async function sendOn(res, site, ctx) {
   if (!ctx) return res.redirect(302, portalPage(site.slug));
+  // Whitelisted devices (TVs, FireSticks) get on even during maintenance
   if (site.active && (await letWhitelistedOn(site, ctx)))
+    return res.redirect(302, portalPage(site.slug, { done: "1" }));
+  const mode = site.settings?.maintenance?.mode ?? "off";
+  if (mode === "notice") return res.redirect(302, portalPage(site.slug));
+  if (mode === "open" && (await letEveryoneOn(site, ctx)))
     return res.redirect(302, portalPage(site.slug, { done: "1" }));
   res.redirect(302, portalPage(site.slug, seal(ctx)));
 }

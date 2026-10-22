@@ -1,14 +1,41 @@
-// A card with a title, a bar chart, and "Show numbers" to see the same
-// numbers as a table. With `series` (New / Returning guests), it shows a
-// legend and a column for each.
+// A card with a title, a bar chart, "Show numbers" to see the same
+// numbers as a table, and a download button that saves the chart as a
+// picture (with the site and dates on it). With `series` (New /
+// Returning guests), it shows a legend and a column for each.
 import { useState } from "react";
-import { Table2 } from "lucide-react";
+import { Download, LoaderCircle, Table2 } from "lucide-react";
 import BarChart from "./BarChart";
 import { APP_COLORS } from "./chartColors";
+import useData from "../useData";
+import { formatRange, rangeForFile, resolveRange } from "../dates";
 
 export default function ChartCard({ title, detail, data, series, unit, height }) {
   const [table, setTable] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const { currentSite, range: rangeValue } = useData();
   const total = data.reduce((sum, d) => sum + d.value, 0);
+
+  async function download() {
+    setSaving(true);
+    try {
+      const range = resolveRange(rangeValue, Date.now());
+      const where = currentSite ? currentSite.name : "All sites";
+      const { downloadChart } = await import("../chartDownload");
+      await downloadChart({
+        title,
+        subtitle: `${where} · ${formatRange(range)}`,
+        data,
+        series,
+        height,
+        fileName: `${title} - ${where} - ${rangeForFile(range)}`,
+      });
+    } catch (err) {
+      console.error(err);
+      alert(`Couldn't make the picture: ${err.message}`);
+    } finally {
+      setSaving(false);
+    }
+  }
   return (
     <section className="min-w-0 rounded-2xl border border-line bg-white p-5">
       <div className="mb-4 flex items-start justify-between gap-3">
@@ -29,16 +56,30 @@ export default function ChartCard({ title, detail, data, series, unit, height })
             </div>
           )}
         </div>
-        <button
-          type="button"
-          onClick={() => setTable((t) => !t)}
-          className={`flex h-8 shrink-0 items-center gap-1.5 rounded-lg px-2.5 text-xs font-semibold transition ${
-            table ? "bg-brand/10 text-brand" : "text-muted hover:bg-brand/5 hover:text-ink"
-          }`}
-        >
-          <Table2 size={14} />
-          {table ? "Show graph" : "Show numbers"}
-        </button>
+        <div className="flex shrink-0 items-center gap-1">
+          <button
+            type="button"
+            onClick={() => setTable((t) => !t)}
+            className={`flex h-8 shrink-0 items-center gap-1.5 rounded-lg px-2.5 text-xs font-semibold transition ${
+              table ? "bg-brand/10 text-brand" : "text-muted hover:bg-brand/5 hover:text-ink"
+            }`}
+          >
+            <Table2 size={14} />
+            {table ? "Show graph" : "Show numbers"}
+          </button>
+          {total > 0 && (
+            <button
+              type="button"
+              onClick={download}
+              disabled={saving}
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-muted transition hover:bg-brand/5 hover:text-brand disabled:opacity-60"
+              aria-label="Download the chart as a picture"
+              title="Download as a picture"
+            >
+              {saving ? <LoaderCircle size={16} className="animate-spin" /> : <Download size={16} />}
+            </button>
+          )}
+        </div>
       </div>
       {total === 0 ? (
         <p className="py-16 text-center text-sm text-muted">

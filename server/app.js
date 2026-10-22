@@ -13,6 +13,7 @@ import { sitesRouter } from "./routes/sites.js";
 import { adsRouter, guestsRouter, vouchersRouter, whitelistRouter } from "./routes/siteData.js";
 import { portalRouter } from "./routes/portal.js";
 import { arriveRouter } from "./routes/arrive.js";
+import { maintenanceRouter } from "./routes/maintenance.js";
 
 const DIST = path.join(ROOT, "dist");
 
@@ -38,6 +39,7 @@ export function makeApp() {
   app.use("/api/ads", adsRouter);
   app.use("/api/guests", guestsRouter);
   app.use("/api/portal", portalRouter);
+  app.use("/api/maintenance", maintenanceRouter);
   app.use("/api", (req, res) => res.status(404).json({ error: "There's nothing at that address." }));
 
   // Errors: a Problem has words for the page; anything else is logged
