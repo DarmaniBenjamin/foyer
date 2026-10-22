@@ -26,6 +26,18 @@ export function makeApp() {
   // front server; this makes req.secure and req.ip right
   app.set("trust proxy", 1);
 
+  // Nothing from Foyer may be kept by a cache in between. SiteGround's
+  // "Dynamic Cache" keeps every page and API answer unless told not to,
+  // and then hands out old answers: a site you just made vanishes on
+  // refresh, or one person's data reaches another. Only the built files
+  // (dist/assets, which never change) say otherwise, further down.
+  app.use((req, res, next) => {
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, private");
+    res.setHeader("Pragma", "no-cache");
+    res.setHeader("Expires", "0");
+    next();
+  });
+
   // Pictures (logos, backgrounds, ads) come inside the JSON
   app.use("/api", express.json({ limit: "15mb" }));
   // copy: which running copy of the app answered (a host may run several)
@@ -93,7 +105,7 @@ export function makeApp() {
     // root + dotfiles: SiteGround keeps apps in a hidden folder
     // (~/.nodejs/…), and sendFile refuses those by default ("Not Found")
     app.get("/{*any}", (req, res) => {
-      res.setHeader("Cache-Control", "no-cache");
+      res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, private");
       res.sendFile("index.html", { root: DIST, dotfiles: "allow" });
     });
   } else {

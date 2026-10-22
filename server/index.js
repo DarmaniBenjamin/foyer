@@ -76,7 +76,7 @@ function notReady(req, res) {
 // While the database isn't working, every address answers "not ready"
 function refuse(req, res) {
   if (req.url.startsWith("/api/")) {
-    res.writeHead(503, { "Content-Type": "application/json" });
+    res.writeHead(503, { "Content-Type": "application/json", "Cache-Control": "no-store" });
     return res.end(
       JSON.stringify({
         server: "ok",
@@ -85,7 +85,7 @@ function refuse(req, res) {
       }),
     );
   }
-  res.writeHead(503, { "Content-Type": "text/html; charset=utf-8" });
+  res.writeHead(503, { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" });
   res.end(waitingPage(reason));
 }
 
