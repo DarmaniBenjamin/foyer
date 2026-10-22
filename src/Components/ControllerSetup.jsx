@@ -1,10 +1,11 @@
 // Site settings → Details → Controller: which controller this site's
 // guests are let on through, and setting the controller up for Foyer.
 //
-// UniFi (like Spotipo): Connect → pick the UniFi site → pick the Wi-Fi
-// network → "Set up on UniFi". Foyer then turns on the guest portal with
-// External portal server (your Linode), adds the pre-authorization
-// access and turns the guest portal on for that Wi-Fi network.
+// UniFi (like Spotipo): Connect → choose the UniFi site (in a box with a
+// search) → pick the Wi-Fi network → "Set up on UniFi". Foyer then turns
+// on the guest portal with External portal server (your Linode), adds
+// the pre-authorization access and turns the guest portal on for that
+// Wi-Fi network.
 //
 // Omada: the Hotspot Operator account can't change settings, so it's
 // done by hand in Omada, with the steps and addresses shown here.
@@ -16,12 +17,14 @@ import {
   Lock,
   PlugZap,
   RefreshCw,
+  Search,
   Wifi,
 } from "lucide-react";
 import useData from "../useData";
 import { api } from "../api";
 import { CONTROLLER_KINDS, timeAgo } from "../data";
 import CopyBox from "./CopyBox";
+import Modal from "./Modal";
 import { hintClass, inputClass, labelClass, primaryButton, secondaryButton } from "./formStyles";
 
 function Step({ n, title, done, children }) {
@@ -66,6 +69,64 @@ function Choice({ selected, onClick, title, detail, badges = [] }) {
         </span>
       ))}
     </button>
+  );
+}
+
+// The box for choosing one of the controller's UniFi sites: search,
+// pick one, "Choose this site"
+function SitePicker({ sites, current, onChoose, onClose }) {
+  const [search, setSearch] = useState("");
+  const [picked, setPicked] = useState(current);
+  const q = search.trim().toLowerCase();
+  const shown = sites.filter(
+    (s) => s.name.toLowerCase().includes(q) || s.key.toLowerCase().includes(q),
+  );
+  return (
+    <Modal
+      title="Choose the UniFi site"
+      onClose={onClose}
+      onSubmit={() => picked && onChoose(picked)}
+      footer={
+        <>
+          <button type="button" onClick={onClose} className={secondaryButton}>
+            Cancel
+          </button>
+          <button type="submit" disabled={!picked} className={primaryButton}>
+            Choose this site
+          </button>
+        </>
+      }
+    >
+      <div className="space-y-3">
+        <div className="relative">
+          <Search
+            size={16}
+            className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-muted"
+          />
+          <input
+            autoFocus
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder={`Search ${sites.length} sites`}
+            className={`${inputClass} pl-9`}
+          />
+        </div>
+        <div className="max-h-72 space-y-1.5 overflow-y-auto pr-1">
+          {shown.map((s) => (
+            <Choice
+              key={s.key}
+              selected={picked === s.key}
+              onClick={() => setPicked(s.key)}
+              title={s.name}
+              detail={s.key}
+            />
+          ))}
+          {shown.length === 0 && (
+            <p className="py-6 text-center text-sm text-muted">No site called “{search}”</p>
+          )}
+        </div>
+      </div>
+    </Modal>
   );
 }
 
@@ -119,7 +180,8 @@ function UnifiSetup({ site, draft, set, controller }) {
   const [unifiSites, setUnifiSites] = useState(null);
   const [wlans, setWlans] = useState(null);
   const [wlanId, setWlanId] = useState(null);
-  const [siteKey, setSiteKey] = useState(null); // the UniFi site picked
+  const [siteKey, setSiteKey] = useState(null); // the UniFi site chosen
+  const [choosing, setChoosing] = useState(false); // the site box is open
   const [portalIp, setPortalIp] = useState(draft.unifi?.portalIp ?? "");
   const [busy, setBusy] = useState(""); // "sites", "wlans", "setup"
   const [error, setError] = useState("");
@@ -143,10 +205,16 @@ function UnifiSetup({ site, draft, set, controller }) {
     setWlans(null);
     setWlanId(null);
     setDone(null);
-    load("sites", `/controllers/${controller.id}/sites`, setUnifiSites);
+    load("sites", `/controllers/${controller.id}/sites`, (list) => {
+      setUnifiSites(list);
+      // Only one site: no need to choose
+      if (list.length === 1) pickSite(list[0].key);
+      else setChoosing(true);
+    });
   };
 
   function pickSite(key) {
+    setChoosing(false);
     setSiteKey(key);
     setWlanId(null);
     setDone(null);
@@ -238,18 +306,35 @@ function UnifiSetup({ site, draft, set, controller }) {
       </Step>
 
       {unifiSites && (
-        <Step n={2} title="Pick the UniFi site" done={Boolean(wlans)}>
-          <div className="space-y-2">
-            {unifiSites.map((s) => (
-              <Choice
-                key={s.key}
-                selected={siteKey === s.key}
-                onClick={() => pickSite(s.key)}
-                title={s.name}
-                detail={s.key}
-              />
-            ))}
-          </div>
+        <Step n={2} title="Choose the UniFi site" done={Boolean(siteKey)}>
+          {siteKey ? (
+            <div className="flex items-center gap-3 rounded-lg border border-line px-3 py-2.5">
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium">
+                  {unifiSites.find((s) => s.key === siteKey)?.name ?? siteKey}
+                </p>
+                <p className="truncate text-xs text-muted">{siteKey}</p>
+              </div>
+              {unifiSites.length > 1 && (
+                <button type="button" onClick={() => setChoosing(true)} className={secondaryButton}>
+                  Change
+                </button>
+              )}
+            </div>
+          ) : (
+            <button type="button" onClick={() => setChoosing(true)} className={secondaryButton}>
+              <Search size={16} />
+              Choose site
+            </button>
+          )}
+          {choosing && (
+            <SitePicker
+              sites={unifiSites}
+              current={siteKey}
+              onChoose={pickSite}
+              onClose={() => setChoosing(false)}
+            />
+          )}
         </Step>
       )}
 
