@@ -124,9 +124,16 @@ export async function test(controller) {
     throw new ControllerError("Omada didn't share its controller ID.");
   const said = [`Omada ${version ?? ""}, controller ID ${omadaId}.`];
   // The controller-wide Hotspot Operator (optional with the Open API)
+  // With the Open API it only matters for sites set up by hand, so a
+  // failed sign-in is a warning, not a failed test
   if (controller.username) {
-    await login(controller, omadaId);
-    said.push("Signed in as the Hotspot Operator.");
+    try {
+      await login(controller, omadaId);
+      said.push("Signed in as the Hotspot Operator.");
+    } catch (err) {
+      if (!controller.openApi?.clientId) throw err;
+      said.push(`(The Hotspot Operator sign-in failed: ${err.message} It's only used for sites set up by hand; clear the Username to stop using it.)`);
+    }
   }
   // The Open API app
   if (controller.openApi?.clientId) {
