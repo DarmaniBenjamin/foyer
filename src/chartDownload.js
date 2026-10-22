@@ -1,17 +1,17 @@
 // Downloads one chart as a PNG picture: the chart exactly as it is on the
-// page (same width, height, bars and gaps), in the light colours on
-// white, with its title and which site and dates it's for above it,
-// drawn at twice the size so it stays sharp in emails and documents.
+// page (same size, bars and gaps, whatever the screen), in the light
+// colours on white, with its title and which site and dates it's for
+// above it, drawn at twice the size so it stays sharp in emails and
+// documents.
 import { createElement } from "react";
-import BarChart from "./Components/BarChart";
+import BarChart, { chartSize } from "./Components/BarChart";
 import { PRINT_COLORS } from "./Components/chartColors";
 
 const PAD = 24;
 const HEADER = 64;
 
-// width: the chart's width on the page
-export async function downloadChart({ title, subtitle, data, series, height = 240, width = 720, fileName }) {
-  const WIDTH = Math.round(width);
+export async function downloadChart({ title, subtitle, data, series, height = 240, fileName }) {
+  const { width: WIDTH, height: chartH } = chartSize(data, series, height);
   // Only loaded when a chart is downloaded
   const { renderToStaticMarkup } = await import("react-dom/server");
   const svg = renderToStaticMarkup(
@@ -22,7 +22,6 @@ export async function downloadChart({ title, subtitle, data, series, height = 24
       colors: PRINT_COLORS,
       fontFamily: "Arial, Helvetica, sans-serif",
       forPicture: true,
-      width: WIDTH,
     }),
   );
   const url = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml" }));
@@ -34,8 +33,13 @@ export async function downloadChart({ title, subtitle, data, series, height = 24
       image.src = url;
     });
     const scale = 2;
-    const w = WIDTH + PAD * 2;
-    const chartH = height + (series ? 26 : 0); // the legend is drawn in
+    // Wide enough for the chart and the words above it
+    const measure = document.createElement("canvas").getContext("2d");
+    measure.font = "600 18px Arial, Helvetica, sans-serif";
+    let textW = measure.measureText(title).width;
+    measure.font = "13px Arial, Helvetica, sans-serif";
+    textW = Math.max(textW, measure.measureText(subtitle || "").width);
+    const w = Math.ceil(Math.max(WIDTH, textW)) + PAD * 2;
     const h = HEADER + chartH + PAD;
     const canvas = document.createElement("canvas");
     canvas.width = w * scale;

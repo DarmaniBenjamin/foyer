@@ -10,7 +10,7 @@ import { formatRange, rangeForFile } from "./dates";
 import { buildReport, guestsIn } from "./reports";
 import { answerText } from "./guests";
 import { SIGN_IN_MODES } from "./data";
-import BarChart from "./Components/BarChart";
+import BarChart, { chartSize } from "./Components/BarChart";
 import { GUEST_SERIES, PRINT_COLORS } from "./Components/chartColors";
 
 const BRAND = "1D64D8";
@@ -117,9 +117,11 @@ export async function downloadGuestExcel({ sites, guests, connections, site, ran
 
 // ---------- Report (Word) ----------
 
-// A chart → PNG picture, drawn in light colours at twice the size so it
-// stays sharp when printed
+// A chart → PNG picture, the same size as on the page, drawn in light
+// colours at twice the size so it stays sharp when printed.
+// Returns { data, width, height }.
 async function chartPicture(renderToStaticMarkup, data, height, series) {
+  const size = chartSize(data, series, height);
   const svg = renderToStaticMarkup(
     createElement(BarChart, {
       data,
@@ -140,13 +142,13 @@ async function chartPicture(renderToStaticMarkup, data, height, series) {
     });
     const scale = 2;
     const canvas = document.createElement("canvas");
-    canvas.width = 720 * scale;
-    canvas.height = height * scale;
+    canvas.width = size.width * scale;
+    canvas.height = size.height * scale;
     const ctx = canvas.getContext("2d");
     ctx.scale(scale, scale);
-    ctx.drawImage(img, 0, 0, 720, height);
+    ctx.drawImage(img, 0, 0, size.width, size.height);
     const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
-    return new Uint8Array(await blob.arrayBuffer());
+    return { data: new Uint8Array(await blob.arrayBuffer()), ...size };
   } finally {
     URL.revokeObjectURL(url);
   }
@@ -206,11 +208,21 @@ export async function downloadWordReport({ sites, guests, connections, site, ran
           }),
       ),
     });
-  const picture = (data, height) =>
-    new Paragraph({
+  // At the size it is on the page; only a graph wider than the Word page
+  // (620px) is made smaller to fit
+  const picture = ({ data, width, height }) => {
+    const fit = Math.min(1, 620 / width);
+    return new Paragraph({
       alignment: AlignmentType.CENTER,
-      children: [new ImageRun({ type: "png", data, transformation: { width: 620, height: Math.round((620 / 720) * height) } })],
+      children: [
+        new ImageRun({
+          type: "png",
+          data,
+          transformation: { width: Math.round(width * fit), height: Math.round(height * fit) },
+        }),
+      ],
     });
+  };
   const heading = (text) => new Paragraph({ heading: HeadingLevel.HEADING_2, spacing: { before: 360, after: 120 }, text });
   const note = (text) => new Paragraph({ spacing: { after: 120 }, children: [new TextRun({ text, color: "5F6B7D", size: 20 })] });
 
@@ -241,12 +253,12 @@ export async function downloadWordReport({ sites, guests, connections, site, ran
       [60, 40],
     ),
     heading(report.byMonth ? "Sign-ins per month" : "Sign-ins per day"),
-    picture(signInsChart, 260),
+    picture(signInsChart),
     heading("Popular times"),
     note("When guests sign in, in 2-hour blocks, across the whole period."),
-    picture(hourChart, 220),
+    picture(hourChart),
     heading("Busiest days of the week"),
-    picture(dayChart, 220),
+    picture(dayChart),
   ];
 
   if (!site) {

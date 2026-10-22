@@ -12,15 +12,36 @@
 //   compare.
 // series: [{ key, name }] to split each day into bars (see chartColors.js)
 //
-// On screen it's drawn at the width of its box (measured), so the text
-// stays the same size on a phone and a big screen. As a picture it's
-// drawn at the width it had on screen (width), so the download looks
-// exactly like the page.
-import { useLayoutEffect, useRef, useState } from "react";
+// Every bar is the same thin width (BAR) on every graph, joined up with
+// only a hairline between them, so a graph's width comes from how many
+// bars it has, never from the screen. That's why the download and the
+// Word report are exactly the same as the page, on any screen. On a
+// narrow phone a wide graph scrolls sideways inside its card.
+import { useState } from "react";
 import { APP_COLORS } from "./chartColors";
 
-const PICTURE_WIDTH = 720; // a picture's width when there's no screen size
-const SINGLE_BAR = 14; // the widest a bar gets on the Popular times graphs
+export const BAR = 14; // every bar's width
+const DAY_GAP = 2; // between days (or hours)
+const IN_GAP = 1; // between New and Returning on the same day
+const LEFT = 36; // room for the numbers on the side
+const RIGHT = 4;
+
+// How wide one day (or hour) is: its bars and the gap after them
+const bandOf = (series) => {
+  const count = series ? series.length : 1;
+  return BAR * count + IN_GAP * (count - 1) + DAY_GAP;
+};
+
+// The graph's size: { width, height } (the picture adds its legend)
+export function chartSize(data, series, height = 240) {
+  return {
+    width: LEFT + bandOf(series) * Math.max(1, data.length) + RIGHT,
+    height: height + (series ? 26 : 0),
+  };
+}
+
+// Roughly how wide a label is at 11px
+const textWidth = (text) => String(text ?? "").length * 6.2 + 4;
 
 // Clean steps for the side numbers: 1, 2, 5, 10, 20, 50...
 function niceStep(rough) {
@@ -47,30 +68,16 @@ export default function BarChart({
   colors = APP_COLORS,
   fontFamily = "inherit",
   forPicture = false,
-  width,
 }) {
-  const boxRef = useRef(null);
-  // 0 until the box has been measured
-  const [measured, setMeasured] = useState(0);
   const [hover, setHover] = useState(null);
 
-  useLayoutEffect(() => {
-    if (forPicture || !boxRef.current) return;
-    const box = boxRef.current;
-    const observer = new ResizeObserver(([entry]) =>
-      setMeasured(Math.max(240, Math.round(entry.contentRect.width))),
-    );
-    observer.observe(box);
-    return () => observer.disconnect();
-  }, [forPicture]);
-
-  const W = forPicture ? Math.round(width || PICTURE_WIDTH) : measured;
+  const W = chartSize(data, series, height).width;
   // The picture has its legend drawn in (on screen it's above the chart),
   // so it's that much taller, and the bars stay the same size
   const legendH = forPicture && series ? 26 : 0;
   const H = height + legendH;
-  const left = 36;
-  const right = 4;
+  const left = LEFT;
+  const right = RIGHT;
   const top = 12 + legendH;
   const twoLines = data.some((d) => d.sublabel);
   const bottom = twoLines ? 40 : 26;
@@ -86,22 +93,24 @@ export default function BarChart({
   const step = niceStep(maxValue / 4);
   const max = Math.max(step, Math.ceil(maxValue / step) * step);
   const ticks = Array.from({ length: Math.round(max / step) + 1 }, (_, i) => i * step);
-  const band = innerW / Math.max(1, data.length);
-  // Bars right next to each other: a 2px gap between days (less when
-  // there are lots of them), 1px between New and Returning
+  const band = bandOf(series);
   const count = series ? series.length : 1;
-  const dayGap = Math.min(2, band * 0.1);
-  const inGap = series && band > 8 ? 1 : 0;
-  // Popular times (one bar each, no series) are kept as thin as one of
-  // the sign-ins graph's bars, so they don't come out fat
-  const widest = series ? 80 : SINGLE_BAR;
-  const barW = Math.max(1, Math.min(widest, (band - dayGap - inGap * (count - 1)) / count));
+  const barW = BAR;
+  const inGap = IN_GAP;
   const fullW = barW * count + inGap * (count - 1);
-  // Only as many labels under the bars as fit without overlapping
-  const fit = Math.max(2, Math.floor(innerW / 34));
-  const labelledKeys = data.filter((d) => d.label).map((d) => d.key);
-  const every = Math.ceil(labelledKeys.length / fit);
-  const shownLabels = new Set(labelledKeys.filter((_, i) => i % every === 0));
+  // Only as many labels under the bars as fit without overlapping. When
+  // the full names don't fit under every bar, the short ones are used
+  // (M T W… on the day-of-the-week graph).
+  const labelled = data.filter((d) => d.label);
+  const widestOf = (pick) => Math.max(0, ...labelled.map((d) => textWidth(pick(d))));
+  const useShort =
+    labelled.length > 0 &&
+    labelled.every((d) => d.short) &&
+    widestOf((d) => d.longLabel || d.label) > band;
+  const labelOf = (d) => (useShort ? d.short : d.label);
+  const widest = useShort ? widestOf((d) => d.short) : widestOf((d) => d.longLabel || d.label);
+  const every = Math.max(1, Math.ceil(widest / band));
+  const shownLabels = new Set(labelled.map((d) => d.key).filter((_, i) => i % every === 0));
   // The words under each labelled bar: its month too when it's the first
   // labelled bar of that month
   const labelText = new Map();
@@ -109,7 +118,7 @@ export default function BarChart({
   for (const d of data) {
     if (!shownLabels.has(d.key)) continue;
     const first = d.group !== undefined && d.group !== lastGroup;
-    labelText.set(d.key, first && d.longLabel ? d.longLabel : d.label);
+    labelText.set(d.key, first && d.longLabel && !useShort ? d.longLabel : labelOf(d));
     lastGroup = d.group;
   }
   function bar(d, i) {
@@ -215,8 +224,9 @@ export default function BarChart({
 
   const shown = hover !== null ? data[hover] : null;
   return (
-    <div ref={boxRef} className="relative w-full min-w-0" style={{ minHeight: height }}>
-      {measured > 0 && svg}
+    <div className="w-full min-w-0 overflow-x-auto overflow-y-visible">
+      <div className="relative" style={{ width: W, minHeight: height }}>
+      {svg}
       {shown && (
         <div
           className="pointer-events-none absolute top-0 z-10 -translate-x-1/2 rounded-lg border border-line bg-white px-2.5 py-1.5 text-xs whitespace-nowrap shadow-lg"
@@ -239,6 +249,7 @@ export default function BarChart({
           ))}
         </div>
       )}
+      </div>
     </div>
   );
 }

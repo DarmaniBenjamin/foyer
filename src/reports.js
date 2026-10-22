@@ -87,7 +87,13 @@ export function buildReport({ connections, guests, sites, site, range }) {
     title: `${clock(b * 2)} – ${clock(b * 2 + 2)}`,
     value: 0,
   }));
-  const byWeekday = WEEKDAYS.map((name, i) => ({ key: i, label: name, title: name, value: 0 }));
+  const byWeekday = WEEKDAYS.map((name, i) => ({
+    key: i,
+    label: name,
+    short: name[0],
+    title: name,
+    value: 0,
+  }));
 
   const guestIds = new Set();
   const perGuest = new Map();
