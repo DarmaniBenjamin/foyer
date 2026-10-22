@@ -5,7 +5,8 @@ import fs from "node:fs";
 import path from "node:path";
 import express from "express";
 import { ROOT, PRODUCTION } from "./config.js";
-import { authRouter, loadSession, setupRouter } from "./auth.js";
+import { authRouter, loadSession, requireUser, setupRouter } from "./auth.js";
+import { healthDetails } from "./healthDetails.js";
 import { dataRouter } from "./routes/data.js";
 import { usersRouter } from "./routes/users.js";
 import { controllersRouter } from "./routes/controllers.js";
@@ -39,6 +40,7 @@ export function makeApp() {
     }),
   );
   app.use("/api", loadSession);
+  app.get("/api/health/details", requireUser, healthDetails);
   // Every open tab hears about changes (live.js)
   app.use("/api", announceChanges);
   app.use("/api/live", liveRouter);
