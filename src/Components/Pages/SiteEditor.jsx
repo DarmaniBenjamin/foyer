@@ -644,6 +644,14 @@ function SiteEditor({ siteId }) {
   const site = sites.find((s) => s.id === siteId);
 
   const [draft, setDraft] = useState(() => (site ? structuredClone(site) : null));
+  // The saved site the draft started from. When the site is changed
+  // somewhere else (another tab or admin) and nothing was edited here,
+  // the draft takes the new version, so it isn't shown as unsaved.
+  const [base, setBase] = useState(site);
+  if (site && site !== base) {
+    setBase(site);
+    if (!base || same(draft, base)) setDraft(structuredClone(site));
+  }
   const [tab, setTab] = useState("details");
   const [mobileView, setMobileView] = useState("settings");
   const [previewPage, setPreviewPage] = useState("signin");

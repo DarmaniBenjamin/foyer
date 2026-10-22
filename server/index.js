@@ -4,7 +4,11 @@
 //   2. make the first admin from ADMIN_* if they're set (firstAdmin.js)
 //   3. start the web server on the PORT the host gives
 //
-// If the database can't be reached yet (wrong password, not created...),
+// Requests that arrive in the few seconds while it starts wait for it,
+// instead of being told "starting up" (hosts like SiteGround start a
+// fresh copy of the app now and then, e.g. after it's been idle).
+//
+// If the database can't be reached (wrong password, not created...),
 // the server still starts, but only to show it's not ready: the site
 // says "Starting up" and /api/health says why (with SHOW_ERRORS=on, the
 // page does too). It tries again every 30 seconds and opens by itself
@@ -42,9 +46,35 @@ ${SHOW_ERRORS ? `<code>${escape(reason)}</code>` : ""}
 
 let reason = "";
 let server = null;
+// "starting" (the first try is running), "ready" or "failed"
+let state = "starting";
+const waiting = new Set(); // requests that came in while starting
+const WAIT_AT_MOST = 25 * 1000;
+
+function park(req, res) {
+  const entry = { req, res };
+  entry.timer = setTimeout(() => {
+    waiting.delete(entry);
+    refuse(req, res);
+  }, WAIT_AT_MOST);
+  waiting.add(entry);
+}
+
+function letThrough() {
+  for (const entry of waiting) {
+    clearTimeout(entry.timer);
+    handler(entry.req, entry.res);
+  }
+  waiting.clear();
+}
+
+function notReady(req, res) {
+  if (state === "starting") return park(req, res);
+  refuse(req, res);
+}
 
 // While the database isn't working, every address answers "not ready"
-function notReady(req, res) {
+function refuse(req, res) {
   if (req.url.startsWith("/api/")) {
     res.writeHead(503, { "Content-Type": "application/json" });
     return res.end(
@@ -75,9 +105,13 @@ async function attempt() {
     await makeFirstAdmin();
     const { makeApp } = await import("./app.js");
     handler = makeApp();
+    state = "ready";
+    letThrough();
     console.log("✓ Foyer is ready");
   } catch (err) {
     reason = err.message;
+    state = "failed";
+    letThrough();
     console.error(`The database isn't ready: ${reason}`);
     await closeDb().catch(() => {});
     setTimeout(attempt, RETRY_EVERY);

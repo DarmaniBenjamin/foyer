@@ -48,6 +48,15 @@ export function saveThemeChoice(choice) {
   applyTheme(choice);
 }
 
+// Calls back when the choice is changed in another tab of this browser
+export function onThemeChoiceChange(callback) {
+  const listener = (e) => {
+    if (e.key === KEY || e.key === null) callback(getThemeChoice());
+  };
+  window.addEventListener("storage", listener);
+  return () => window.removeEventListener("storage", listener);
+}
+
 // Calls back when the device's own light/dark setting changes
 export function onSystemThemeChange(callback) {
   darkQuery.addEventListener("change", callback);

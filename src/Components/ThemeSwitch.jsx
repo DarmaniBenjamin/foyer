@@ -6,6 +6,7 @@ import {
   applyTheme,
   getThemeChoice,
   onSystemThemeChange,
+  onThemeChoiceChange,
   saveThemeChoice,
 } from "../theme";
 
@@ -23,6 +24,16 @@ export default function ThemeSwitch() {
     if (choice !== "system") return;
     return onSystemThemeChange(() => applyTheme("system"));
   }, [choice]);
+
+  // Picked in another tab: this one follows
+  useEffect(
+    () =>
+      onThemeChoiceChange((value) => {
+        setChoice(value);
+        applyTheme(value);
+      }),
+    [],
+  );
 
   function pick(value) {
     setChoice(value);

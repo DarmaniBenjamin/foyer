@@ -14,6 +14,7 @@ import { adsRouter, guestsRouter, vouchersRouter, whitelistRouter } from "./rout
 import { portalRouter } from "./routes/portal.js";
 import { arriveRouter } from "./routes/arrive.js";
 import { maintenanceRouter } from "./routes/maintenance.js";
+import { announceChanges, liveRouter, startLive } from "./live.js";
 
 const DIST = path.join(ROOT, "dist");
 
@@ -26,8 +27,15 @@ export function makeApp() {
 
   // Pictures (logos, backgrounds, ads) come inside the JSON
   app.use("/api", express.json({ limit: "15mb" }));
-  app.get("/api/health", (req, res) => res.json({ server: "ok", database: "ok" }));
+  // copy: which running copy of the app answered (a host may run several)
+  app.get("/api/health", (req, res) =>
+    res.json({ server: "ok", database: "ok", copy: process.pid, upSeconds: Math.round(process.uptime()) }),
+  );
   app.use("/api", loadSession);
+  // Every open tab hears about changes (live.js)
+  app.use("/api", announceChanges);
+  app.use("/api/live", liveRouter);
+  startLive();
   app.use("/api/auth", authRouter);
   app.use("/api/setup", setupRouter);
   app.use("/api/data", dataRouter);

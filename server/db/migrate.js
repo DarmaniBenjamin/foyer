@@ -56,11 +56,20 @@ function migrationsFolder() {
   return copy;
 }
 
-// Throws an error in plain words if it can't
+// Any number; the same one in every copy of the app
+const MIGRATE_LOCK = 4_172_026;
+
+// Throws an error in plain words if it can't. A host may start several
+// copies of the app at once: a lock in the database lets one update it
+// while the others wait, instead of tripping over each other.
 export async function migrateDatabase() {
   if (!process.env.DATABASE_URL)
     throw new Error(explainDatabaseError(new Error("no database")));
+  let lock = null;
   try {
+    lock = new pg.Client({ connectionString: process.env.DATABASE_URL });
+    await lock.connect();
+    await lock.query("select pg_advisory_lock($1)", [MIGRATE_LOCK]);
     await pickSchema();
     const area = schemaName();
     await migrate(getDb(), {
@@ -71,6 +80,9 @@ export async function migrateDatabase() {
   } catch (err) {
     // Drizzle wraps the database's own error (err.cause), which says why
     throw new Error(explainDatabaseError(err.cause ?? err), { cause: err });
+  } finally {
+    // Closing the connection lets go of the lock too
+    await lock?.end().catch(() => {});
   }
   console.log("✓ Database is up to date");
 }

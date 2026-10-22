@@ -14,11 +14,11 @@
 // access allows. can(area, level) says whether the signed-in person may
 // see or change an area, so the pages can hide what they can't use.
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { CircleAlert, X } from "lucide-react";
+import { CircleAlert, RefreshCw, X } from "lucide-react";
 import { DataContext } from "./useData";
 import { ALL_SITES } from "./data";
 import { canAccess } from "./admins";
-import { api } from "./api";
+import { TAB_ID, api } from "./api";
 
 const SAVED_SITE = "foyer-site";
 
@@ -83,6 +83,25 @@ function Toast({ message, onClose }) {
   );
 }
 
+// "A new version of Foyer is ready", with Reload
+function NewVersion() {
+  return (
+    <div className="fixed inset-x-0 bottom-4 z-[60] flex justify-center px-4" role="status">
+      <div className="pop-in flex max-w-md items-center gap-3 rounded-xl border border-line bg-white px-4 py-3 text-sm shadow-xl">
+        <p className="flex-1">Foyer was updated. Reload to get the new version.</p>
+        <button
+          type="button"
+          onClick={() => window.location.reload()}
+          className="flex shrink-0 items-center gap-1.5 rounded-lg bg-brand px-3 py-1.5 font-semibold text-white"
+        >
+          <RefreshCw size={14} />
+          Reload
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function DataProvider({ children }) {
   // "loading" (finding out who is signed in), "ready" or "error"
   const [status, setStatus] = useState("loading");
@@ -121,6 +140,68 @@ export default function DataProvider({ children }) {
   useEffect(() => {
     start();
   }, [start]);
+
+  // ---------- Live updates (server/live.js) ----------
+  // While signed in, a change made anywhere (another tab, another admin,
+  // a guest signing in) loads the data again here. A tab in the
+  // background waits until it's looked at. A new version of Foyer
+  // reloads background tabs, and offers a Reload to the one in front.
+  const [newVersion, setNewVersion] = useState(false);
+  const signedIn = Boolean(currentAdmin);
+  useEffect(() => {
+    if (!signedIn || typeof EventSource === "undefined") return;
+    const live = new EventSource("/api/live");
+    let build = null;
+    let timer = null;
+    let waiting = false; // a change came while the tab was hidden
+
+    const refresh = () => {
+      clearTimeout(timer);
+      if (document.hidden) {
+        waiting = true;
+        return;
+      }
+      // Several changes close together load once
+      timer = setTimeout(() => {
+        loadData().catch((err) => {
+          if (err.status === 401) {
+            setCurrentAdmin(null);
+            setData(EMPTY);
+          }
+        });
+      }, 400);
+    };
+
+    live.addEventListener("hello", (e) => {
+      const said = JSON.parse(e.data);
+      if (build === null) build = said.build;
+      else {
+        // Connected again (Foyer restarted, or the network dropped):
+        // something may have changed meanwhile
+        if (said.build !== build) {
+          if (document.hidden) return window.location.reload();
+          setNewVersion(true);
+        }
+        refresh();
+      }
+    });
+    live.addEventListener("changed", (e) => {
+      if (JSON.parse(e.data).from !== TAB_ID) refresh();
+    });
+
+    const onShow = () => {
+      if (!document.hidden && waiting) {
+        waiting = false;
+        refresh();
+      }
+    };
+    document.addEventListener("visibilitychange", onShow);
+    return () => {
+      live.close();
+      clearTimeout(timer);
+      document.removeEventListener("visibilitychange", onShow);
+    };
+  }, [signedIn, loadData]);
 
   // Runs a change on the server. If it fails: the message pops up and
   // the data is loaded again (or, signed out elsewhere, the sign-in page
@@ -487,6 +568,7 @@ export default function DataProvider({ children }) {
     <DataContext.Provider value={value}>
       {children}
       {problem && <Toast message={problem} onClose={closeProblem} />}
+      {newVersion && <NewVersion />}
     </DataContext.Provider>
   );
 }
