@@ -86,7 +86,7 @@ export default function BarChart({
   const count = series ? series.length : 1;
   const dayGap = Math.min(2, band * 0.1);
   const inGap = series && band > 8 ? 1 : 0;
-  const barW = Math.max(1, Math.min(80, (band - dayGap - inGap * (count - 1)) / count));
+  const barW = Math.max(1, Math.min(16, (band - dayGap - inGap * (count - 1)) / count));
   const fullW = barW * count + inGap * (count - 1);
   // Only as many labels under the bars as fit without overlapping
   const fit = Math.max(2, Math.floor(innerW / 34));
