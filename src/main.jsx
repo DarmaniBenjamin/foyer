@@ -4,6 +4,9 @@ import { BrowserRouter } from "react-router";
 import DataProvider from "./DataProvider";
 import "./index.css";
 import App from "./App.jsx";
+import { startKeyboardLift } from "./keyboardLift";
+
+startKeyboardLift();
 
 createRoot(document.getElementById("root")).render(
   <StrictMode>

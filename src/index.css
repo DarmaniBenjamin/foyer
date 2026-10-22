@@ -17,6 +17,11 @@
 }
 
 @layer base {
+  /* Room under the page while a phone's keyboard is up, so the box being
+     typed in can be scrolled above it (src/keyboardLift.js) */
+  body {
+    padding-bottom: var(--keyboard, 0px);
+  }
   html {
     background-color: var(--color-page);
     color: var(--color-ink);
