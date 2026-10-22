@@ -77,12 +77,12 @@ export default function BarChart({
   const max = Math.max(step, Math.ceil(maxValue / step) * step);
   const ticks = Array.from({ length: Math.round(max / step) + 1 }, (_, i) => i * step);
   const band = innerW / Math.max(1, data.length);
-  // Thin bars with space between the days: a bar (or a group of bars
-  // side by side) takes at most 60% of its day's width
-  const groupW = Math.max(2, band * 0.6);
+  // Slim bars with a small space between the days: a bar (or a group of
+  // bars side by side) takes up to 75% of its day's width
+  const groupW = Math.max(2, band * 0.75);
   const count = series ? series.length : 1;
-  const inGap = series && groupW > 8 ? Math.min(2, groupW * 0.1) : 0;
-  const barW = Math.max(1.5, Math.min(series ? 10 : 16, (groupW - inGap * (count - 1)) / count));
+  const inGap = series && groupW > 8 ? Math.min(2, groupW * 0.08) : 0;
+  const barW = Math.max(1.5, Math.min(series ? 16 : 26, (groupW - inGap * (count - 1)) / count));
   const fullW = barW * count + inGap * (count - 1);
   // Only as many labels under the bars as fit without overlapping
   const fit = Math.max(2, Math.floor(innerW / 34));
