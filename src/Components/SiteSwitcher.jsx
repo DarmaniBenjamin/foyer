@@ -1,6 +1,7 @@
-// The site picker at the bottom of the sidebar, above Sign out. It shows
-// the site you're looking at; click it to switch to another site, or to
-// "All sites" for an overview of every site.
+// The site picker: at the bottom of the sidebar, above Sign out, and
+// (variant "header") at the top right of every page. It shows the site
+// you're looking at; click it to switch to another site, or to "All
+// sites" for an overview of every site.
 //
 // While you're editing a site (Sites → a site), switching opens the
 // site you picked instead. From Sites or Controllers (only in the menu
@@ -39,7 +40,8 @@ function Option({ selected, onClick, icon, name, detail }) {
   );
 }
 
-export default function SiteSwitcher({ onPicked }) {
+export default function SiteSwitcher({ onPicked, variant = "sidebar" }) {
+  const inHeader = variant === "header";
   const { sites, controllers, currentSite, pickSite } = useData();
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -54,10 +56,10 @@ export default function SiteSwitcher({ onPicked }) {
       if (!boxRef.current?.contains(e.target)) setOpen(false);
     };
     const onKey = (e) => e.key === "Escape" && setOpen(false);
-    document.addEventListener("mousedown", onClick);
+    document.addEventListener("pointerdown", onClick);
     document.addEventListener("keydown", onKey);
     return () => {
-      document.removeEventListener("mousedown", onClick);
+      document.removeEventListener("pointerdown", onClick);
       document.removeEventListener("keydown", onKey);
     };
   }, [open]);
@@ -82,9 +84,15 @@ export default function SiteSwitcher({ onPicked }) {
   );
 
   return (
-    <div ref={boxRef} className="relative">
+    <div ref={boxRef} className={`relative ${inHeader ? "min-w-0" : ""}`}>
       {open && (
-        <div className="absolute right-0 bottom-full left-0 z-50 mb-2 rounded-xl border border-line bg-white p-2 shadow-xl">
+        <div
+          className={`z-50 rounded-xl border border-line bg-white p-2 shadow-xl ${
+            inHeader
+              ? "fixed inset-x-3 top-15 sm:absolute sm:inset-x-auto sm:top-full sm:right-0 sm:mt-2 sm:w-80"
+              : "absolute right-0 bottom-full left-0 mb-2"
+          }`}
+        >
           {sites.length > 5 && (
             <div className="relative mb-2">
               <Search
@@ -100,7 +108,7 @@ export default function SiteSwitcher({ onPicked }) {
               />
             </div>
           )}
-          <div className="max-h-72 space-y-0.5 overflow-y-auto">
+          <div className="max-h-[min(18rem,60dvh)] space-y-0.5 overflow-y-auto overscroll-contain">
             <Option
               selected={!currentSite}
               onClick={() => choose(ALL_SITES)}
@@ -128,22 +136,46 @@ export default function SiteSwitcher({ onPicked }) {
         </div>
       )}
 
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        className="flex w-full items-center gap-3 rounded-lg border border-line px-2 py-2 text-left transition hover:border-brand/40 hover:bg-brand/5"
-      >
-        {currentSite ? <SiteIcon site={currentSite} /> : <AllSitesIcon />}
-        <span className="min-w-0 flex-1">
-          <span className="block text-[11px] font-medium tracking-wide text-muted uppercase">
-            Site
-          </span>
-          <span className="block truncate text-sm font-semibold">
+      {inHeader ? (
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          className={`flex h-9 max-w-full min-w-0 items-center gap-2 rounded-lg border px-1.5 text-left transition hover:border-brand/40 hover:bg-brand/5 sm:pr-2 ${
+            open ? "border-brand/40 bg-brand/5" : "border-line"
+          }`}
+          aria-label="Switch site"
+          title="Switch site"
+        >
+          {currentSite ? (
+            <SiteIcon site={currentSite} size="sm" />
+          ) : (
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand">
+              <LayoutGrid size={15} />
+            </span>
+          )}
+          <span className="hidden max-w-48 truncate text-[13px] font-medium sm:block">
             {currentSite ? currentSite.name : "All sites"}
           </span>
-        </span>
-        <ChevronsUpDown size={18} className="shrink-0 text-muted" />
-      </button>
+          <ChevronsUpDown size={15} className="shrink-0 text-muted" />
+        </button>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          className="flex w-full items-center gap-3 rounded-lg border border-line px-2 py-2 text-left transition hover:border-brand/40 hover:bg-brand/5"
+        >
+          {currentSite ? <SiteIcon site={currentSite} /> : <AllSitesIcon />}
+          <span className="min-w-0 flex-1">
+            <span className="block text-[11px] font-medium tracking-wide text-muted uppercase">
+              Site
+            </span>
+            <span className="block truncate text-sm font-semibold">
+              {currentSite ? currentSite.name : "All sites"}
+            </span>
+          </span>
+          <ChevronsUpDown size={18} className="shrink-0 text-muted" />
+        </button>
+      )}
     </div>
   );
 }

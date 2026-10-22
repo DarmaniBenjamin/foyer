@@ -14,6 +14,7 @@ import { formatRange, resolveRange } from "../../dates";
 import { buildReport, guestsIn } from "../../reports";
 import { SIGN_IN_MODES } from "../../data";
 import DateRangePicker from "../DateRangePicker";
+import ExcelDateFormat, { useExcelDateFormat } from "../ExcelDateFormat";
 import ChartCard from "../ChartCard";
 import { GUEST_SERIES } from "../chartColors";
 import StatTile from "../StatTile";
@@ -60,6 +61,7 @@ export default function Reports() {
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [now] = useState(() => Date.now());
+  const [dateFormat, setDateFormat] = useExcelDateFormat();
 
   const range = useMemo(() => resolveRange(rangeValue, now), [rangeValue, now]);
   const report = useMemo(
@@ -82,7 +84,7 @@ export default function Reports() {
     try {
       // Loaded only when needed (the Excel and Word tools are big)
       const exports = await import("../../exports");
-      const args = { sites, guests, connections, site: currentSite, range };
+      const args = { sites, guests, connections, site: currentSite, range, dateFormat };
       if (kind === "excel") await exports.downloadGuestExcel(args);
       else await exports.downloadWordReport(args);
     } catch (err) {
@@ -131,6 +133,9 @@ export default function Reports() {
           onClick={() => download("word")}
         />
       </div>
+      {canGuests && guestCount > 0 && (
+        <ExcelDateFormat value={dateFormat} onChange={setDateFormat} />
+      )}
       {error && (
         <p className="flex gap-2 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
           <CircleAlert size={16} className="mt-0.5 shrink-0" />

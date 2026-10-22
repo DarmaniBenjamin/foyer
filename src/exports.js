@@ -41,7 +41,10 @@ function sheetName(name, used) {
 
 // ---------- Guest list (Excel) ----------
 
-export async function downloadGuestExcel({ sites, guests, connections, site, range }) {
+// dateFormat: how First seen and Last seen are shown (ExcelDateFormat.jsx)
+export async function downloadGuestExcel({ sites, guests, connections, site, range, dateFormat }) {
+  const numFmt = dateFormat?.numFmt ?? "dd/mm/yyyy hh:mm";
+  const sample = dateFormat?.label?.replace(/ \(.*\)$/, "") ?? "21/10/2026 14:30";
   const { default: ExcelJS } = await import("exceljs");
   const book = new ExcelJS.Workbook();
   book.creator = "Foyer";
@@ -60,8 +63,8 @@ export async function downloadGuestExcel({ sites, guests, connections, site, ran
     sheet.columns = [
       ...fields.map((f) => ({ header: f.label, key: f.key })),
       { header: "Sign-ins in period", key: "_signins" },
-      { header: "First seen", key: "_first", style: { numFmt: "d mmm yyyy h:mm AM/PM" } },
-      { header: "Last seen", key: "_last", style: { numFmt: "d mmm yyyy h:mm AM/PM" } },
+      { header: "First seen", key: "_first", style: { numFmt } },
+      { header: "Last seen", key: "_last", style: { numFmt } },
       { header: "Device (MAC)", key: "_mac" },
     ];
 
@@ -93,7 +96,7 @@ export async function downloadGuestExcel({ sites, guests, connections, site, ran
       let widest = String(column.header).length;
       column.eachCell({ includeEmpty: false }, (cell, n) => {
         if (n === 1) return;
-        const text = cell.value instanceof Date ? "21 Oct 2026 10:30 PM" : String(cell.value ?? "");
+        const text = cell.value instanceof Date ? sample : String(cell.value ?? "");
         widest = Math.max(widest, text.length);
       });
       column.width = Math.min(50, widest + 3);
