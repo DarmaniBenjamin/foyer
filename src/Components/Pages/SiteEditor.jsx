@@ -129,7 +129,15 @@ const toKbps = (text) => {
 
 // ---------- The tabs ----------
 
+// "unifi", "omada" or null: the kind of controller the site uses, so
+// each tab only talks about that one
+function useControllerKind(draft) {
+  const { controllers } = useData();
+  return controllers.find((c) => c.id === draft.controllerId)?.kind ?? null;
+}
+
 function DetailsTab({ site, draft, set, slugsTaken, onDelete }) {
+  const kind = useControllerKind(draft);
   return (
     <>
       <Section title="Site">
@@ -183,10 +191,12 @@ function DetailsTab({ site, draft, set, slugsTaken, onDelete }) {
             autoCorrect="off"
             className={`${inputClass} font-mono`}
           />
-          <p className={hintClass}>
-            For Omada it's part of the portal address, so changing it means
-            changing it in Omada too.
-          </p>
+          {kind === "omada" && (
+            <p className={hintClass}>
+              Omada sends guests to this address, so after changing it, click
+              Set up on Omada again (Controller, above).
+            </p>
+          )}
         </div>
         <CopyBox text={`${window.location.origin}/p/${draft.slug}`} />
       </Section>
@@ -451,6 +461,7 @@ function LookTab({ draft, setLook, onPreviewPage }) {
 }
 
 function AccessTab({ draft, set }) {
+  const kind = useControllerKind(draft);
   const custom = !TIME_CHOICES.includes(draft.minutes);
   const [otherTime, setOtherTime] = useState(custom);
   const limitInput = (key, label, unit, toValue, fromValue) => (
@@ -531,7 +542,11 @@ function AccessTab({ draft, set }) {
 
       <Section
         title="Limits"
-        hint="Leave empty for no limit. On Omada older than 6.2.10, speed and data limits come from Omada's own portal settings instead."
+        hint={
+          kind === "omada"
+            ? "Leave empty for no limit. On Omada older than 6.2.10, speed and data limits come from Omada's own portal settings instead."
+            : "Leave empty for no limit."
+        }
       >
         <div className="grid gap-4 sm:grid-cols-3">
           {limitInput("downKbps", "Download speed", "Mbps", toKbps, toMbps)}

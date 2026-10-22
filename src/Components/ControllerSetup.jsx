@@ -672,7 +672,7 @@ export default function ControllerSetup({ site, draft, set }) {
         <>
           <p className="rounded-lg bg-page px-3 py-2 text-sm text-muted">
             Add the Open API to this controller (All sites → Controllers → Edit)
-            and Foyer sets the site up for you, like UniFi.
+            and Foyer sets the site up for you.
           </p>
           <OmadaGuide key={controller.id} site={site} draft={draft} controller={controller} />
         </>
