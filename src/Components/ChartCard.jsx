@@ -2,7 +2,7 @@
 // numbers as a table, and a download button that saves the chart as a
 // picture (with the site and dates on it). With `series` (New /
 // Returning guests), it shows a legend and a column for each.
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Download, LoaderCircle, Table2 } from "lucide-react";
 import BarChart from "./BarChart";
 import { APP_COLORS } from "./chartColors";
@@ -12,6 +12,7 @@ import { formatRange, rangeForFile, resolveRange } from "../dates";
 export default function ChartCard({ title, detail, data, series, unit, height }) {
   const [table, setTable] = useState(false);
   const [saving, setSaving] = useState(false);
+  const cardRef = useRef(null);
   const { currentSite, range: rangeValue } = useData();
   const total = data.reduce((sum, d) => sum + d.value, 0);
 
@@ -27,6 +28,8 @@ export default function ChartCard({ title, detail, data, series, unit, height })
         data,
         series,
         height,
+        // As wide as the chart is on the page: the card minus its padding
+        width: cardRef.current ? cardRef.current.clientWidth - 40 : undefined,
         fileName: `${title} - ${where} - ${rangeForFile(range)}`,
       });
     } catch (err) {
@@ -37,7 +40,7 @@ export default function ChartCard({ title, detail, data, series, unit, height })
     }
   }
   return (
-    <section className="min-w-0 rounded-xl border border-line bg-white p-5">
+    <section ref={cardRef} className="min-w-0 rounded-xl border border-line bg-white p-5">
       <div className="mb-4 flex items-start justify-between gap-3">
         <div className="min-w-0">
           <h3 className="font-semibold">{title}</h3>

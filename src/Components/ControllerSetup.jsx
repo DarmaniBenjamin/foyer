@@ -520,7 +520,8 @@ function OmadaGuide({ site, draft, controller }) {
     <div className="space-y-5">
       <p className="text-sm text-muted">
         Omada's Hotspot Operator account can't change settings, so set the
-        portal up in Omada with these steps. Open the site in Omada first.
+        portal up in Omada with these steps (menus as in Omada Controller
+        6.x). Open the site in Omada first (<b>Site View</b>).
       </p>
 
       <Step n={1} title="A Hotspot Operator for Foyer" done={test?.ok}>
@@ -545,15 +546,18 @@ function OmadaGuide({ site, draft, controller }) {
 
       <Step n={2} title="The portal">
         <p className="text-sm text-muted">
-          <b>Site Settings → Authentication → Portal → Create New Portal</b>:
+          <b>Network Config → Authentication → Portal → Create New Portal</b>:
         </p>
         <ul className="list-disc space-y-1 pl-5 text-sm text-muted">
-          <li>Portal name: anything, e.g. <b>Foyer</b></li>
-          <li>SSID &amp; Network: tick the guest Wi-Fi</li>
           <li>
-            Authentication Type: <b>External Portal Server</b>
+            <b>Basic</b>: Portal Name anything, e.g. <b>Foyer</b>; SSID &amp;
+            Network: tick the guest Wi-Fi
           </li>
-          <li>Custom Portal Server URL:</li>
+          <li>
+            <b>Authentication</b>: Authentication Type{" "}
+            <b>External Portal Server</b>, and this as the portal address
+            (Custom Portal Server URL):
+          </li>
         </ul>
         <CopyBox text={`${origin}/omada/${draft.slug}`} />
         {draft.slug !== site.slug && (
@@ -566,8 +570,9 @@ function OmadaGuide({ site, draft, controller }) {
 
       <Step n={3} title="Let phones reach the sign-in page">
         <p className="text-sm text-muted">
-          <b>Site Settings → Authentication → Portal → Access Control</b>, turn on{" "}
-          <b>Pre-Authentication Access</b> and add Foyer's address:
+          <b>Network Config → Authentication → Portal → Access Control</b>: turn on{" "}
+          <b>Pre-Authentication Access</b>, click <b>Add</b>, pick <b>URL</b> and
+          add Foyer's address, then <b>Apply</b>:
         </p>
         <CopyBox text={window.location.hostname} />
       </Step>

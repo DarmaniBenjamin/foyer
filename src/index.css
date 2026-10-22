@@ -231,3 +231,185 @@ html.dark {
     margin: 12mm;
   }
 }
+
+/* ============================================================
+   Guest sign-in page: the animations (PortalMotion.jsx)
+   ============================================================
+   Everything uses the site's colour (--portal-color). Phones set to
+   reduce motion get none of it. */
+@keyframes portal-rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes portal-fade {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes portal-arc {
+  0%,
+  100% {
+    opacity: 0.3;
+  }
+  40%,
+  60% {
+    opacity: 1;
+  }
+}
+@keyframes portal-ripple {
+  from {
+    transform: scale(0.9);
+    opacity: 0.45;
+  }
+  to {
+    transform: scale(1.9);
+    opacity: 0;
+  }
+}
+@keyframes portal-bars {
+  0%,
+  100% {
+    transform: scaleY(0.35);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+@keyframes portal-pop {
+  0% {
+    transform: scale(0.3);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.12);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+@keyframes portal-burst {
+  from {
+    transform: scale(1);
+    opacity: 0.5;
+  }
+  to {
+    transform: scale(2.4);
+    opacity: 0;
+  }
+}
+@keyframes portal-tick {
+  from {
+    stroke-dashoffset: 24;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes portal-live {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgb(34 197 94 / 0.6);
+  }
+  50% {
+    box-shadow: 0 0 0 5px rgb(34 197 94 / 0);
+  }
+}
+@keyframes portal-glow {
+  0%,
+  100% {
+    transform: translate(-10%, -6%) scale(1);
+  }
+  50% {
+    transform: translate(10%, 6%) scale(1.15);
+  }
+}
+
+[data-portal] .portal-card {
+  animation: portal-rise 0.55s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+/* The card's contents come in one after another */
+[data-portal] .portal-stagger > * {
+  animation: portal-fade 0.45s ease-out both;
+}
+[data-portal] .portal-stagger > *:nth-child(1) { animation-delay: 0.1s; }
+[data-portal] .portal-stagger > *:nth-child(2) { animation-delay: 0.16s; }
+[data-portal] .portal-stagger > *:nth-child(3) { animation-delay: 0.22s; }
+[data-portal] .portal-stagger > *:nth-child(4) { animation-delay: 0.28s; }
+[data-portal] .portal-stagger > *:nth-child(5) { animation-delay: 0.34s; }
+[data-portal] .portal-stagger > *:nth-child(6) { animation-delay: 0.4s; }
+[data-portal] .portal-stagger > *:nth-child(n + 7) { animation-delay: 0.46s; }
+
+/* A soft glow of the site's colour drifting behind the card */
+[data-portal] .portal-glow {
+  background: radial-gradient(closest-side, var(--portal-color), transparent);
+  opacity: 0.22;
+  filter: blur(40px);
+  animation: portal-glow 12s ease-in-out infinite;
+}
+
+.portal-wifi path {
+  animation: portal-arc 1.6s ease-in-out infinite;
+}
+.portal-wifi-connecting path {
+  animation-duration: 0.7s;
+}
+.portal-wifi-on path {
+  animation: none;
+  opacity: 1;
+}
+.portal-ripple {
+  animation: portal-ripple 2.2s ease-out infinite;
+}
+.portal-badge {
+  box-shadow: 0 10px 30px -8px var(--portal-color);
+}
+.portal-bars > span {
+  transform-origin: bottom;
+  animation: portal-bars 0.9s ease-in-out infinite;
+}
+.portal-pop {
+  animation: portal-pop 0.5s cubic-bezier(0.2, 0.9, 0.3, 1.3) both;
+  box-shadow: 0 10px 30px -8px var(--portal-color);
+}
+.portal-burst {
+  animation: portal-burst 0.9s ease-out both;
+}
+.portal-tick {
+  stroke-dasharray: 24;
+  animation: portal-tick 0.4s 0.3s ease-out both;
+}
+.portal-live {
+  animation: portal-live 1.6s ease-in-out infinite;
+}
+/* Boxes glow in the site's colour while typing */
+[data-portal] .portal-field {
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+[data-portal] .portal-field:focus {
+  border-color: var(--portal-color);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--portal-color) 25%, transparent);
+}
+[data-portal] .portal-button {
+  box-shadow: 0 8px 24px -10px var(--portal-color);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-portal] *,
+  [data-portal] *::before,
+  [data-portal] *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

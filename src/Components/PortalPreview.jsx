@@ -9,7 +9,8 @@
 // It always looks like the site's own design (data-portal, see
 // index.css), whatever the admin site's light or dark mode is.
 import { useState } from "react";
-import { CircleAlert, CircleCheck, LoaderCircle, Wifi } from "lucide-react";
+import { CircleAlert } from "lucide-react";
+import { BrandBadge, ConnectedMark, SignalBars, SignalChip } from "./PortalMotion";
 import { COUNTRIES, formatMinutes, textOn } from "../data";
 
 const validEmail = (text) => /^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(text);
@@ -47,7 +48,7 @@ function withOpacity(hex, opacity) {
 
 function Question({ field, value, onChange, color, invalid, inside, ink, dial }) {
   const placeholder = inside ? `${field.label}${field.required ? "*" : ""}` : undefined;
-  const box = `h-11 w-full min-w-0 rounded-xl border bg-white px-3 text-base text-gray-900 outline-none placeholder:text-gray-500 focus:border-current ${
+  const box = `portal-field h-11 w-full min-w-0 rounded-xl border bg-white px-3 text-base text-gray-900 outline-none placeholder:text-gray-500 focus:border-current ${
     invalid ? "border-red-400 ring-2 ring-red-400/40" : "border-black/10"
   }`;
   const label = !inside && (
@@ -104,7 +105,7 @@ function Question({ field, value, onChange, color, invalid, inside, ink, dial })
           <select
             value={value?.dial ?? dial}
             onChange={(e) => onChange({ dial: e.target.value, number: value?.number ?? "" })}
-            className="h-11 w-24 shrink-0 rounded-xl border border-black/10 bg-white px-2 text-base text-gray-900 outline-none"
+            className="portal-field h-11 w-24 shrink-0 rounded-xl border border-black/10 bg-white px-2 text-base text-gray-900 outline-none"
             aria-label="Country code"
           >
             {[...new Set(COUNTRIES.map((c) => c.dial))].map((d) => (
@@ -218,6 +219,8 @@ export default function PortalPreview({
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null); // after signing in
   const success = page === "success" || result;
+  // What the Wi-Fi signs show: waiting, connecting, connected
+  const signal = success ? "on" : busy ? "connecting" : "search";
 
   const cardColor = look.cardColor ?? "#ffffff";
   // Text on the box: dark on a light box, white on a dark one
@@ -258,42 +261,44 @@ export default function PortalPreview({
   return (
     <div
       data-portal
-      className={`flex flex-col items-center px-4 ${fullPage ? "min-h-dvh justify-center py-10" : "min-h-full py-8"}`}
+      className={`relative flex flex-col items-center overflow-hidden px-4 ${fullPage ? "min-h-dvh justify-center py-10" : "min-h-full py-8"}`}
       style={{
+        "--portal-color": look.color,
         backgroundColor: look.background,
         backgroundImage: look.backgroundImage ? `url(${look.backgroundImage})` : undefined,
         backgroundSize: "cover",
         backgroundPosition: "center",
       }}
     >
+      <div className="portal-glow pointer-events-none absolute top-1/4 left-1/2 h-96 w-96 -translate-x-1/2 rounded-full" />
       <div
-        className="w-full max-w-sm rounded-3xl p-6 text-center shadow-xl shadow-black/10"
+        // key: the card comes in again when it changes to "connected"
+        key={success ? "on" : "form"}
+        className="portal-card relative w-full max-w-sm rounded-3xl p-6 text-center shadow-xl shadow-black/10"
         style={{
           backgroundColor: withOpacity(cardColor, look.cardOpacity ?? 1),
           backdropFilter: (look.cardOpacity ?? 1) < 1 ? "blur(6px)" : undefined,
           WebkitBackdropFilter: (look.cardOpacity ?? 1) < 1 ? "blur(6px)" : undefined,
         }}
       >
-        <div className="mb-5 flex justify-center">
+        <div className="mb-5 flex flex-col items-center gap-3">
           {look.logo ? (
-            <img
-              src={look.logo}
-              alt={site.name}
-              className="max-h-20 max-w-[80%] object-contain"
-            />
-          ) : (
-            <span
-              className="flex h-14 w-14 items-center justify-center rounded-2xl"
-              style={buttonStyle}
-            >
-              <Wifi size={28} />
-            </span>
+            <>
+              <img
+                src={look.logo}
+                alt={site.name}
+                className="max-h-20 max-w-[80%] object-contain"
+              />
+              <SignalChip state={signal} color={look.color} ink={soft} />
+            </>
+          ) : success ? null : (
+            <BrandBadge style={buttonStyle} state={signal} />
           )}
         </div>
 
         {success ? (
-          <div>
-            <CircleCheck size={44} className="mx-auto mb-3" style={{ color: look.color }} />
+          <div className="portal-stagger">
+            <ConnectedMark color={look.color} />
             <h1 className="text-xl font-semibold" style={{ color: ink }}>
               {site.name}
             </h1>
@@ -316,7 +321,7 @@ export default function PortalPreview({
             )}
           </div>
         ) : (
-          <form onSubmit={submit} noValidate>
+          <form onSubmit={submit} noValidate className="portal-stagger">
             <h1 className="text-2xl font-semibold" style={{ color: ink }}>
               {look.heading}
             </h1>
@@ -352,7 +357,7 @@ export default function PortalPreview({
                   <input
                     value={code}
                     onChange={(e) => setCode(e.target.value.toUpperCase())}
-                    className={`h-11 w-full rounded-xl border bg-white px-3 text-center font-mono text-base tracking-widest text-gray-900 uppercase outline-none ${
+                    className={`portal-field h-11 w-full rounded-xl border bg-white px-3 text-center font-mono text-base tracking-widest text-gray-900 uppercase outline-none ${
                       problem?.bad.has("_code") ? "border-red-400 ring-2 ring-red-400/40" : "border-black/10"
                     }`}
                     placeholder={inside ? "Voucher code" : "ABCD-1234"}
@@ -408,11 +413,11 @@ export default function PortalPreview({
             <button
               type="submit"
               disabled={busy}
-              className="mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-xl text-base font-semibold transition active:scale-[0.98] disabled:opacity-70"
+              className="portal-button mt-5 flex h-12 w-full items-center justify-center gap-2.5 rounded-xl text-base font-semibold transition hover:brightness-105 active:scale-[0.98] disabled:opacity-90"
               style={buttonStyle}
             >
-              {busy && <LoaderCircle size={18} className="animate-spin" />}
-              {look.button || "Connect"}
+              {busy && <SignalBars />}
+              {busy ? "Connecting…" : look.button || "Connect"}
             </button>
           </form>
         )}

@@ -13,11 +13,13 @@
 // series: [{ key, name }] to split each day into bars (see chartColors.js)
 //
 // On screen it's drawn at the width of its box (measured), so the text
-// stays the same size on a phone and a big screen.
+// stays the same size on a phone and a big screen. As a picture it's
+// drawn at the width it had on screen (width), so the download looks
+// exactly like the page.
 import { useLayoutEffect, useRef, useState } from "react";
 import { APP_COLORS } from "./chartColors";
 
-const PICTURE_WIDTH = 720;
+const PICTURE_WIDTH = 720; // a picture's width when there's no screen size
 
 // Clean steps for the side numbers: 1, 2, 5, 10, 20, 50...
 function niceStep(rough) {
@@ -44,6 +46,7 @@ export default function BarChart({
   colors = APP_COLORS,
   fontFamily = "inherit",
   forPicture = false,
+  width,
 }) {
   const boxRef = useRef(null);
   // 0 until the box has been measured
@@ -60,16 +63,18 @@ export default function BarChart({
     return () => observer.disconnect();
   }, [forPicture]);
 
-  const W = forPicture ? PICTURE_WIDTH : measured;
-  // The picture has its legend drawn in (on screen it's above the chart)
+  const W = forPicture ? Math.round(width || PICTURE_WIDTH) : measured;
+  // The picture has its legend drawn in (on screen it's above the chart),
+  // so it's that much taller, and the bars stay the same size
   const legendH = forPicture && series ? 26 : 0;
+  const H = height + legendH;
   const left = 36;
   const right = 4;
   const top = 12 + legendH;
   const twoLines = data.some((d) => d.sublabel);
   const bottom = twoLines ? 40 : 26;
   const innerW = W - left - right;
-  const innerH = height - top - bottom;
+  const innerH = H - top - bottom;
   // Side-by-side bars only go as high as the biggest part
   const maxValue = Math.max(
     0,
@@ -86,7 +91,7 @@ export default function BarChart({
   const count = series ? series.length : 1;
   const dayGap = Math.min(2, band * 0.1);
   const inGap = series && band > 8 ? 1 : 0;
-  const barW = Math.max(1, Math.min(16, (band - dayGap - inGap * (count - 1)) / count));
+  const barW = Math.max(1, Math.min(80, (band - dayGap - inGap * (count - 1)) / count));
   const fullW = barW * count + inGap * (count - 1);
   // Only as many labels under the bars as fit without overlapping
   const fit = Math.max(2, Math.floor(innerW / 34));
@@ -134,14 +139,14 @@ export default function BarChart({
   const svg = (
     <svg
       xmlns="http://www.w3.org/2000/svg"
-      viewBox={`0 0 ${W} ${height}`}
+      viewBox={`0 0 ${W} ${H}`}
       width={W}
-      height={height}
+      height={H}
       fontFamily={fontFamily}
       role="img"
       style={forPicture ? undefined : { display: "block", overflow: "visible" }}
     >
-      {forPicture && <rect width={W} height={height} fill="#ffffff" />}
+      {forPicture && <rect width={W} height={H} fill="#ffffff" />}
       {legendH > 0 &&
         series.map((s, n) => (
           <g key={s.key} transform={`translate(${left + n * 150}, 4)`}>
@@ -168,7 +173,7 @@ export default function BarChart({
           <g key={d.key}>
             {bar(d, i)}
             {shownLabels.has(d.key) && (
-              <text x={cx} y={height - (twoLines ? 22 : 8)} textAnchor="middle" fontSize="11" fill={colors.text}>
+              <text x={cx} y={H - (twoLines ? 22 : 8)} textAnchor="middle" fontSize="11" fill={colors.text}>
                 {labelText.get(d.key)}
                 {d.sublabel && (
                   <tspan x={cx} dy="14" fontSize="10" opacity="0.7">

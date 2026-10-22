@@ -1,15 +1,17 @@
-// Downloads one chart as a PNG picture: the chart in the light print
-// colours, with its title and which site and dates it's for above it,
+// Downloads one chart as a PNG picture: the chart exactly as it is on the
+// page (same width, height, bars and gaps), in the light colours on
+// white, with its title and which site and dates it's for above it,
 // drawn at twice the size so it stays sharp in emails and documents.
 import { createElement } from "react";
 import BarChart from "./Components/BarChart";
 import { PRINT_COLORS } from "./Components/chartColors";
 
-const WIDTH = 720; // the chart's width in the picture
 const PAD = 24;
 const HEADER = 64;
 
-export async function downloadChart({ title, subtitle, data, series, height = 240, fileName }) {
+// width: the chart's width on the page
+export async function downloadChart({ title, subtitle, data, series, height = 240, width = 720, fileName }) {
+  const WIDTH = Math.round(width);
   // Only loaded when a chart is downloaded
   const { renderToStaticMarkup } = await import("react-dom/server");
   const svg = renderToStaticMarkup(
@@ -20,6 +22,7 @@ export async function downloadChart({ title, subtitle, data, series, height = 24
       colors: PRINT_COLORS,
       fontFamily: "Arial, Helvetica, sans-serif",
       forPicture: true,
+      width: WIDTH,
     }),
   );
   const url = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml" }));
@@ -32,7 +35,8 @@ export async function downloadChart({ title, subtitle, data, series, height = 24
     });
     const scale = 2;
     const w = WIDTH + PAD * 2;
-    const h = HEADER + height + PAD;
+    const chartH = height + (series ? 26 : 0); // the legend is drawn in
+    const h = HEADER + chartH + PAD;
     const canvas = document.createElement("canvas");
     canvas.width = w * scale;
     canvas.height = h * scale;
@@ -48,7 +52,7 @@ export async function downloadChart({ title, subtitle, data, series, height = 24
       ctx.font = "13px Arial, Helvetica, sans-serif";
       ctx.fillText(subtitle, PAD, PAD + 34);
     }
-    ctx.drawImage(chart, PAD, HEADER, WIDTH, height);
+    ctx.drawImage(chart, PAD, HEADER, WIDTH, chartH);
     const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
     const link = URL.createObjectURL(blob);
     const a = document.createElement("a");
