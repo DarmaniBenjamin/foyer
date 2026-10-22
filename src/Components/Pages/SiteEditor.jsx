@@ -18,6 +18,7 @@ import {
 import useData from "../../useData";
 import {
   COUNTRIES,
+  NO_TIME_LIMIT,
   SIGN_IN_MODES,
   TIMEZONES,
   formatMinutes,
@@ -46,7 +47,7 @@ const TABS = [
   { id: "access", label: "Access", icon: Clock },
 ];
 
-const TIME_CHOICES = [30, 60, 120, 240, 480, 720, 1440];
+const TIME_CHOICES = [30, 60, 120, 240, 480, 720, 1440, NO_TIME_LIMIT];
 
 const textareaClass =
   "w-full rounded-lg border border-line bg-white px-3 py-2 text-base outline-none transition focus:border-brand focus:ring-[3px] focus:ring-brand/15 sm:text-sm";
@@ -475,7 +476,10 @@ function AccessTab({ draft, set }) {
 
   return (
     <>
-      <Section title="Time" hint="How long guests stay on before signing in again.">
+      <Section
+        title="Time"
+        hint="How long guests stay on before signing in again. No time limit: they sign in once and stay on. Devices that can't sign in (EV chargers, TVs) go on the Device whitelist."
+      >
         <div className="flex flex-wrap gap-2">
           {TIME_CHOICES.map((m) => (
             <button

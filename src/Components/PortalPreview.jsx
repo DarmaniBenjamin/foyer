@@ -12,7 +12,7 @@ import { useEffect, useState } from "react";
 import { CircleAlert } from "lucide-react";
 import { BrandBadge, ConnectedMark, SignalBars, SignalChip } from "./PortalMotion";
 import WifiLoader from "./WifiLoader";
-import { COUNTRIES, formatMinutes, textOn } from "../data";
+import { COUNTRIES, NO_TIME_LIMIT, formatMinutes, textOn } from "../data";
 
 const validEmail = (text) => /^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(text);
 
@@ -349,7 +349,9 @@ export default function PortalPreview({
             </p>
             {result?.minutes && (
               <p className="mt-3 text-xs" style={{ color: soft }}>
-                You're on for {formatMinutes(result.minutes)}.
+                {result.minutes >= NO_TIME_LIMIT
+                  ? "You're on, with no time limit."
+                  : `You're on for ${formatMinutes(result.minutes)}.`}
               </p>
             )}
             {site.redirectUrl &&

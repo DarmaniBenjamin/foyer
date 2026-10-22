@@ -334,8 +334,14 @@ export function textOn(hex) {
     : "#ffffff";
 }
 
+// "No time limit" for a site's guests: a year, so they sign in once and
+// stay on (devices that never sign in, like EV chargers, go on the
+// Device whitelist instead). Also the most a voucher can last.
+export const NO_TIME_LIMIT = 525600;
+
 // 120 → "2 hours", 90 → "1 hour 30 minutes"
 export function formatMinutes(total) {
+  if (total >= NO_TIME_LIMIT) return "No time limit";
   const days = Math.floor(total / 1440);
   const hours = Math.floor((total % 1440) / 60);
   const minutes = total % 60;
