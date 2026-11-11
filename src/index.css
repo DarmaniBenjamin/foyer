@@ -537,6 +537,10 @@ html.dark {
 [data-portal] .portal-field {
   transition: border-color 0.15s, box-shadow 0.15s;
 }
+/* A long hint in an empty box gets smaller to fit (see PortalPreview) */
+[data-portal] .portal-field::placeholder {
+  font-size: var(--hint-size, inherit);
+}
 [data-portal] .portal-field:focus {
   border-color: var(--portal-color);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--portal-color) 25%, transparent);

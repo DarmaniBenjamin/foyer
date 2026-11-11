@@ -8,7 +8,7 @@
 // terms ticked, a voucher code typed.
 // It always looks like the site's own design (data-portal, see
 // index.css), whatever the admin site's light or dark mode is.
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { CircleAlert } from "lucide-react";
 import { BrandBadge, ConnectedMark, SignalBars, SignalChip } from "./PortalMotion";
 import WifiLoader from "./WifiLoader";
@@ -40,6 +40,45 @@ const DOMAIN_TYPOS = {
   "live.co": "live.com",
 };
 
+// Long words in a box get smaller until they fit (16px down to 11px),
+// so the box stays the same size and the guest can read it all. An empty
+// box only shrinks its hint (the placeholder, see index.css): the box
+// itself stays at 16px, so phones don't zoom in when it's tapped.
+const FIT_MAX = 16;
+const FIT_MIN = 11;
+let measurer;
+function fitSize(el, text) {
+  if (!el || !text) return FIT_MAX;
+  const css = getComputedStyle(el);
+  // Room for the words: the box less its padding (and a list's arrow)
+  const room =
+    el.clientWidth -
+    parseFloat(css.paddingLeft) -
+    parseFloat(css.paddingRight) -
+    (el.tagName === "SELECT" ? 24 : 2);
+  if (room <= 0) return FIT_MAX;
+  measurer ??= document.createElement("canvas").getContext("2d");
+  measurer.font = `${css.fontStyle} ${css.fontWeight} ${FIT_MAX}px ${css.fontFamily}`;
+  const width = measurer.measureText(text).width;
+  if (width <= room) return FIT_MAX;
+  return Math.max(FIT_MIN, Math.floor(((FIT_MAX * room) / width) * 2) / 2);
+}
+
+function useFitText(text) {
+  const ref = useRef(null);
+  const [size, setSize] = useState(FIT_MAX);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return undefined;
+    const update = () => setSize(fitSize(el, text));
+    update();
+    const watch = new ResizeObserver(update);
+    watch.observe(el);
+    return () => watch.disconnect();
+  }, [text]);
+  return [ref, size];
+}
+
 // "#171515" + 0.92 → "rgba(23, 21, 21, 0.92)"
 function withOpacity(hex, opacity) {
   const h = String(hex).replace("#", "");
@@ -49,6 +88,18 @@ function withOpacity(hex, opacity) {
 
 function Question({ field, value, onChange, color, invalid, inside, ink, dial }) {
   const placeholder = inside ? `${field.label}${field.required ? "*" : ""}` : undefined;
+  const shown =
+    field.type === "choice"
+      ? value || (inside ? placeholder : "Choose one")
+      : field.type === "phone"
+        ? value?.number || placeholder
+        : value || placeholder;
+  const [fitRef, fit] = useFitText(field.type === "checkbox" ? "" : String(shown ?? ""));
+  // Typed words shrink themselves; an empty box shrinks only its hint
+  const fitStyle =
+    field.type !== "choice" && !(field.type === "phone" ? value?.number : value)
+      ? { "--hint-size": `${fit}px` }
+      : { fontSize: fit };
   const box = `portal-field h-11 w-full min-w-0 rounded-xl border bg-white px-3 text-base text-gray-900 outline-none placeholder:text-gray-500 focus:border-current ${
     invalid ? "border-red-400 ring-2 ring-red-400/40" : "border-black/10"
   }`;
@@ -81,8 +132,9 @@ function Question({ field, value, onChange, color, invalid, inside, ink, dial })
       <label className="block">
         {label}
         <select
+          ref={fitRef}
           className={box}
-          style={{ color: value ? "#111827" : "#6b7280" }}
+          style={{ ...fitStyle, color: value ? "#111827" : "#6b7280" }}
           value={value ?? ""}
           onChange={(e) => onChange(e.target.value)}
         >
@@ -122,7 +174,9 @@ function Question({ field, value, onChange, color, invalid, inside, ink, dial })
             placeholder={placeholder}
             value={value?.number ?? ""}
             onChange={(e) => onChange({ dial: value?.dial ?? dial, number: e.target.value })}
+            ref={fitRef}
             className={box}
+            style={fitStyle}
           />
         </div>
       </label>
@@ -146,7 +200,9 @@ function Question({ field, value, onChange, color, invalid, inside, ink, dial })
                 : "off"
         }
         autoCapitalize={field.type === "email" ? "none" : undefined}
+        ref={fitRef}
         className={box}
+        style={fitStyle}
       />
     </label>
   );
