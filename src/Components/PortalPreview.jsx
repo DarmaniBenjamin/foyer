@@ -40,12 +40,10 @@ const DOMAIN_TYPOS = {
   "live.co": "live.com",
 };
 
-// Long words in a box get smaller until they fit (16px down to 11px),
-// so the box stays the same size and the guest can read it all. An empty
-// box only shrinks its hint (the placeholder, see index.css): the box
-// itself stays at 16px, so phones don't zoom in when it's tapped.
-const FIT_MAX = 16;
-const FIT_MIN = 11;
+// Long words in a box get smaller until they fit (14px down to 10px),
+// so the box stays the same size and the guest can read it all.
+const FIT_MAX = 14;
+const FIT_MIN = 10;
 let measurer;
 function fitSize(el, text) {
   if (!el || !text) return FIT_MAX;
@@ -100,7 +98,7 @@ function Question({ field, value, onChange, color, invalid, inside, ink, dial })
     field.type !== "choice" && !(field.type === "phone" ? value?.number : value)
       ? { "--hint-size": `${fit}px` }
       : { fontSize: fit };
-  const box = `portal-field h-11 w-full min-w-0 rounded-xl border bg-white px-3 text-base text-gray-900 outline-none placeholder:text-gray-500 focus:border-current ${
+  const box = `portal-field h-11 w-full min-w-0 rounded-xl border bg-white px-3 text-sm text-gray-900 outline-none placeholder:text-gray-500 focus:border-current ${
     invalid ? "border-red-400 ring-2 ring-red-400/40" : "border-black/10"
   }`;
   const label = !inside && (
@@ -158,7 +156,7 @@ function Question({ field, value, onChange, color, invalid, inside, ink, dial })
           <select
             value={value?.dial ?? dial}
             onChange={(e) => onChange({ dial: e.target.value, number: value?.number ?? "" })}
-            className="portal-field h-11 w-24 shrink-0 rounded-xl border border-black/10 bg-white px-2 text-base text-gray-900 outline-none"
+            className="portal-field h-11 w-24 shrink-0 rounded-xl border border-black/10 bg-white px-2 text-sm text-gray-900 outline-none"
             aria-label="Country code"
           >
             {[...new Set(COUNTRIES.map((c) => c.dial))].map((d) => (
@@ -320,6 +318,15 @@ export default function PortalPreview({
     site.redirectUrl,
   );
 
+  // iPhones zoom in on a box with words smaller than 16px when it's
+  // tapped, and stay zoomed in. On the guest page, tell them not to (a
+  // guest can still pinch to zoom).
+  useEffect(() => {
+    if (!fullPage || !/iPhone|iPad|iPod/.test(navigator.userAgent)) return;
+    const meta = document.querySelector('meta[name="viewport"]');
+    if (meta && !/maximum-scale/.test(meta.content)) meta.content += ", maximum-scale=1";
+  }, [fullPage]);
+
   const cardColor = look.cardColor ?? "#ffffff";
   // Text on the box: dark on a light box, white on a dark one
   const ink = textOn(cardColor) === "#ffffff" ? "#ffffff" : "#111827";
@@ -435,7 +442,7 @@ export default function PortalPreview({
               (online ? (
                 <a
                   href={site.redirectUrl}
-                  className="pop-in mt-5 flex h-12 w-full items-center justify-center rounded-xl text-base font-semibold"
+                  className="pop-in mt-5 flex h-12 w-full items-center justify-center rounded-xl text-[15px] font-semibold"
                   style={buttonStyle}
                 >
                   Continue
@@ -443,7 +450,7 @@ export default function PortalPreview({
               ) : (
                 <div
                   role="status"
-                  className="mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-xl text-base font-semibold opacity-80"
+                  className="mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-xl text-[15px] font-semibold opacity-80"
                   style={buttonStyle}
                 >
                   <WifiLoader size={20} />
@@ -511,7 +518,7 @@ export default function PortalPreview({
                         <input
                           value={code}
                           onChange={(e) => setCode(e.target.value.toUpperCase())}
-                          className={`portal-field h-11 w-full rounded-xl border bg-white px-3 text-center font-mono text-base tracking-widest text-gray-900 uppercase outline-none ${
+                          className={`portal-field h-11 w-full rounded-xl border bg-white px-3 text-center font-mono text-sm tracking-widest text-gray-900 uppercase outline-none ${
                             problem?.bad.has("_code") ? "border-red-400 ring-2 ring-red-400/40" : "border-black/10"
                           }`}
                           placeholder={inside ? "Voucher code" : "ABCD-1234"}
@@ -567,7 +574,7 @@ export default function PortalPreview({
                   <button
                     type="submit"
                     disabled={busy}
-                    className="portal-button mt-5 flex h-12 w-full items-center justify-center gap-2.5 rounded-xl text-base font-semibold transition hover:brightness-105 active:scale-[0.98] disabled:opacity-90"
+                    className="portal-button mt-5 flex h-12 w-full items-center justify-center gap-2.5 rounded-xl text-[15px] font-semibold transition hover:brightness-105 active:scale-[0.98] disabled:opacity-90"
                     style={buttonStyle}
                   >
                     {busy && <SignalBars />}

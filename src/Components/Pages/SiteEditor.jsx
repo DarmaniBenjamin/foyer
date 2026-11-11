@@ -380,7 +380,7 @@ function LookTab({ draft, set, setLook, onPreviewPage }) {
     <>
       <Section
         title="Copy an existing portal"
-        hint="Paste the address of another sign-in page (e.g. this site's Spotipo portal) to copy its logo, background, words and questions."
+        hint="Paste the address of another sign-in page (e.g. this site's Spotipo portal) to copy its logo, background, words, colours and questions."
       >
         <ImportPortal draft={draft} set={set} setLook={setLook} onPreviewPage={onPreviewPage} />
       </Section>

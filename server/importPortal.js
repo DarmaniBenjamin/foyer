@@ -1,6 +1,6 @@
 // Site settings → Look → Copy an existing portal: reads another captive
 // portal's sign-in page (e.g. Spotipo's) from its web address and finds
-// its logo, background picture, words, button colour and questions, for
+// its logo, background picture, words, colours and questions, for
 // the page to copy into the site.
 //
 // It only reads what the page itself contains. A page that draws itself
@@ -134,12 +134,83 @@ function rules(css) {
   return out;
 }
 
+// ----- Colours -----
+const NAMED = {
+  white: "#ffffff", black: "#000000", red: "#ff0000", green: "#008000", blue: "#0000ff",
+  gray: "#808080", grey: "#808080", silver: "#c0c0c0", navy: "#000080", teal: "#008080",
+  orange: "#ffa500", purple: "#800080", maroon: "#800000", yellow: "#ffff00",
+};
+const hex2 = (n) => Math.round(Math.min(255, Math.max(0, n))).toString(16).padStart(2, "0");
+
+// "#abc", "#aabbcc", "#aabbccdd", "rgb(…)", "rgba(…)", "white" →
+// { hex: "#aabbcc", alpha: 0–1 }, or null
+export function readColor(text) {
+  const t = String(text ?? "").trim().toLowerCase();
+  let m;
+  if ((m = t.match(/^#([0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/))) {
+    let h = m[1];
+    if (h.length <= 4) h = [...h].map((c) => c + c).join("");
+    return { hex: `#${h.slice(0, 6)}`, alpha: h.length === 8 ? parseInt(h.slice(6), 16) / 255 : 1 };
+  }
+  if ((m = t.match(/^rgba?\(\s*([\d.]+)[\s,]+([\d.]+)[\s,]+([\d.]+)(?:\s*[,/]\s*([\d.]+%?))?\s*\)$/))) {
+    const a = m[4] === undefined ? 1 : m[4].endsWith("%") ? parseFloat(m[4]) / 100 : parseFloat(m[4]);
+    return { hex: `#${hex2(+m[1])}${hex2(+m[2])}${hex2(+m[3])}`, alpha: Math.min(1, Math.max(0, a)) };
+  }
+  return NAMED[t] ? { hex: NAMED[t], alpha: 1 } : null;
+}
+
+// "a: 1; b: 2" → [["a", "1"], ["b", "2"]]
+const declarations = (body) =>
+  String(body ?? "")
+    .split(";")
+    .map((d) => d.split(/:(.*)/s))
+    .filter((d) => d.length > 1)
+    .map(([k, v]) => [k.trim().toLowerCase(), v.replace(/!important/i, "").trim()]);
+
+// Does a CSS selector ("form .btn.primary", "#go", "button[type=submit]")
+// describe this element? Only its last part is checked, and states like
+// :hover don't count. → its weight (an id 100, a class 10, a tag 1), or 0
+function weigh(selector, el) {
+  if (/:(hover|focus|active|disabled|visited|before|after|not|placeholder|checked|invalid|selection)/i.test(selector))
+    return 0;
+  const last = selector.trim().split(/[\s>+~]+/).pop();
+  if (!last || last.startsWith("@")) return 0;
+  const parts = last.match(/^[a-z][\w-]*|\*|#[\w-]+|\.[\w-]+|\[[^\]]+\]|:[\w-]+/gi) ?? [];
+  if (parts.join("") !== last) return 0; // something this doesn't understand
+  let weight = 0;
+  for (const part of parts) {
+    if (part === "*") continue;
+    if (part[0] === "#") {
+      if (el.getAttribute("id") !== part.slice(1)) return 0;
+      weight += 100;
+    } else if (part[0] === ".") {
+      if (!(el.getAttribute("class") ?? "").split(/\s+/).includes(part.slice(1))) return 0;
+      weight += 10;
+    } else if (part[0] === "[") {
+      const m = part.slice(1, -1).match(/^([\w-]+)(?:\s*=\s*["']?([^"']*)["']?)?$/);
+      if (!m) return 0;
+      const v = el.getAttribute(m[1]);
+      if (v == null || (m[2] !== undefined && v.toLowerCase() !== m[2].toLowerCase())) return 0;
+      weight += 10;
+    } else if (part[0] === ":") {
+      if (part.toLowerCase() !== ":root" || el.tagName !== "HTML") return 0;
+      weight += 10;
+    } else {
+      if (el.tagName?.toLowerCase() !== part.toLowerCase()) return 0;
+      weight += 1;
+    }
+  }
+  return weight;
+}
+
 const urlIn = (text) => text?.match(/url\(\s*["']?([^"')]+)["']?\s*\)/i)?.[1] ?? null;
 const BACKGROUND_PLACE = /(^|[\s,>.#-])(html|body|bg|background|backdrop|wrapper|landing|splash|page|main|container|hero|cover)\b/i;
 
 // What the page offers to copy:
-// { logo, backgroundImage, heading, message, button, footer, color,
-//   fields: [{ label, type, required, options, consent }], terms, found }
+// { logo, backgroundImage, heading, message, button, footer,
+//   color (the button's), background (the page's), cardColor and
+//   cardOpacity (the box's), fields: [{ label, type, required, options,
+//   consent }], terms }
 export async function readPortal(address) {
   const page = await getPublic(address, { accept: "text/html,*/*", max: MAX_PAGE, what: "page" });
   if (!/html|xml|text\/plain/.test(page.type))
@@ -170,34 +241,38 @@ export async function readPortal(address) {
   const logoImg =
     imgs.find((i) => /logo|brand/.test(i.hint) || /logo|brand/.test(i.parentHint)) ?? imgs[0];
 
-  // The background: a style="" on the page, then the page's CSS (its
-  // own <style> and up to 3 linked stylesheets), on something page-sized
+  // The page's CSS: its own <style> and up to 4 linked stylesheets
+  const sheets = [{ css: root.querySelectorAll("style").map((st) => st.textContent).join("\n"), base: page.url }];
+  for (const link of root.querySelectorAll('link[rel~="stylesheet"]').slice(0, 4)) {
+    const href = full(link.getAttribute("href"));
+    if (!href) continue;
+    try {
+      const css = await getPublic(href, { accept: "text/css,*/*", max: MAX_CSS, what: "stylesheet" });
+      sheets.push({ css: css.body.toString("utf8"), base: css.url });
+    } catch {
+      // a missing stylesheet just means less to copy
+    }
+  }
+  const cssRules = sheets.flatMap(({ css, base }) =>
+    rules(css).map((rule) => ({ ...rule, base, decls: declarations(rule.body) })),
+  );
+
+  // The background: a style="" on the page, then the CSS, on something
+  // page-sized
   let backgroundUrl = null;
   const styled = root.querySelectorAll("[style]").find((el) => /background[^;]*url\(/i.test(el.getAttribute("style")));
   if (styled) backgroundUrl = full(urlIn(styled.getAttribute("style")));
   if (!backgroundUrl) {
-    const sheets = [{ css: root.querySelectorAll("style").map((s) => s.textContent).join("\n"), base: page.url }];
-    for (const link of root.querySelectorAll('link[rel~="stylesheet"]').slice(0, 3)) {
-      const href = full(link.getAttribute("href"));
-      if (!href) continue;
+    const found = [];
+    for (const rule of cssRules) {
+      const u = urlIn(rule.body.match(/background(-image)?\s*:[^;]*/i)?.[0]);
+      if (!u || /logo|icon|sprite|\.svg/i.test(u)) continue;
       try {
-        const css = await getPublic(href, { accept: "text/css,*/*", max: MAX_CSS, what: "stylesheet" });
-        sheets.push({ css: css.body.toString("utf8"), base: css.url });
+        found.push({ url: new URL(u, rule.base).href, place: BACKGROUND_PLACE.test(rule.selector) });
       } catch {
-        // a missing stylesheet just means less to copy
+        // not a usable address
       }
     }
-    const found = [];
-    for (const { css, base } of sheets)
-      for (const rule of rules(css)) {
-        const u = urlIn(rule.body.match(/background(-image)?\s*:[^;]*/i)?.[0]);
-        if (!u || /logo|icon|sprite|\.svg/i.test(u)) continue;
-        try {
-          found.push({ url: new URL(u, base).href, place: BACKGROUND_PLACE.test(rule.selector) });
-        } catch {
-          // not a usable address
-        }
-      }
     backgroundUrl = (found.find((f) => f.place) ?? found[0])?.url ?? null;
   }
 
@@ -223,11 +298,62 @@ export async function readPortal(address) {
     root.querySelectorAll("[class], [id]").find((el) => /footer|powered|copyright/i.test(`${el.getAttribute("class")} ${el.getAttribute("id")}`));
   const footer = words(footerEl).slice(0, 200);
 
-  // The button colour: the page's theme colour, or the button's own
-  const color =
-    root.querySelector('meta[name="theme-color"]')?.getAttribute("content")?.match(/#[0-9a-f]{6}\b/i)?.[0] ??
-    submit?.getAttribute("style")?.match(/background(-color)?\s*:\s*(#[0-9a-f]{6})\b/i)?.[2] ??
-    null;
+  // ----- Colours: the button's, the page's and the box's -----
+  // CSS variables (--brand: #c2410c), so var(--brand) can be read
+  const vars = {};
+  for (const rule of cssRules) for (const [k, v] of rule.decls) if (k.startsWith("--")) vars[k] = v;
+  const resolve = (value) => {
+    let v = value;
+    for (let i = 0; i < 4 && /var\(/.test(v); i++)
+      v = v.replace(/var\(\s*(--[\w-]+)\s*(?:,\s*([^()]*))?\)/g, (_, name, fallback) => vars[name] ?? fallback ?? "");
+    return v;
+  };
+  // The colour in "background-color: …" or "background: …":
+  // undefined = not set here, null = see-through or none
+  const colorIn = (decls) => {
+    let found;
+    for (const [k, v] of decls) {
+      if (k !== "background" && k !== "background-color") continue;
+      const value = resolve(v).replace(/url\([^)]*\)/gi, " ");
+      const token = value.match(/#[0-9a-f]{3,8}\b|rgba?\([^)]*\)|\b[a-z]+\b/gi)?.find((t) => readColor(t));
+      found = token ? readColor(token) : null;
+    }
+    return found;
+  };
+  // An element's own background colour (style="" first, then the CSS
+  // rule that describes it most closely; a later one wins a tie)
+  const backgroundOf = (el) => {
+    if (!el?.getAttribute) return null;
+    const own = colorIn(declarations(el.getAttribute("style")));
+    if (own !== undefined) return own;
+    let best = null;
+    let bestWeight = 0;
+    for (const rule of cssRules)
+      for (const selector of rule.selector.split(",")) {
+        const w = weigh(selector, el);
+        if (!w || w < bestWeight) continue;
+        const c = colorIn(rule.decls);
+        if (c === undefined) continue;
+        best = c;
+        bestWeight = w;
+      }
+    return best;
+  };
+  const solid = (c) => (c && c.alpha >= 0.1 ? c : null);
+  const themeColor = readColor(root.querySelector('meta[name="theme-color"]')?.getAttribute("content"));
+  const color = (solid(backgroundOf(submit)) ?? themeColor)?.hex ?? null;
+  const html = root.querySelector("html");
+  const body = root.querySelector("body");
+  const background = (solid(backgroundOf(body)) ?? solid(backgroundOf(html)))?.hex ?? null;
+  // The box: the first thing behind the questions with a colour of its
+  // own, below the page itself
+  let box = null;
+  for (let el = root.querySelector("form") ?? submit?.parentNode; el && el !== body && el !== html; el = el.parentNode) {
+    box = solid(backgroundOf(el));
+    if (box) break;
+  }
+  const cardColor = box?.hex ?? null;
+  const cardOpacity = box ? Math.max(0.3, Math.round(box.alpha * 20) / 20) : null;
 
   // ----- Questions -----
   const fields = [];
@@ -287,7 +413,10 @@ export async function readPortal(address) {
     getPicture(backgroundUrl),
   ]);
 
-  const result = { logo, backgroundImage, heading, message, button, footer, color, fields, terms };
+  const result = {
+    logo, backgroundImage, heading, message, button, footer,
+    color, background, cardColor, cardOpacity, fields, terms,
+  };
   const anything = logo || backgroundImage || fields.length || heading || message;
   if (!anything)
     throw new Problem(

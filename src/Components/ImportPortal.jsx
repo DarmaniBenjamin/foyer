@@ -1,6 +1,6 @@
 // Site settings → Look → Copy an existing portal: paste another sign-in
 // page's address (e.g. a Spotipo portal), see what Foyer found on it,
-// tick what to copy, and it goes into this site's settings. Nothing is
+// tick what to copy (logo, background, words, colours, questions), and it goes into this site's settings. Nothing is
 // saved until Save, so it's easy to look at the preview first.
 import { useState } from "react";
 import { CircleAlert, CircleCheck, Download } from "lucide-react";
@@ -49,7 +49,7 @@ export default function ImportPortal({ draft, set, setLook, onPreviewPage }) {
         logo: Boolean(result.logo),
         background: Boolean(result.backgroundImage),
         words,
-        color: Boolean(result.color),
+        color: Boolean(result.color || result.background || result.cardColor),
         questions: result.fields.length > 0 || result.terms,
       });
     } catch (err) {
@@ -68,7 +68,11 @@ export default function ImportPortal({ draft, set, setLook, onPreviewPage }) {
     }
     if (picks.words)
       for (const key of ["heading", "message", "button", "footer"]) if (found[key]) look[key] = found[key];
-    if (picks.color) look.color = found.color;
+    if (picks.color) {
+      if (found.color) look.color = found.color;
+      if (found.background) look.background = found.background;
+      if (found.cardColor) Object.assign(look, { cardColor: found.cardColor, cardOpacity: found.cardOpacity ?? 1 });
+    }
     for (const key of Object.keys(look)) if (look[key] === null) delete look[key];
     setLook(look);
     if (picks.questions) {
@@ -154,11 +158,22 @@ export default function ImportPortal({ draft, set, setLook, onPreviewPage }) {
                 ))}
             </Pick>
           )}
-          {found.color && (
-            <Pick checked={picks.color} onChange={toggle("color")} title="Button colour">
-              <span className="inline-flex items-center gap-2">
-                <span className="h-4 w-4 rounded border border-line" style={{ backgroundColor: found.color }} />
-                {found.color}
+          {(found.color || found.background || found.cardColor) && (
+            <Pick checked={picks.color} onChange={toggle("color")} title="Colours">
+              <span className="flex flex-wrap gap-x-4 gap-y-1">
+                {[
+                  ["Button", found.color],
+                  ["Page", found.background],
+                  ["Box", found.cardColor],
+                ]
+                  .filter(([, v]) => v)
+                  .map(([k, v]) => (
+                    <span key={k} className="inline-flex items-center gap-1.5">
+                      <span className="h-4 w-4 rounded border border-line" style={{ backgroundColor: v }} />
+                      {k} {v}
+                      {k === "Box" && found.cardOpacity < 1 ? ` (${Math.round(found.cardOpacity * 100)}%)` : ""}
+                    </span>
+                  ))}
               </span>
             </Pick>
           )}
