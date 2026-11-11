@@ -2,7 +2,7 @@
 //   Details: name, controller (and setting it up), portal on/off, the
 //            portal address, country, time zone and the email check
 //   Sign-in: form questions, terms or voucher
-//   Look:    logo (and its size), background picture (moved, zoomed,
+//   Look:    copying another portal's look, logo (and its size), background picture (moved, zoomed,
 //            darkened), what's on the page and in what order, colours,
 //            the box and words
 //   Access:  how long guests stay on, speed and data limits
@@ -33,6 +33,7 @@ import PortalPreview from "../PortalPreview";
 import FieldEditor from "../FieldEditor";
 import LogoPicker from "../LogoPicker";
 import { BackgroundAdjuster, PageParts, Slider } from "../LookControls";
+import ImportPortal from "../ImportPortal";
 import Modal from "../Modal";
 import {
   dangerButton,
@@ -346,7 +347,7 @@ function SignInTab({ draft, set, setLook }) {
   );
 }
 
-function LookTab({ draft, setLook, onPreviewPage }) {
+function LookTab({ draft, set, setLook, onPreviewPage }) {
   const { look } = draft;
   const text = (key, label, rows) => (
     <div>
@@ -377,6 +378,13 @@ function LookTab({ draft, setLook, onPreviewPage }) {
   const opacity = Math.round((look.cardOpacity ?? 1) * 100);
   return (
     <>
+      <Section
+        title="Copy an existing portal"
+        hint="Paste the address of another sign-in page (e.g. this site's Spotipo portal) to copy its logo, background, words and questions."
+      >
+        <ImportPortal draft={draft} set={set} setLook={setLook} onPreviewPage={onPreviewPage} />
+      </Section>
+
       <Section title="Logo">
         <LogoPicker
           value={look.logo}
@@ -873,7 +881,7 @@ function SiteEditor({ siteId }) {
             <SignInTab draft={draft} set={set} setLook={setLook} />
           )}
           {tab === "look" && (
-            <LookTab draft={draft} setLook={setLook} onPreviewPage={setPreviewPage} />
+            <LookTab draft={draft} set={set} setLook={setLook} onPreviewPage={setPreviewPage} />
           )}
           {tab === "access" && <AccessTab draft={draft} set={set} />}
         </div>

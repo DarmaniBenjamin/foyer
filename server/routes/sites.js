@@ -12,6 +12,7 @@ import { SIGN_IN_MODES, SITE_COLORS, makeSite, makeSlug } from "../../src/data.j
 import crypto from "node:crypto";
 import { Problem, SERVER_ONLY, siteIn, siteOut, text } from "../shapes.js";
 import { seal } from "../secrets.js";
+import { readPortal } from "../importPortal.js";
 import {
   ControllerError,
   setUpOmada,
@@ -31,6 +32,16 @@ async function checkController(id) {
 }
 
 // { name, controllerId, mode } → the new site
+// Site settings → Look → Copy an existing portal: what another portal's
+// sign-in page has (see importPortal.js). Nothing is saved here; the page
+// copies what the admin picks into the site, and Save saves it.
+sitesRouter.post("/import-look", async (req, res) => {
+  const url = text(req.body?.url, 2000);
+  if (!/^https?:\/\/\S+$/i.test(url))
+    throw new Problem("Paste the portal's full address, starting with https://");
+  res.json(await readPortal(url));
+});
+
 sitesRouter.post("/", async (req, res) => {
   const name = text(req.body?.name, 120);
   if (!name) throw new Problem("Give the site a name.");

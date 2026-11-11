@@ -15,25 +15,39 @@ const KINDS = {
   ad: { maxW: 1080, maxH: 1350, type: "image/jpeg", empty: "No picture", button: "Upload picture", hint: "A tall picture fits phones best, e.g. 1080 × 1350 (an Instagram post)." },
 };
 
-function shrink(file, { maxW, maxH, type }) {
+// A picture (any link the browser can show) made smaller and kept as a
+// "data:" link
+function draw(src, { maxW, maxH, type }) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onerror = () => reject(new Error("That file isn't a picture."));
+    img.onload = () => {
+      const width = img.naturalWidth || maxW;
+      const height = img.naturalHeight || maxH;
+      const scale = Math.min(1, maxW / width, maxH / height);
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.max(1, Math.round(width * scale));
+      canvas.height = Math.max(1, Math.round(height * scale));
+      canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
+      resolve(canvas.toDataURL(type, 0.82));
+    };
+    img.src = src;
+  });
+}
+
+function shrink(file, settings) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onerror = () => reject(new Error("Couldn't read that file."));
-    reader.onload = () => {
-      const img = new Image();
-      img.onerror = () => reject(new Error("That file isn't a picture."));
-      img.onload = () => {
-        const scale = Math.min(1, maxW / img.width, maxH / img.height);
-        const canvas = document.createElement("canvas");
-        canvas.width = Math.max(1, Math.round(img.width * scale));
-        canvas.height = Math.max(1, Math.round(img.height * scale));
-        canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
-        resolve(canvas.toDataURL(type, 0.82));
-      };
-      img.src = reader.result;
-    };
+    reader.onload = () => draw(reader.result, settings).then(resolve, reject);
     reader.readAsDataURL(file);
   });
+}
+
+// The same for a picture copied from another portal (a data: link).
+// Returns null if it can't be drawn.
+export function shrinkPicture(src, kind = "logo") {
+  return src ? draw(src, KINDS[kind]).catch(() => null) : Promise.resolve(null);
 }
 
 export default function LogoPicker({ value, onChange, kind = "logo" }) {
