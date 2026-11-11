@@ -12,7 +12,7 @@ import { useEffect, useState } from "react";
 import { CircleAlert } from "lucide-react";
 import { BrandBadge, ConnectedMark, SignalBars, SignalChip } from "./PortalMotion";
 import WifiLoader from "./WifiLoader";
-import { COUNTRIES, NO_TIME_LIMIT, formatMinutes, textOn } from "../data";
+import { COUNTRIES, NO_TIME_LIMIT, formatMinutes, pageParts, textOn } from "../data";
 
 const validEmail = (text) => /^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(text);
 
@@ -272,6 +272,21 @@ export default function PortalPreview({
   const dial =
     COUNTRIES.find((c) => c.code === site.countryCode)?.dial ?? COUNTRIES[0].dial;
   const inside = look.labels === "inside";
+  // What's on the page, in the admin's order (Site settings → Look)
+  const parts = pageParts(look);
+  const showing = (id) => parts.some((p) => p.id === id && p.show);
+  const logoShown = Boolean(look.logo) && showing("logo");
+  const logo = logoShown && (
+    <img
+      src={look.logo}
+      alt={site.name}
+      className="mx-auto object-contain"
+      style={{ maxHeight: look.logoSize ?? 80, maxWidth: "100%" }}
+    />
+  );
+  const bgX = look.bgX ?? 50;
+  const bgY = look.bgY ?? 50;
+  const align = { top: "justify-start", bottom: "justify-end" }[look.cardPosition] ?? "justify-center";
 
   async function submit(e) {
     e.preventDefault();
@@ -303,15 +318,30 @@ export default function PortalPreview({
   return (
     <div
       data-portal
-      className={`relative flex flex-col items-center overflow-hidden px-4 ${fullPage ? "min-h-dvh justify-center py-10" : "min-h-full py-8"}`}
-      style={{
-        "--portal-color": look.color,
-        backgroundColor: look.background,
-        backgroundImage: look.backgroundImage ? `url(${look.backgroundImage})` : undefined,
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-      }}
+      className={`relative flex flex-col items-center overflow-hidden px-4 ${align} ${fullPage ? "min-h-dvh py-10" : "min-h-full py-8"}`}
+      style={{ "--portal-color": look.color, backgroundColor: look.background }}
     >
+      {look.backgroundImage && (
+        // The picture, zoomed in on and moved as set in Site settings → Look
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0"
+          style={{
+            backgroundImage: `url(${look.backgroundImage})`,
+            backgroundSize: "cover",
+            backgroundPosition: `${bgX}% ${bgY}%`,
+            transform: `scale(${look.bgZoom ?? 1})`,
+            transformOrigin: `${bgX}% ${bgY}%`,
+          }}
+        />
+      )}
+      {look.backgroundImage && look.bgDim > 0 && (
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0"
+          style={{ backgroundColor: `rgba(0,0,0,${look.bgDim})` }}
+        />
+      )}
       <div className="portal-glow pointer-events-none absolute top-1/4 left-1/2 h-96 w-96 -translate-x-1/2 rounded-full" />
       <div
         // key: the card comes in again when it changes to "connected"
@@ -323,23 +353,14 @@ export default function PortalPreview({
           WebkitBackdropFilter: (look.cardOpacity ?? 1) < 1 ? "blur(6px)" : undefined,
         }}
       >
-        <div className="mb-5 flex flex-col items-center gap-3">
-          {look.logo ? (
-            <>
-              <img
-                src={look.logo}
-                alt={site.name}
-                className="max-h-20 max-w-[80%] object-contain"
-              />
-              <SignalChip state={signal} color={look.color} ink={soft} />
-            </>
-          ) : success ? null : (
-            <BrandBadge style={buttonStyle} state={signal} />
-          )}
-        </div>
-
         {success ? (
           <div className="portal-stagger">
+            {logoShown && (
+              <div className="mb-5 flex flex-col items-center gap-3">
+                {logo}
+                {showing("wifi") && <SignalChip state={signal} color={look.color} ink={soft} />}
+              </div>
+            )}
             <ConnectedMark color={look.color} />
             <h1 className="text-xl font-semibold" style={{ color: ink }}>
               {site.name}
@@ -375,108 +396,134 @@ export default function PortalPreview({
               ))}
           </div>
         ) : (
-          <form onSubmit={submit} noValidate className="portal-stagger">
-            <h1 className="text-2xl font-semibold" style={{ color: ink }}>
-              {look.heading}
-            </h1>
-            {look.message && (
-              <p className="mt-2 text-sm whitespace-pre-line" style={{ color: soft }}>
-                {look.message}
-              </p>
-            )}
+          <form onSubmit={submit} noValidate className="portal-stagger flex flex-col gap-3">
+            {parts.filter((p) => p.show).map((p) => {
+              if (p.id === "logo") return logo ? <div key="logo">{logo}</div> : null;
+              if (p.id === "wifi")
+                return (
+                  <div key="wifi" className="flex justify-center">
+                    {logoShown ? (
+                      <SignalChip state={signal} color={look.color} ink={soft} />
+                    ) : (
+                      <BrandBadge style={buttonStyle} state={signal} />
+                    )}
+                  </div>
+                );
+              if (p.id === "heading")
+                return look.heading ? (
+                  <h1 key="heading" className="text-2xl font-semibold" style={{ color: ink }}>
+                    {look.heading}
+                  </h1>
+                ) : null;
+              if (p.id === "message")
+                return look.message ? (
+                  <p key="message" className="-mt-1 text-sm whitespace-pre-line" style={{ color: soft }}>
+                    {look.message}
+                  </p>
+                ) : null;
+              if (p.id === "footer")
+                return look.footer ? (
+                  <p key="footer" className="text-xs" style={{ color: soft }}>
+                    {look.footer}
+                  </p>
+                ) : null;
+              return (
+                <div key="form" className="py-2">
+                  <div className="space-y-3 text-left">
+                    {site.mode === "form" &&
+                      site.fields.map((field) => (
+                        <Question
+                          key={field.key}
+                          field={field}
+                          value={answers[field.key]}
+                          invalid={problem?.bad.has(field.key)}
+                          onChange={(v) => setAnswers((a) => ({ ...a, [field.key]: v }))}
+                          color={look.color}
+                          inside={inside}
+                          ink={ink}
+                          dial={dial}
+                        />
+                      ))}
 
-            <div className="mt-5 space-y-3 text-left">
-              {site.mode === "form" &&
-                site.fields.map((field) => (
-                  <Question
-                    key={field.key}
-                    field={field}
-                    value={answers[field.key]}
-                    invalid={problem?.bad.has(field.key)}
-                    onChange={(v) => setAnswers((a) => ({ ...a, [field.key]: v }))}
-                    color={look.color}
-                    inside={inside}
-                    ink={ink}
-                    dial={dial}
-                  />
-                ))}
+                    {site.mode === "voucher" && (
+                      <label className="block">
+                        {!inside && (
+                          <span className="mb-1 block text-sm font-medium" style={{ color: ink }}>
+                            Voucher code
+                          </span>
+                        )}
+                        <input
+                          value={code}
+                          onChange={(e) => setCode(e.target.value.toUpperCase())}
+                          className={`portal-field h-11 w-full rounded-xl border bg-white px-3 text-center font-mono text-base tracking-widest text-gray-900 uppercase outline-none ${
+                            problem?.bad.has("_code") ? "border-red-400 ring-2 ring-red-400/40" : "border-black/10"
+                          }`}
+                          placeholder={inside ? "Voucher code" : "ABCD-1234"}
+                          autoCapitalize="characters"
+                          autoComplete="off"
+                          autoCorrect="off"
+                          spellCheck={false}
+                        />
+                      </label>
+                    )}
 
-              {site.mode === "voucher" && (
-                <label className="block">
-                  {!inside && (
-                    <span className="mb-1 block text-sm font-medium" style={{ color: ink }}>
-                      Voucher code
-                    </span>
-                  )}
-                  <input
-                    value={code}
-                    onChange={(e) => setCode(e.target.value.toUpperCase())}
-                    className={`portal-field h-11 w-full rounded-xl border bg-white px-3 text-center font-mono text-base tracking-widest text-gray-900 uppercase outline-none ${
-                      problem?.bad.has("_code") ? "border-red-400 ring-2 ring-red-400/40" : "border-black/10"
-                    }`}
-                    placeholder={inside ? "Voucher code" : "ABCD-1234"}
-                    autoCapitalize="characters"
-                    autoComplete="off"
-                    autoCorrect="off"
-                    spellCheck={false}
-                  />
-                </label>
-              )}
+                    {site.requireTerms && (
+                      <div>
+                        <label className="flex items-start gap-2 text-sm" style={{ color: ink }}>
+                          <input
+                            type="checkbox"
+                            checked={termsOk}
+                            onChange={(e) => setTermsOk(e.target.checked)}
+                            className="mt-0.5 h-4 w-4 shrink-0"
+                            style={{ accentColor: look.color }}
+                          />
+                          <span
+                            className={
+                              problem?.bad.has("_terms") ? "underline decoration-red-400 decoration-2" : ""
+                            }
+                          >
+                            I accept the{" "}
+                            <button
+                              type="button"
+                              onClick={() => setShowTerms((s) => !s)}
+                              className="font-semibold underline"
+                            >
+                              terms of use
+                            </button>
+                          </span>
+                        </label>
+                        {showTerms && (
+                          <p className="mt-2 max-h-40 overflow-y-auto rounded-xl bg-white/90 p-3 text-xs whitespace-pre-line text-gray-700">
+                            {look.terms}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
 
-              {site.requireTerms && (
-                <div>
-                  <label className="flex items-start gap-2 text-sm" style={{ color: ink }}>
-                    <input
-                      type="checkbox"
-                      checked={termsOk}
-                      onChange={(e) => setTermsOk(e.target.checked)}
-                      className="mt-0.5 h-4 w-4 shrink-0"
-                      style={{ accentColor: look.color }}
-                    />
-                    <span
-                      className={
-                        problem?.bad.has("_terms") ? "underline decoration-red-400 decoration-2" : ""
-                      }
-                    >
-                      I accept the{" "}
-                      <button
-                        type="button"
-                        onClick={() => setShowTerms((s) => !s)}
-                        className="font-semibold underline"
-                      >
-                        terms of use
-                      </button>
-                    </span>
-                  </label>
-                  {showTerms && (
-                    <p className="mt-2 max-h-40 overflow-y-auto rounded-xl bg-white/90 p-3 text-xs whitespace-pre-line text-gray-700">
-                      {look.terms}
+                  {problem && (
+                    <p className="mt-4 flex gap-2 rounded-xl bg-red-50 px-3 py-2 text-left text-sm text-red-700">
+                      <CircleAlert size={16} className="mt-0.5 shrink-0" />
+                      {problem.message}
                     </p>
                   )}
+
+                  <button
+                    type="submit"
+                    disabled={busy}
+                    className="portal-button mt-5 flex h-12 w-full items-center justify-center gap-2.5 rounded-xl text-base font-semibold transition hover:brightness-105 active:scale-[0.98] disabled:opacity-90"
+                    style={buttonStyle}
+                  >
+                    {busy && <SignalBars />}
+                    {busy ? "Connecting…" : look.button || "Connect"}
+                  </button>
                 </div>
-              )}
-            </div>
-
-            {problem && (
-              <p className="mt-4 flex gap-2 rounded-xl bg-red-50 px-3 py-2 text-left text-sm text-red-700">
-                <CircleAlert size={16} className="mt-0.5 shrink-0" />
-                {problem.message}
-              </p>
-            )}
-
-            <button
-              type="submit"
-              disabled={busy}
-              className="portal-button mt-5 flex h-12 w-full items-center justify-center gap-2.5 rounded-xl text-base font-semibold transition hover:brightness-105 active:scale-[0.98] disabled:opacity-90"
-              style={buttonStyle}
-            >
-              {busy && <SignalBars />}
-              {busy ? "Connecting…" : look.button || "Connect"}
-            </button>
+              );
+            })}
           </form>
         )}
 
-        {look.footer && (
+        {success && look.footer && showing("footer") && (
           <p className="mt-4 text-xs" style={{ color: soft }}>
             {look.footer}
           </p>

@@ -175,6 +175,33 @@ export const TIMEZONES =
     ? Intl.supportedValuesOf("timeZone")
     : ["America/Grenada", "America/New_York", "Europe/London", "UTC"];
 
+// The parts of the guest page an admin can move and show or hide.
+// The questions and button (form) can be moved but always show.
+export const PAGE_PARTS = {
+  logo: { label: "Logo" },
+  wifi: { label: "Wi-Fi sign", detail: "The moving Wi-Fi badge, or “Wi-Fi ready” next to a logo" },
+  heading: { label: "Heading" },
+  message: { label: "Message" },
+  form: { label: "Questions and button", always: true },
+  footer: { label: "Small print" },
+};
+
+// look.parts, filled in: every part once, in the admin's order. Before
+// the admin has arranged anything, the Wi-Fi sign only shows when there's
+// no logo, so a logo is shown on its own.
+export function pageParts(look) {
+  const saved = (Array.isArray(look?.parts) ? look.parts : []).filter(
+    (p, i, all) => PAGE_PARTS[p?.id] && all.findIndex((q) => q.id === p.id) === i,
+  );
+  const parts = saved.map((p) => ({ id: p.id, show: PAGE_PARTS[p.id].always || p.show !== false }));
+  Object.keys(PAGE_PARTS).forEach((id, i) => {
+    if (parts.some((p) => p.id === id)) return;
+    const show = id === "wifi" ? !look?.logo : true;
+    parts.splice(Math.min(i, parts.length), 0, { id, show });
+  });
+  return parts;
+}
+
 // Everything a new site starts with.
 // slug: its part of the portal's web address (Omada: /omada/<slug>)
 // siteKey: UniFi only: the UniFi site's name ("default", or the short
@@ -185,6 +212,11 @@ export const TIMEZONES =
 //   have a background picture; the box in the middle has its own colour
 //   and see-through-ness (cardOpacity, 0.3 to 1). labels: "above" the
 //   boxes, or "inside" them (greyed out until the guest types).
+//   logoSize: the logo's height in px (32–200, 80 if not set).
+//   bgZoom (1–3), bgX / bgY (0–100, where the picture is centred) and
+//   bgDim (0–0.7, a dark layer over it): the background picture.
+//   cardPosition: "top", "middle" or "bottom" of the screen.
+//   parts: what's on the page, top to bottom (see pageParts).
 // countryCode: the country picked first for phone numbers
 // timezone: the site's time zone (for its reports)
 // verifyEmailDomain: refuse email addresses with a misspelt or fake

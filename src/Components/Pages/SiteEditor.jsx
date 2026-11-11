@@ -2,7 +2,9 @@
 //   Details: name, controller (and setting it up), portal on/off, the
 //            portal address, country, time zone and the email check
 //   Sign-in: form questions, terms or voucher
-//   Look:    logo, background picture, colours, the box and words
+//   Look:    logo (and its size), background picture (moved, zoomed,
+//            darkened), what's on the page and in what order, colours,
+//            the box and words
 //   Access:  how long guests stay on, speed and data limits
 // Changes only count once you press Save.
 import { useEffect, useState } from "react";
@@ -30,6 +32,7 @@ import ControllerSetup from "../ControllerSetup";
 import PortalPreview from "../PortalPreview";
 import FieldEditor from "../FieldEditor";
 import LogoPicker from "../LogoPicker";
+import { BackgroundAdjuster, PageParts, Slider } from "../LookControls";
 import Modal from "../Modal";
 import {
   dangerButton,
@@ -375,21 +378,85 @@ function LookTab({ draft, setLook, onPreviewPage }) {
   return (
     <>
       <Section title="Logo">
-        <LogoPicker value={look.logo} onChange={(logo) => setLook({ logo })} />
+        <LogoPicker
+          value={look.logo}
+          onChange={(logo) => {
+            onPreviewPage("signin");
+            setLook({ logo });
+          }}
+        />
+        {look.logo && (
+          <Slider
+            id="look-logo-size"
+            label="Size"
+            value={look.logoSize ?? 80}
+            shown={`${look.logoSize ?? 80} px tall`}
+            min={32}
+            max={200}
+            step={4}
+            onChange={(logoSize) => {
+              onPreviewPage("signin");
+              setLook({ logoSize });
+            }}
+          />
+        )}
+        {look.logo && (
+          <p className={`${hintClass} -mt-2`}>A wide logo stops growing once it fills the box from side to side.</p>
+        )}
       </Section>
 
       <Section title="Page background" hint="Behind the sign-in box. The picture covers the whole screen.">
         <LogoPicker
           kind="background"
           value={look.backgroundImage}
-          onChange={(backgroundImage) => setLook({ backgroundImage })}
+          onChange={(backgroundImage) =>
+            // A new picture starts centred, not zoomed or darkened
+            setLook({ backgroundImage, bgZoom: 1, bgX: 50, bgY: 50, bgDim: 0 })
+          }
         />
+        {look.backgroundImage && <BackgroundAdjuster look={look} setLook={setLook} />}
         <ColorField
           id="look-background"
           label={look.backgroundImage ? "Colour while the picture loads" : "Background colour"}
           value={look.background}
           onChange={(background) => setLook({ background })}
         />
+      </Section>
+
+      <Section
+        title="Page layout"
+        hint="What's on the sign-in page, top to bottom. The arrows move a part, the eye shows or hides it."
+      >
+        <PageParts
+          look={look}
+          setLook={(changes) => {
+            onPreviewPage("signin");
+            setLook(changes);
+          }}
+        />
+        <div>
+          <span className={labelClass}>Box on the screen</span>
+          <div className="grid grid-cols-3 gap-2">
+            {[
+              ["top", "Top"],
+              ["middle", "Middle"],
+              ["bottom", "Bottom"],
+            ].map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setLook({ cardPosition: value })}
+                className={`h-9 rounded-lg border text-sm font-semibold transition ${
+                  (look.cardPosition ?? "middle") === value
+                    ? "border-brand bg-brand/10 text-brand"
+                    : "border-line text-muted hover:border-brand/40 hover:bg-brand/5"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
       </Section>
 
       <Section title="Sign-in box">
