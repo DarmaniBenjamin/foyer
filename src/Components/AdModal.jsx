@@ -231,7 +231,7 @@ export default function AdModal({ ad, siteId, onSave, onClose }) {
               aria-label="Open the page builder"
             >
               <div className="pointer-events-none" style={{ width: 390, zoom: 188 / 390 }}>
-                <AdDesignView design={design} device="phone" />
+                <AdDesignView design={design} device="phone" screenHeight={722} />
               </div>
             </button>
             <button type="button" onClick={() => setBuilding(true)} className={primaryButton}>

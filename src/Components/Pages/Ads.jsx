@@ -128,7 +128,7 @@ export default function Ads() {
                     // A built page: the top of it, as on a phone
                     <div className="pointer-events-none h-full w-[110px] overflow-hidden rounded-lg">
                       <div style={{ width: 390, zoom: 110 / 390 }}>
-                        <AdDesignView design={ad.design} device="phone" />
+                        <AdDesignView design={ad.design} device="phone" screenHeight={596} />
                       </div>
                     </div>
                   ) : (

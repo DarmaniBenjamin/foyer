@@ -1,9 +1,13 @@
 // Draws a page built in the splash ad builder (src/adDesign.js) as it
 // looks on a device ("desktop", "tablet" or "phone").
 //   onLinkClick(): a guest tapped a picture or button with a link
-//   editing: { selected, onSelect } in the builder: clicking a section,
-//     column or block picks it (selected: { section, column, block } ids),
-//     links don't open, and empty pictures and videos show a box
+//   screenHeight: how tall the screen is (px), for sections that fill it
+//   editing: { selected, onSelect, guides } in the builder: clicking a
+//     section, column or block picks it (selected: { section, column,
+//     block } ids), links don't open, and empty pictures and videos show
+//     a box. guides: dashed lines around every section and column, and
+//     each section's name, so you can see where things are. zoom: how
+//     much the builder shrinks the page, so the names stay readable
 import { Film, ImageIcon } from "lucide-react";
 import { FONTS, lookOn, videoPlayer } from "../adDesign";
 
@@ -141,14 +145,27 @@ function Block({ block, device, editing, onLinkClick }) {
   return null;
 }
 
-// The dashed outline around what's picked in the builder
+// The guide lines in the builder: sections (orange) and columns (purple)
+// dashed, blocks (blue) when the mouse is over them. What's picked gets a
+// solid line instead (below).
+const GUIDES = `
+.ad-guides [data-part="section"] { outline: 1px dashed rgba(245, 158, 11, 0.85); outline-offset: -1px; }
+.ad-guides [data-part="section"]:hover { outline: 2px dashed rgba(245, 158, 11, 1); outline-offset: -2px; }
+.ad-guides [data-part="column"] { outline: 1px dashed rgba(168, 85, 247, 0.75); outline-offset: -1px; }
+.ad-guides [data-part="block"]:hover { outline: 1px solid rgba(59, 130, 246, 0.9); outline-offset: -1px; }
+`;
+
+// The outline around what's picked in the builder
 const outline = (on, kind) =>
   on
     ? { outline: `2px solid ${kind === "block" ? "#3b82f6" : kind === "column" ? "#a855f7" : "#f59e0b"}`, outlineOffset: -2 }
     : {};
 
-export default function AdDesignView({ design, device = "phone", editing, onLinkClick }) {
+export default function AdDesignView({ design, device = "phone", screenHeight = 844, editing, onLinkClick }) {
   const sel = editing?.selected ?? {};
+  const guides = Boolean(editing?.guides);
+  // The builder shrinks big screens to fit: the labels stay readable
+  const label = 1 / (editing?.zoom || 1);
   const pickThis = (ids) => (e) => {
     if (!editing) return;
     e.stopPropagation();
@@ -156,19 +173,26 @@ export default function AdDesignView({ design, device = "phone", editing, onLink
   };
   return (
     <div
+      className={guides ? "ad-guides" : undefined}
       style={{ backgroundColor: design.background, minHeight: "100%" }}
       onClick={editing ? () => editing.onSelect({}) : undefined}
     >
-      <div style={{ maxWidth: device === "phone" ? "100%" : design.width, margin: "0 auto" }}>
-        {design.sections.map((section) => {
+      {guides && <style>{GUIDES}</style>}
+      <div>
+        {design.sections.map((section, index) => {
           const s = lookOn(section, device);
           if (s.hide?.includes(device) && !editing) return null;
           const hidden = s.hide?.includes(device);
           const stacked = device === "phone" && s.stack;
           const isSel = sel.section === section.id && !sel.column && !sel.block;
+          // On computers and tablets the page is no wider than design.width;
+          // a section that fills the screen goes edge to edge, with its
+          // content still that wide
+          const widest = device === "phone" ? "100%" : design.width;
           return (
             <section
               key={section.id}
+              data-part="section"
               onClick={pickThis({ section: section.id })}
               style={{
                 position: "relative",
@@ -177,7 +201,13 @@ export default function AdDesignView({ design, device = "phone", editing, onLink
                 borderRadius: s.radius,
                 marginTop: s.marginTop,
                 marginBottom: s.marginBottom,
-                minHeight: s.minHeight || undefined,
+                maxWidth: s.fillScreen ? "100%" : widest,
+                marginLeft: "auto",
+                marginRight: "auto",
+                // Filling the screen: as tall as it, less the space above and below
+                minHeight: s.fillScreen
+                  ? Math.max(s.minHeight, screenHeight - s.marginTop - s.marginBottom)
+                  : s.minHeight || undefined,
                 display: "flex",
                 flexDirection: "column",
                 justifyContent: ALIGN[s.align],
@@ -202,6 +232,27 @@ export default function AdDesignView({ design, device = "phone", editing, onLink
               {s.dim > 0 && (s.image || s.bg) && (
                 <div aria-hidden="true" style={{ position: "absolute", inset: 0, backgroundColor: `rgba(0,0,0,${s.dim})` }} />
               )}
+              {guides && (
+                <span
+                  aria-hidden="true"
+                  style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    zIndex: 2,
+                    padding: `${2 * label}px ${7 * label}px`,
+                    borderBottomRightRadius: 6 * label,
+                    backgroundColor: isSel ? "#f59e0b" : "rgba(245, 158, 11, 0.85)",
+                    color: "#1f1300",
+                    font: `600 ${11 * label}px/1.4 ui-sans-serif, system-ui, sans-serif`,
+                    pointerEvents: "none",
+                  }}
+                >
+                  Section {index + 1}
+                  {s.fillScreen ? " · fills the screen" : ""}
+                  {hidden ? " · hidden here" : ""}
+                </span>
+              )}
               <div
                 style={{
                   position: "relative",
@@ -210,6 +261,10 @@ export default function AdDesignView({ design, device = "phone", editing, onLink
                   alignItems: stacked ? "stretch" : ALIGN[s.align],
                   gap: s.gap,
                   padding: `${s.padY}px ${s.padX}px`,
+                  width: "100%",
+                  maxWidth: widest,
+                  margin: "0 auto",
+                  boxSizing: "border-box",
                 }}
               >
                 {section.columns.map((column) => {
@@ -218,6 +273,7 @@ export default function AdDesignView({ design, device = "phone", editing, onLink
                   return (
                     <div
                       key={column.id}
+                      data-part="column"
                       onClick={pickThis({ section: section.id, column: column.id })}
                       style={{
                         flex: stacked ? "0 0 auto" : `${c.span} 1 0`,
@@ -235,6 +291,7 @@ export default function AdDesignView({ design, device = "phone", editing, onLink
                         return (
                           <div
                             key={block.id}
+                            data-part="block"
                             onClick={pickThis({ section: section.id, column: column.id, block: block.id })}
                             style={{
                               display: "flex",

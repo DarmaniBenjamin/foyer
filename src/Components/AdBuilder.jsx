@@ -6,7 +6,9 @@
 //   Left:   the page's parts: sections, their columns and blocks. "Add
 //           section" starts one from a ready-made layout; "Add" in a
 //           column adds words, a picture, a button, a video or space.
-//   Middle: the page itself. Click anything on it to change it.
+//   Middle: the page itself. Click anything on it to change it. Guide
+//           lines (on/off at the top) show each section and column, and a
+//           red line where the screen ends: below it guests scroll.
 //   Right:  the settings of what's picked: words, colours, sizes,
 //           spacing (padding inside, margin outside), pictures, links…
 //
@@ -26,6 +28,7 @@ import {
   ArrowUp,
   Check,
   Copy,
+  Grid2x2,
   Film,
   ImageIcon,
   LayoutTemplate,
@@ -334,6 +337,25 @@ export default function AdBuilder({ initial, siteId, name, onDone, onClose }) {
   const column = sel.column ? findColumn(design, sel.section, sel.column) : null;
   const block = sel.block ? findBlock(design, sel.section, sel.column, sel.block) : null;
 
+  // Guide lines on the page (remembered on this computer)
+  const [guides, setGuides] = useState(() => {
+    try {
+      return localStorage.getItem("foyer-builder-guides") !== "off";
+    } catch {
+      return true;
+    }
+  });
+  function toggleGuides() {
+    setGuides((on) => {
+      try {
+        localStorage.setItem("foyer-builder-guides", on ? "off" : "on");
+      } catch {
+        // not kept, that's fine
+      }
+      return !on;
+    });
+  }
+
   // ---------- The canvas: the page at the device's width, made to fit ----------
   const canvasRef = useRef(null);
   const [room, setRoom] = useState(800);
@@ -345,6 +367,7 @@ export default function AdBuilder({ initial, siteId, name, onDone, onClose }) {
     return () => watch.disconnect();
   }, []);
   const width = DEVICES[device].width;
+  const screenHeight = DEVICES[device].height;
   const zoom = Math.min(1, (room - 32) / width);
 
   // ---------- Adding ----------
@@ -703,7 +726,15 @@ export default function AdBuilder({ initial, siteId, name, onDone, onClose }) {
               ]}
             />
           </Row>
-          <Num label="Height at least" value={v.minHeight} min={0} max={1600} step={10} onChange={(x) => set("minHeight", x)} />
+          <Switch
+            label="Fill the whole screen"
+            detail="At least as tall as the guest's screen, whatever its size"
+            checked={Boolean(v.fillScreen)}
+            onChange={(x) => set("fillScreen", x)}
+          />
+          {!v.fillScreen && (
+            <Num label="Height at least" value={v.minHeight} min={0} max={1600} step={10} onChange={(x) => set("minHeight", x)} />
+          )}
         </Group>
         <Group title="Background">
           <ColorPick label="Colour" value={section.bg} allowNone onChange={(x) => change((d) => (findSection(d, sel.section).bg = x))} />
@@ -935,8 +966,15 @@ export default function AdBuilder({ initial, siteId, name, onDone, onClose }) {
     ) : null;
 
   const view = useMemo(
-    () => <AdDesignView design={design} device={device} editing={{ selected: sel, onSelect: (ids) => (setSel(ids), setPanel("edit")) }} />,
-    [design, device, sel],
+    () => (
+      <AdDesignView
+        design={design}
+        device={device}
+        screenHeight={screenHeight}
+        editing={{ selected: sel, guides, zoom, onSelect: (ids) => (setSel(ids), setPanel("edit")) }}
+      />
+    ),
+    [design, device, sel, guides, screenHeight, zoom],
   );
 
   return createPortal(
@@ -967,6 +1005,18 @@ export default function AdBuilder({ initial, siteId, name, onDone, onClose }) {
             );
           })}
         </div>
+        <button
+          type="button"
+          onClick={toggleGuides}
+          aria-pressed={guides}
+          className={`flex h-8 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-medium ${
+            guides ? "border-brand/40 bg-brand/10 text-brand" : "border-line text-muted hover:text-ink"
+          }`}
+          title="Show lines around each section and column, and where the screen ends"
+        >
+          <Grid2x2 size={15} />
+          <span className="hidden sm:inline">Guides</span>
+        </button>
         <button type="button" onClick={undo} disabled={!past.length} className={iconButton} aria-label="Undo" title="Undo (Ctrl+Z)">
           <Undo2 size={16} />
         </button>
@@ -984,13 +1034,29 @@ export default function AdBuilder({ initial, siteId, name, onDone, onClose }) {
 
         <main ref={canvasRef} className="min-h-0 flex-1 overflow-auto bg-[#e9ebf0] p-4 dark:bg-[#0f1115] max-lg:h-[52vh] max-lg:flex-none">
           <div
-            className="mx-auto overflow-hidden rounded-xl bg-black shadow-xl ring-1 ring-black/10"
-            style={{ width, zoom, minHeight: device === "phone" ? 760 : 640 }}
+            className="relative mx-auto overflow-hidden rounded-xl bg-black shadow-xl ring-1 ring-black/10"
+            style={{ width, zoom, minHeight: screenHeight }}
           >
             {view}
+            {guides && (
+              // Where the guest's screen ends: below this they scroll
+              <div
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-x-0 z-10 border-t-2 border-dashed border-red-500"
+                style={{ top: screenHeight - 2 }}
+              >
+                <span
+                  className="absolute right-2 rounded bg-red-500 px-1.5 py-0.5 font-semibold text-white"
+                  style={{ fontSize: 11 / zoom, bottom: 2 }}
+                >
+                  Bottom of a {DEVICES[device].label.toLowerCase()} screen · guests scroll to see below
+                </span>
+              </div>
+            )}
           </div>
           <p className="mt-2 text-center text-xs text-muted">
-            {DEVICES[device].label} · {width}px wide{zoom < 1 ? ` · shown at ${Math.round(zoom * 100)}%` : ""}
+            {DEVICES[device].label} · {width} × {screenHeight}
+            {zoom < 1 ? ` · shown at ${Math.round(zoom * 100)}%` : ""}
           </p>
         </main>
 

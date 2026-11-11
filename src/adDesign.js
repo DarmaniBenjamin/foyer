@@ -10,7 +10,8 @@
 //   width: how wide the page gets on a computer (px)
 // section = { id, columns: [column], gap, bg, image, imageFit, imageX,
 //   imageY, dim, padY, padX, marginTop, marginBottom, radius, minHeight,
-//   align, stack, hide, tablet, phone }
+//   fillScreen, align, stack, hide, tablet, phone }
+//   fillScreen: at least as tall as the guest's screen
 // column = { id, span, blocks: [block], bg, padY, padX, radius }
 // block = { id, type, marginTop, marginBottom, align, hide, tablet, phone,
 //   …what its type needs (BLOCKS) }
@@ -22,10 +23,11 @@
 // cleanDesign() checks a design from the page before it's saved, so only
 // these things, with sensible values, get kept.
 
+// width and height: the screen the builder shows for each
 export const DEVICES = {
-  desktop: { label: "Computer", width: 1280 },
-  tablet: { label: "Tablet", width: 768 },
-  phone: { label: "Phone", width: 390 },
+  desktop: { label: "Computer", width: 1280, height: 800 },
+  tablet: { label: "Tablet", width: 768, height: 1024 },
+  phone: { label: "Phone", width: 390, height: 844 },
 };
 
 // The device a screen this wide counts as
@@ -69,6 +71,7 @@ const SECTION_START = {
   marginBottom: 0,
   radius: 0,
   minHeight: 0,
+  fillScreen: false,
   align: "middle",
   stack: true,
   hide: [],
@@ -213,6 +216,7 @@ const SECTION_STYLE = {
   marginBottom: (v) => num(v, 0, 240, 0),
   radius: (v) => num(v, 0, 60, 0),
   minHeight: (v) => num(v, 0, 1600, 0),
+  fillScreen: Boolean,
   align: (v) => pick(v, ["top", "middle", "bottom"], "middle"),
   imageFit: (v) => pick(v, ["cover", "contain"], "cover"),
 };

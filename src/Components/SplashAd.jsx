@@ -9,7 +9,7 @@
 // tapped, onDone() when its time is up.
 // In the admin preview (preview), nothing is counted and it sits inside
 // its box instead of covering the screen; device says which screen it's
-// showing (computer, tablet or phone).
+// showing (computer, tablet or phone), previewHeight how tall that is.
 import { useEffect, useRef, useState } from "react";
 import { ChevronDown, ExternalLink } from "lucide-react";
 import { adPictures, pictureLook } from "../ads";
@@ -48,7 +48,15 @@ function FitPicture({ src, alt, size, wrap = (img) => img }) {
   );
 }
 
-export default function SplashAd({ ad, onView, onClick, onDone, preview = false, device: shown = "phone" }) {
+export default function SplashAd({
+  ad,
+  onView,
+  onClick,
+  onDone,
+  preview = false,
+  device: shown = "phone",
+  previewHeight = 722,
+}) {
   const [left, setLeft] = useState(ad.seconds);
   const counted = useRef(false);
 
@@ -95,9 +103,10 @@ export default function SplashAd({ ad, onView, onClick, onDone, preview = false,
 
   // Ads look different on a computer, tablet or phone
   const [screen, setScreen] = useState(() => (typeof window === "undefined" ? 390 : window.innerWidth));
+  const [tall, setTall] = useState(() => (typeof window === "undefined" ? 844 : window.innerHeight));
   useEffect(() => {
     if (preview) return undefined;
-    const onResize = () => setScreen(window.innerWidth);
+    const onResize = () => (setScreen(window.innerWidth), setTall(window.innerHeight));
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, [preview]);
@@ -121,6 +130,7 @@ export default function SplashAd({ ad, onView, onClick, onDone, preview = false,
           <AdDesignView
             design={ad.design}
             device={device}
+            screenHeight={preview ? previewHeight : tall}
             onLinkClick={() => !preview && onClick?.()}
           />
         </div>
