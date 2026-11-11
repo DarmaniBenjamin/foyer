@@ -3,13 +3,12 @@
 // switcher.
 import { useEffect, useState } from "react";
 import { Link, NavLink, useLocation, useNavigate } from "react-router";
-import { ExternalLink, LogOut, Menu, Settings2, Wifi, X } from "lucide-react";
+import { ExternalLink, LogOut, Menu, Settings2, UserRound, Wifi, X } from "lucide-react";
 import { navLinks, getPageTitle } from "./navLinks";
 import { APP_NAME } from "../brand";
 import SiteSwitcher from "./SiteSwitcher";
 import ThemeSwitch from "./ThemeSwitch";
 import useData from "../useData";
-import { adminInitials } from "../admins";
 
 function SidebarLink({ link, onClick }) {
   const Icon = link.icon;
@@ -37,7 +36,7 @@ function SidebarLink({ link, onClick }) {
 }
 
 function Sidebar({ open, onClose }) {
-  const { currentAdmin, isClient, can, signOut, currentSite } = useData();
+  const { currentAdmin, can, signOut, currentSite } = useData();
   const navigate = useNavigate();
   return (
     <>
@@ -85,46 +84,32 @@ function Sidebar({ open, onClose }) {
             .map((link) => (
               <SidebarLink key={link.path} link={link} onClick={onClose} />
             ))}
+          <div className="mt-auto pt-2">
+            <SidebarLink
+              link={{ path: "/account", label: "My account", icon: UserRound }}
+              onClick={onClose}
+            />
+          </div>
         </nav>
 
         <div className="space-y-2 border-t border-line p-3">
           <ThemeSwitch />
-          <SiteSwitcher onPicked={onClose} />
-          {/* You: opens My account; the door signs you out */}
-          <div className="flex items-center gap-1">
-            <Link
-              to="/account"
-              onClick={onClose}
-              className="flex min-w-0 flex-1 items-center gap-3 rounded-lg px-2 py-1.5 transition hover:bg-brand/5"
-            >
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-soft text-xs font-semibold text-brand">
-                {adminInitials(currentAdmin?.name ?? "")}
-              </span>
-              <span className="min-w-0">
-                <span className="flex items-center gap-1.5 text-sm font-medium">
-                  <span className="truncate">{currentAdmin?.name}</span>
-                  {isClient && (
-                    <span className="shrink-0 rounded-full bg-brand/10 px-1.5 py-0.5 text-[10px] font-semibold text-brand">
-                      Client
-                    </span>
-                  )}
-                </span>
-                <span className="block truncate text-xs text-muted">
-                  {currentAdmin?.email}
-                </span>
-              </span>
-            </Link>
+          {/* The site picker, and the door that signs you out */}
+          <div className="flex items-center gap-1.5">
+            <div className="min-w-0 flex-1">
+              <SiteSwitcher onPicked={onClose} />
+            </div>
             <button
               type="button"
               onClick={() => {
                 signOut();
                 navigate("/login");
               }}
-              className="shrink-0 rounded-lg p-2.5 text-muted transition-colors hover:bg-red-50 hover:text-red-600"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-muted transition-colors hover:bg-red-50 hover:text-red-600"
               aria-label="Sign out"
-              title="Sign out"
+              title={`Sign out${currentAdmin?.email ? ` (${currentAdmin.email})` : ""}`}
             >
-              <LogOut size={20} />
+              <LogOut size={18} />
             </button>
           </div>
         </div>
@@ -193,8 +178,10 @@ export default function Layout({ children }) {
             {currentSite && (
               <Link
                 to={`/p/${currentSite.slug}`}
+                target="_blank"
+                rel="noopener"
                 className="flex h-9 shrink-0 items-center gap-1.5 rounded-lg border border-line px-2.5 text-xs font-semibold text-ink transition hover:border-brand/40 hover:text-brand"
-                title="Open this site's guest sign-in page"
+                title="Open this site's guest sign-in page in a new tab"
                 aria-label="Guest page"
               >
                 <ExternalLink size={14} />

@@ -1,4 +1,4 @@
-// The site picker: at the bottom of the sidebar, above Sign out, and
+// The site picker: at the bottom of the sidebar, next to Sign out, and
 // (variant "header") at the top right of every page. It shows the site
 // you're looking at; click it to switch to another site, or to "All
 // sites" for an overview of every site.
@@ -90,7 +90,8 @@ export default function SiteSwitcher({ onPicked, variant = "sidebar" }) {
           className={`pop-in z-50 rounded-xl border border-line bg-white p-2 shadow-xl ${
             inHeader
               ? "fixed inset-x-3 top-15 sm:absolute sm:inset-x-auto sm:top-full sm:right-0 sm:mt-2 sm:w-80"
-              : "absolute right-0 bottom-full left-0 mb-2"
+              : // as wide as the menu: over the Sign out button next to it too
+                "absolute bottom-full left-0 mb-2 w-[calc(100%+2.875rem)]"
           }`}
         >
           {sites.length > 5 && (
@@ -162,18 +163,23 @@ export default function SiteSwitcher({ onPicked, variant = "sidebar" }) {
         <button
           type="button"
           onClick={() => setOpen((o) => !o)}
-          className="flex w-full items-center gap-3 rounded-lg border border-line px-2 py-2 text-left transition hover:border-brand/40 hover:bg-brand/5"
+          className={`flex h-10 w-full items-center gap-2 rounded-lg border px-1.5 text-left transition hover:border-brand/40 hover:bg-brand/5 ${
+            open ? "border-brand/40 bg-brand/5" : "border-line"
+          }`}
+          aria-label="Switch site"
+          title="Switch site"
         >
-          {currentSite ? <SiteIcon site={currentSite} /> : <AllSitesIcon />}
-          <span className="min-w-0 flex-1">
-            <span className="block text-[11px] font-medium tracking-wide text-muted uppercase">
-              Site
+          {currentSite ? (
+            <SiteIcon site={currentSite} size="sm" />
+          ) : (
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand">
+              <LayoutGrid size={15} />
             </span>
-            <span className="block truncate text-sm font-semibold">
-              {currentSite ? currentSite.name : "All sites"}
-            </span>
+          )}
+          <span className="min-w-0 flex-1 truncate text-[13px] font-semibold">
+            {currentSite ? currentSite.name : "All sites"}
           </span>
-          <ChevronsUpDown size={18} className="shrink-0 text-muted" />
+          <ChevronsUpDown size={15} className="shrink-0 text-muted" />
         </button>
       )}
     </div>
