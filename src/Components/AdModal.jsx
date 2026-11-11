@@ -1,19 +1,20 @@
 // The "New splash ad" / "Edit splash ad" box, with a small phone
 // preview of how guests will see it. An ad has one picture or several:
 // several are shown one under the other, and guests scroll through them
-// like a web page. The arrows set their order, top to bottom.
+// like a web page. The arrows set their order, top to bottom. The
+// pictures can be a different size on a computer, tablet and phone.
 // Or "Build a page": the ad is a small web page made in the page builder
 // (AdBuilder): words, pictures, buttons and videos, laid out your way.
 import { useRef, useState } from "react";
-import { ArrowDown, ArrowUp, ImagePlus, LayoutTemplate, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, ImagePlus, LayoutTemplate, Monitor, Smartphone, Tablet, Trash2 } from "lucide-react";
 import Modal from "./Modal";
 import { shrinkFile } from "./LogoPicker";
 import SplashAd from "./SplashAd";
 import AdBuilder from "./AdBuilder";
 import AdDesignView from "./AdDesignView";
-import { startDesign } from "../adDesign";
+import { DEVICES, startDesign } from "../adDesign";
 import useData from "../useData";
-import { AD_PICTURES, AD_SECONDS, AD_WHEN, adPictures } from "../ads";
+import { AD_PICTURES, AD_SECONDS, AD_SIZES, AD_WHEN, adPictures, cleanLook, pictureLook } from "../ads";
 import {
   hintClass,
   inputClass,
@@ -42,6 +43,13 @@ const validLink = (link) => !link || /^https?:\/\/\S+\.\S+/.test(link);
 const iconButton =
   "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted transition hover:bg-brand/5 hover:text-ink disabled:pointer-events-none disabled:opacity-30";
 
+// The preview of each kind of screen: its size, shrunk to fit the box
+const SCREENS = {
+  desktop: { icon: Monitor, width: 1280, height: 800, shown: 440 },
+  tablet: { icon: Tablet, width: 768, height: 1024, shown: 270 },
+  phone: { icon: Smartphone, width: 390, height: 722, shown: 188 },
+};
+
 const choice = (on) =>
   `rounded-lg border px-3 text-sm font-semibold transition ${
     on
@@ -63,6 +71,14 @@ export default function AdModal({ ad, siteId, onSave, onClose }) {
   const [design, setDesign] = useState(ad?.design ?? null);
   const [kind, setKind] = useState(ad?.design ? "page" : "pictures");
   const [building, setBuilding] = useState(false);
+  // Picture sizes on each kind of screen, and the one being changed
+  const [look, setLook] = useState(() => ({
+    desktop: pictureLook(ad, "desktop"),
+    tablet: pictureLook(ad, "tablet"),
+    phone: pictureLook(ad, "phone"),
+  }));
+  const [device, setDevice] = useState("phone");
+  const setDeviceLook = (changes) => setLook((l) => ({ ...l, [device]: { ...l[device], ...changes } }));
   const [when, setWhen] = useState(ad?.when ?? "before");
   const [seconds, setSeconds] = useState(ad?.seconds ?? 5);
   const [starts, setStarts] = useState(dayText(ad?.startsAt));
@@ -120,6 +136,7 @@ export default function AdModal({ ad, siteId, onSave, onClose }) {
       link: page ? "" : clean[0].link,
       more: clean.slice(1),
       design: page ? design : null,
+      look: page ? null : cleanLook(look),
       when,
       seconds,
       startsAt,
@@ -314,30 +331,97 @@ export default function AdModal({ ad, siteId, onSave, onClose }) {
         )}
 
         {kind === "pictures" && pictures.length > 0 && (
-          <div className="flex flex-col items-center gap-2">
-            <div
-              key={preview}
-              className="relative h-[360px] w-[200px] overflow-hidden rounded-[1.75rem] border-[6px] border-ink bg-black"
-            >
-              <SplashAd
-                ad={{
-                  name: name || "Advert",
-                  image: pictures[0].image,
-                  link: pictures[0].link,
-                  more: pictures.slice(1),
-                  seconds,
-                }}
-                onDone={() => setPreview((n) => n + 1)}
-                preview
-              />
+          <div className="space-y-3">
+            <div>
+              <span className={labelClass}>Picture size on each screen</span>
+              <div className="grid grid-cols-3 gap-2">
+                {Object.entries(SCREENS).map(([value, { icon: Icon }]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setDevice(value)}
+                    className={`${choice(device === value)} flex h-9 items-center justify-center gap-1.5`}
+                  >
+                    <Icon size={15} />
+                    {DEVICES[value].label}
+                  </button>
+                ))}
+              </div>
             </div>
-            <button
-              type="button"
-              onClick={() => setPreview((n) => n + 1)}
-              className="text-xs font-semibold text-brand hover:underline"
-            >
-              Play the preview again
-            </button>
+
+            <div className={look[device].fill ? "opacity-40" : ""}>
+              <div className="flex items-center justify-between text-sm">
+                <label htmlFor="ad-size" className="font-medium">
+                  Size on a {DEVICES[device].label.toLowerCase()}
+                </label>
+                <span className="font-semibold tabular-nums">{look[device].size}%</span>
+              </div>
+              <input
+                id="ad-size"
+                type="range"
+                min={AD_SIZES.min}
+                max={AD_SIZES.max}
+                step={5}
+                value={look[device].size}
+                disabled={look[device].fill}
+                onChange={(e) => setDeviceLook({ size: Number(e.target.value) })}
+                className="w-full accent-brand"
+              />
+              <p className={hintClass}>
+                How much of the screen's width the {pictures.length > 1 ? "pictures take" : "picture can take"}.
+                {pictures.length > 1 ? "" : " It always stays within the screen's height."}
+              </p>
+            </div>
+
+            {pictures.length === 1 && (
+              <label className="flex cursor-pointer items-center gap-2 text-sm font-medium">
+                <input
+                  type="checkbox"
+                  checked={look[device].fill}
+                  onChange={(e) => setDeviceLook({ fill: e.target.checked })}
+                  className="h-4 w-4 accent-brand"
+                />
+                Fill the whole screen on a {DEVICES[device].label.toLowerCase()} (the edges may be cut off)
+              </label>
+            )}
+
+            <div className="flex flex-col items-center gap-2">
+              {(() => {
+                const s = SCREENS[device];
+                const zoom = s.shown / s.width;
+                return (
+                  <div
+                    key={`${preview}-${device}`}
+                    className={`overflow-hidden border-ink bg-black ${
+                      device === "phone" ? "rounded-[1.75rem] border-[6px]" : device === "tablet" ? "rounded-2xl border-[8px]" : "rounded-lg border-[6px]"
+                    }`}
+                  >
+                    <div className="relative" style={{ width: s.width, height: s.height, zoom }}>
+                      <SplashAd
+                        ad={{
+                          name: name || "Advert",
+                          image: pictures[0].image,
+                          link: pictures[0].link,
+                          more: pictures.slice(1),
+                          look,
+                          seconds,
+                        }}
+                        onDone={() => setPreview((n) => n + 1)}
+                        device={device}
+                        preview
+                      />
+                    </div>
+                  </div>
+                );
+              })()}
+              <button
+                type="button"
+                onClick={() => setPreview((n) => n + 1)}
+                className="text-xs font-semibold text-brand hover:underline"
+              >
+                Play the preview again
+              </button>
+            </div>
           </div>
         )}
 

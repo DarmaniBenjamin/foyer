@@ -133,6 +133,9 @@ export const ads = pgTable("ads", {
   // A page built in the splash ad builder (see src/adDesign.js), or null
   // for an ad that's just its pictures
   design: jsonb("design"),
+  // How big the pictures are on a computer, tablet and phone (see
+  // AD_LOOK in src/ads.js), or null for the usual sizes
+  look: jsonb("picture_look"),
   seconds: integer("seconds").notNull().default(5),
   when: text("when").notNull().default("before"), // "before" | "after"
   active: boolean("active").notNull().default(true),

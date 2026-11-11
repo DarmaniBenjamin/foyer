@@ -1,0 +1,1 @@
+ALTER TABLE "ads" ADD COLUMN "picture_look" jsonb;

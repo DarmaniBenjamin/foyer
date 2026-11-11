@@ -9,6 +9,8 @@
 // more: more pictures under it, top to bottom ([{ image, link }]): with
 //   more than one picture, guests scroll through them like a web page
 // design: a page made in the page builder (src/adDesign.js), or null
+// look: how big the pictures are on a computer, tablet and phone
+//   ({ desktop: { size, fill }, tablet, phone }, see pictureLook), or null
 // seconds: how long it shows before it closes by itself
 // when: "before" (as the page opens) or "after" (after they connect)
 // active: on or off
@@ -22,6 +24,40 @@ export const AD_PICTURES = 12;
 export function adPictures(ad) {
   if (!ad?.image) return [];
   return [{ image: ad.image, link: ad.link ?? "" }, ...(Array.isArray(ad.more) ? ad.more : [])];
+}
+
+// How a picture ad looks on each kind of screen. size: how wide the
+// pictures are, as a % of the screen (one picture also stays within the
+// screen's height). fill: one picture covers the whole screen, edge to
+// edge (its edges may be cut off).
+export const AD_SIZES = { min: 20, max: 100 };
+export const AD_LOOK = {
+  desktop: { size: 60, fill: false },
+  tablet: { size: 80, fill: false },
+  phone: { size: 100, fill: false },
+};
+
+// An ad's look on a device ("desktop", "tablet" or "phone")
+export function pictureLook(ad, device) {
+  return { ...AD_LOOK[device], ...ad?.look?.[device] };
+}
+
+// A look sent by a page, checked: null if it's the same as the usual one
+export function cleanLook(look) {
+  if (!look || typeof look !== "object") return null;
+  const out = {};
+  for (const [device, normal] of Object.entries(AD_LOOK)) {
+    const given = look[device] ?? {};
+    const n = Math.round(Number(given.size));
+    out[device] = {
+      size: Number.isFinite(n) ? Math.min(AD_SIZES.max, Math.max(AD_SIZES.min, n)) : normal.size,
+      fill: Boolean(given.fill),
+    };
+  }
+  const same = Object.keys(AD_LOOK).every(
+    (d) => out[d].size === AD_LOOK[d].size && out[d].fill === AD_LOOK[d].fill,
+  );
+  return same ? null : out;
 }
 
 export const AD_WHEN = {

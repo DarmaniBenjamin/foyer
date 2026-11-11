@@ -1,6 +1,6 @@
 // Turning database rows into what the pages use (and back): the same
 // shapes the example data had, with times as milliseconds.
-import { AD_PICTURES } from "../src/ads.js";
+import { AD_PICTURES, cleanLook } from "../src/ads.js";
 import { cleanDesign } from "../src/adDesign.js";
 import { normalizeMac } from "../src/whitelist.js";
 
@@ -138,6 +138,7 @@ export const adOut = (a) => ({
   link: a.link,
   more: Array.isArray(a.more) ? a.more : [],
   design: a.design ?? null,
+  look: a.look ?? null,
   seconds: a.seconds,
   when: a.when,
   active: a.active,
@@ -181,6 +182,8 @@ export function adIn(body, { partial = false } = {}) {
       return { image, link };
     });
   }
+  // Picture sizes on a computer, tablet and phone (see AD_LOOK)
+  if (has("look")) out.look = cleanLook(body.look);
   if (has("seconds")) out.seconds = whole(body.seconds, { min: 1, max: 60 }) ?? 5;
   if (has("when")) out.when = body.when === "after" ? "after" : "before";
   if (has("active")) out.active = Boolean(body.active);
