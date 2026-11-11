@@ -6,11 +6,22 @@
 // name: what you call it (guests don't see this)
 // image: the picture (a "data:" link, made by LogoPicker)
 // link: where tapping the picture goes (optional)
+// more: more pictures under it, top to bottom ([{ image, link }]): with
+//   more than one picture, guests scroll through them like a web page
 // seconds: how long before the guest can skip it
 // when: "before" (as the page opens) or "after" (after they connect)
 // active: on or off
 // startsAt / endsAt: when it runs (ms, or null = no start / no end)
 // views / clicks: how many guests saw it and tapped it
+
+// The most pictures one ad can have
+export const AD_PICTURES = 12;
+
+// All of an ad's pictures, top to bottom: [{ image, link }]
+export function adPictures(ad) {
+  if (!ad?.image) return [];
+  return [{ image: ad.image, link: ad.link ?? "" }, ...(Array.isArray(ad.more) ? ad.more : [])];
+}
 
 export const AD_WHEN = {
   before: { label: "Before signing in", detail: "As the guest page opens" },

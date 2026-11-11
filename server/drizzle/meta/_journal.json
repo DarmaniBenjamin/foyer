@@ -15,6 +15,13 @@
       "when": 1792636175990,
       "tag": "0001_omada_open_api",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1794410620780,
+      "tag": "0002_splash_pictures",
+      "breakpoints": true
     }
   ]
 }

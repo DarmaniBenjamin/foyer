@@ -119,7 +119,7 @@ export default function Ads() {
                 <button
                   type="button"
                   onClick={() => canEdit && setEditing(ad)}
-                  className={`flex h-48 items-center justify-center bg-black/90 p-3 ${canEdit ? "" : "cursor-default"}`}
+                  className={`relative flex h-48 items-center justify-center bg-black/90 p-3 ${canEdit ? "" : "cursor-default"}`}
                   aria-label={canEdit ? `Edit ${ad.name}` : ad.name}
                 >
                   <img
@@ -127,6 +127,11 @@ export default function Ads() {
                     alt=""
                     className="max-h-full max-w-full rounded-lg object-contain"
                   />
+                  {ad.more?.length > 0 && (
+                    <span className="absolute right-2 bottom-2 rounded-full bg-white/90 px-2 py-0.5 text-xs font-semibold text-gray-900">
+                      {ad.more.length + 1} pictures
+                    </span>
+                  )}
                 </button>
                 <div className="flex flex-1 flex-col gap-3 p-4">
                   <div className="flex items-start gap-3">

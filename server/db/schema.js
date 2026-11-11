@@ -117,13 +117,16 @@ export const whitelist = pgTable(
   (t) => [uniqueIndex("whitelist_site_mac").on(t.siteId, t.mac)],
 );
 
-// Splash ads. image is the picture itself (a "data:" link).
+// Splash ads. image is the picture itself (a "data:" link); more is the
+// pictures under it, top to bottom ([{ image, link }]), for an ad guests
+// scroll through like a web page.
 export const ads = pgTable("ads", {
   id: serial("id").primaryKey(),
   siteId: siteId(),
   name: text("name").notNull(),
   image: text("image").notNull(),
   link: text("link").notNull().default(""),
+  more: jsonb("more_pictures").notNull().default([]),
   seconds: integer("seconds").notNull().default(5),
   when: text("when").notNull().default("before"), // "before" | "after"
   active: boolean("active").notNull().default(true),

@@ -1,0 +1,1 @@
+ALTER TABLE "ads" ADD COLUMN "more_pictures" jsonb DEFAULT '[]'::jsonb NOT NULL;

@@ -10,6 +10,7 @@ import { CircleAlert, CircleCheck, Download, LogIn, TriangleAlert } from "lucide
 import { api } from "../api";
 import useData from "../useData";
 import { FIELD_TYPES, makeField } from "../data";
+import { AD_PICTURES } from "../ads";
 import { shrinkPicture } from "./LogoPicker";
 import WifiLoader from "./WifiLoader";
 import { hintClass, inputClass, primaryButton, secondaryButton } from "./formStyles";
@@ -140,27 +141,32 @@ export default function ImportPortal({ draft, set, setLook, onPreviewPage }) {
       });
     }
     if (after && picks.redirect) set({ redirectUrl: after.leftTo });
-    // The splash pictures: added to Splash ads now (they're saved there,
-    // not with the site), shown after the guest connects
+    // The splash pictures: one splash ad, in the same order (guests scroll
+    // through them like on that portal), added to Splash ads now (it's
+    // saved there, not with the site), shown after the guest connects
     let added = 0;
     if (after && canAddAds) {
       const host = new URL(url.trim()).hostname;
+      const pictures = [];
       for (const [i, pic] of after.pictures.entries()) {
         if (!picks[`ad${i}`]) continue;
         const image = await shrinkPicture(pic.image, "ad");
-        if (!image) continue;
+        if (image) pictures.push({ image, link: pic.link });
+      }
+      if (pictures.length) {
         await addAd({
           siteId: draft.id,
-          name: `Copied from ${host}${after.pictures.length > 1 ? ` (${i + 1})` : ""}`,
-          image,
-          link: pic.link,
+          name: `Copied from ${host}`,
+          image: pictures[0].image,
+          link: pictures[0].link,
+          more: pictures.slice(1, AD_PICTURES),
           seconds: 5,
           when: "after",
           active: true,
           startsAt: null,
           endsAt: null,
         });
-        added++;
+        added = Math.min(pictures.length, AD_PICTURES);
       }
     }
     setAddedAds(added);
@@ -206,7 +212,7 @@ export default function ImportPortal({ draft, set, setLook, onPreviewPage }) {
           <span>
             Copied into this site. Check the preview, change anything you like, then press Save.
             {addedAds > 0 &&
-              ` ${addedAds === 1 ? "The splash picture is" : `${addedAds} splash pictures are`} already in Splash ads, shown after guests connect.`}
+              ` The splash ad${addedAds > 1 ? ` (${addedAds} pictures to scroll through)` : ""} is already in Splash ads, shown after guests connect.`}
           </span>
         </p>
       )}
@@ -364,7 +370,9 @@ export default function ImportPortal({ draft, set, setLook, onPreviewPage }) {
                       <img src={pic.image} alt="" className="mt-1 max-h-32 max-w-40 rounded object-contain" />
                       <span className="mt-1 block">
                         {canAddAds
-                          ? "Added to Splash ads, shown for 5 seconds after guests connect."
+                          ? after.pictures.length > 1
+                            ? "The ticked pictures become one splash ad, in this order, that guests scroll through after they connect."
+                            : "Becomes a splash ad, shown after guests connect."
                           : "Your login can't add splash ads."}
                         {pic.link && ` Tapping it opens ${pic.link}`}
                       </span>

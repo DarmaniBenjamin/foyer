@@ -44,6 +44,14 @@ function shrink(file, settings) {
   });
 }
 
+// For pickers of their own (several splash ad pictures at once): a file
+// made smaller, as a "data:" link
+export function shrinkFile(file, kind = "ad") {
+  if (file.size > 15 * 1024 * 1024)
+    return Promise.reject(new Error(`${file.name} is over 15 MB. Pick a smaller one.`));
+  return shrink(file, KINDS[kind]);
+}
+
 // The same for a picture copied from another portal (a data: link).
 // Returns null if it can't be drawn.
 export function shrinkPicture(src, kind = "logo") {

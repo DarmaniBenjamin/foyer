@@ -1,5 +1,6 @@
 // Turning database rows into what the pages use (and back): the same
 // shapes the example data had, with times as milliseconds.
+import { AD_PICTURES } from "../src/ads.js";
 import { normalizeMac } from "../src/whitelist.js";
 
 export const ms = (date) => (date ? date.getTime() : null);
@@ -134,6 +135,7 @@ export const adOut = (a) => ({
   name: a.name,
   image: a.image,
   link: a.link,
+  more: Array.isArray(a.more) ? a.more : [],
   seconds: a.seconds,
   when: a.when,
   active: a.active,
@@ -157,6 +159,19 @@ export function adIn(body, { partial = false } = {}) {
     out.link = text(body.link, 2000);
     if (out.link && !/^https?:\/\/\S+\.\S+/.test(out.link))
       throw new Problem("The link should start with https://");
+  }
+  // The pictures under the first one, top to bottom (see AD_PICTURES)
+  if (has("more")) {
+    const list = Array.isArray(body.more) ? body.more : [];
+    if (list.length > AD_PICTURES - 1) throw new Problem(`An ad can have up to ${AD_PICTURES} pictures.`);
+    out.more = list.map((p) => {
+      const image = picture(p?.image);
+      if (!image) throw new Problem("One of the ad's pictures isn't a picture. Upload it again.");
+      const link = text(p?.link, 2000);
+      if (link && !/^https?:\/\/\S+\.\S+/.test(link))
+        throw new Problem("A picture's link should start with https://");
+      return { image, link };
+    });
   }
   if (has("seconds")) out.seconds = whole(body.seconds, { min: 1, max: 60 }) ?? 5;
   if (has("when")) out.when = body.when === "after" ? "after" : "before";
