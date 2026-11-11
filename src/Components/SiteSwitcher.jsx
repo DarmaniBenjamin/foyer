@@ -6,12 +6,16 @@
 // While you're editing a site (Sites → a site), switching opens the
 // site you picked instead. From Sites or Controllers (only in the menu
 // on All sites), picking a site opens its Site settings.
+//
+// "Add site" at the bottom of the list makes a new site from wherever you
+// are, then opens its Site settings.
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
-import { Check, ChevronsUpDown, LayoutGrid, Search } from "lucide-react";
+import { Check, ChevronsUpDown, LayoutGrid, Plus, Search } from "lucide-react";
 import useData from "../useData";
 import { ALL_SITES } from "../data";
 import SiteIcon from "./SiteIcon";
+import NewSiteModal from "./NewSiteModal";
 
 function AllSitesIcon() {
   return (
@@ -42,8 +46,9 @@ function Option({ selected, onClick, icon, name, detail }) {
 
 export default function SiteSwitcher({ onPicked, variant = "sidebar" }) {
   const inHeader = variant === "header";
-  const { sites, controllers, currentSite, pickSite } = useData();
+  const { sites, controllers, currentSite, pickSite, addSite, can } = useData();
   const [open, setOpen] = useState(false);
+  const [adding, setAdding] = useState(false);
   const [search, setSearch] = useState("");
   const boxRef = useRef(null);
   const { pathname } = useLocation();
@@ -72,6 +77,16 @@ export default function SiteSwitcher({ onPicked, variant = "sidebar" }) {
       navigate(`/sites/${id}`);
     setOpen(false);
     setSearch("");
+    onPicked?.();
+  }
+
+  // The box stays open until the server has made the site
+  async function create(values) {
+    const site = await addSite(values);
+    if (!site) return;
+    setAdding(false);
+    pickSite(site.id);
+    navigate(`/sites/${site.id}`);
     onPicked?.();
   }
 
@@ -134,6 +149,25 @@ export default function SiteSwitcher({ onPicked, variant = "sidebar" }) {
               </p>
             )}
           </div>
+          {can("sites") && (
+            <>
+              <div className="mx-2 my-1 border-t border-line" />
+              <button
+                type="button"
+                onClick={() => {
+                  setOpen(false);
+                  setSearch("");
+                  setAdding(true);
+                }}
+                className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left text-sm font-medium text-brand transition-colors hover:bg-brand/5"
+              >
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-dashed border-brand/40">
+                  <Plus size={18} />
+                </span>
+                Add site
+              </button>
+            </>
+          )}
         </div>
       )}
 
@@ -182,6 +216,7 @@ export default function SiteSwitcher({ onPicked, variant = "sidebar" }) {
           <ChevronsUpDown size={15} className="shrink-0 text-muted" />
         </button>
       )}
+      {adding && <NewSiteModal onCreate={create} onClose={() => setAdding(false)} />}
     </div>
   );
 }
