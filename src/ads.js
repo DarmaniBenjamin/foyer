@@ -8,6 +8,7 @@
 // link: where tapping the picture goes (optional)
 // more: more pictures under it, top to bottom ([{ image, link }]): with
 //   more than one picture, guests scroll through them like a web page
+// design: a page made in the page builder (src/adDesign.js), or null
 // seconds: how long it shows before it closes by itself
 // when: "before" (as the page opens) or "after" (after they connect)
 // active: on or off
@@ -28,7 +29,7 @@ export const AD_WHEN = {
   after: { label: "After connecting", detail: "Before the “connected” page" },
 };
 
-export const AD_SECONDS = [3, 5, 10, 15];
+export const AD_SECONDS = [3, 5, 10, 15, 20, 30, 60];
 
 // "running", "off", "scheduled" (starts later) or "ended"
 export function adStatus(ad, now = Date.now()) {

@@ -13,6 +13,7 @@ import { controllersRouter } from "./routes/controllers.js";
 import { sitesRouter } from "./routes/sites.js";
 import { adsRouter, guestsRouter, vouchersRouter, whitelistRouter } from "./routes/siteData.js";
 import { portalRouter } from "./routes/portal.js";
+import { mediaRouter, serveMedia } from "./routes/media.js";
 import { arriveRouter } from "./routes/arrive.js";
 import { maintenanceRouter } from "./routes/maintenance.js";
 import { announceChanges, liveRouter, startLive } from "./live.js";
@@ -66,6 +67,7 @@ export function makeApp() {
   app.use("/api/vouchers", vouchersRouter);
   app.use("/api/whitelist", whitelistRouter);
   app.use("/api/ads", adsRouter);
+  app.use("/api/media", mediaRouter);
   app.use("/api/guests", guestsRouter);
   app.use("/api/portal", portalRouter);
   app.use("/api/maintenance", maintenanceRouter);
@@ -84,6 +86,9 @@ export function makeApp() {
     console.error(`${req.method} ${req.originalUrl}:`, err);
     res.status(500).json({ error: "Something went wrong on the server. Try again." });
   });
+
+  // Pictures and videos uploaded in the splash ad builder
+  app.get("/media/:key", serveMedia);
 
   // Guests arriving from UniFi (/guest/s/…) and Omada (/omada/…)
   app.use(arriveRouter);

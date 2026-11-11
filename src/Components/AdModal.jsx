@@ -2,11 +2,16 @@
 // preview of how guests will see it. An ad has one picture or several:
 // several are shown one under the other, and guests scroll through them
 // like a web page. The arrows set their order, top to bottom.
+// Or "Build a page": the ad is a small web page made in the page builder
+// (AdBuilder): words, pictures, buttons and videos, laid out your way.
 import { useRef, useState } from "react";
-import { ArrowDown, ArrowUp, ImagePlus, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, ImagePlus, LayoutTemplate, Trash2 } from "lucide-react";
 import Modal from "./Modal";
 import { shrinkFile } from "./LogoPicker";
 import SplashAd from "./SplashAd";
+import AdBuilder from "./AdBuilder";
+import AdDesignView from "./AdDesignView";
+import { startDesign } from "../adDesign";
 import useData from "../useData";
 import { AD_PICTURES, AD_SECONDS, AD_WHEN, adPictures } from "../ads";
 import {
@@ -54,6 +59,10 @@ export default function AdModal({ ad, siteId, onSave, onClose }) {
   const [pictures, setPictures] = useState(() => adPictures(ad));
   const [adding, setAdding] = useState(false);
   const fileRef = useRef(null);
+  // A page made in the page builder, or null: the ad is its pictures
+  const [design, setDesign] = useState(ad?.design ?? null);
+  const [kind, setKind] = useState(ad?.design ? "page" : "pictures");
+  const [building, setBuilding] = useState(false);
   const [when, setWhen] = useState(ad?.when ?? "before");
   const [seconds, setSeconds] = useState(ad?.seconds ?? 5);
   const [starts, setStarts] = useState(dayText(ad?.startsAt));
@@ -94,8 +103,10 @@ export default function AdModal({ ad, siteId, onSave, onClose }) {
 
   function save() {
     if (!name.trim()) return setError("Give the ad a name.");
-    if (!pictures.length) return setError("Add at least one picture.");
-    const clean = pictures.map((p) => ({ image: p.image, link: p.link.trim() }));
+    const page = kind === "page";
+    if (page && !design?.sections.length) return setError("Build the page first: press Open the page builder.");
+    if (!page && !pictures.length) return setError("Add at least one picture.");
+    const clean = page ? [] : pictures.map((p) => ({ image: p.image, link: p.link.trim() }));
     if (!clean.every((p) => validLink(p.link))) return setError("A link should start with https://");
     const startsAt = toTime(starts, false);
     const endsAt = toTime(ends, true);
@@ -105,9 +116,10 @@ export default function AdModal({ ad, siteId, onSave, onClose }) {
     onSave({
       siteId: Number(site),
       name: name.trim(),
-      image: clean[0].image,
-      link: clean[0].link,
+      image: page ? "" : clean[0].image,
+      link: page ? "" : clean[0].link,
       more: clean.slice(1),
+      design: page ? design : null,
       when,
       seconds,
       startsAt,
@@ -119,7 +131,8 @@ export default function AdModal({ ad, siteId, onSave, onClose }) {
   return (
     <Modal
       title={ad ? "Edit splash ad" : "New splash ad"}
-      onClose={onClose}
+      // While the page builder is open, Escape doesn't close this box
+      onClose={building ? () => {} : onClose}
       onSubmit={save}
       footer={
         <>
@@ -166,6 +179,67 @@ export default function AdModal({ ad, siteId, onSave, onClose }) {
           </div>
         </div>
 
+        <div>
+          <span className={labelClass}>What guests see</span>
+          <div className="grid grid-cols-2 gap-2">
+            {[
+              ["pictures", "Pictures", "One, or several to scroll through"],
+              ["page", "Build a page", "Words, pictures, buttons and videos, laid out your way"],
+            ].map(([value, label, detail]) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => {
+                  setKind(value);
+                  if (value === "page" && !design) {
+                    setDesign(startDesign(pictures));
+                    setBuilding(true);
+                  }
+                }}
+                className={`${choice(kind === value)} py-2 text-left`}
+              >
+                {label}
+                <span className="block text-xs font-normal text-muted">{detail}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {kind === "page" && design && (
+          <div className="flex flex-col items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setBuilding(true)}
+              className="relative h-[360px] w-[200px] overflow-hidden rounded-[1.75rem] border-[6px] border-ink bg-black text-left"
+              aria-label="Open the page builder"
+            >
+              <div className="pointer-events-none" style={{ width: 390, zoom: 188 / 390 }}>
+                <AdDesignView design={design} device="phone" />
+              </div>
+            </button>
+            <button type="button" onClick={() => setBuilding(true)} className={primaryButton}>
+              <LayoutTemplate size={16} />
+              Open the page builder
+            </button>
+          </div>
+        )}
+        {building && (
+          <AdBuilder
+            initial={design}
+            siteId={site}
+            name={name}
+            onDone={(next) => {
+              setDesign(next);
+              setBuilding(false);
+            }}
+            onClose={() => {
+              setBuilding(false);
+              if (!ad?.design && !design?.sections.length) setKind("pictures");
+            }}
+          />
+        )}
+
+        {kind === "pictures" && (
         <div>
           <span className={labelClass}>Pictures</span>
           {pictures.length > 0 && (
@@ -237,7 +311,9 @@ export default function AdModal({ ad, siteId, onSave, onClose }) {
           </p>
         </div>
 
-        {pictures.length > 0 && (
+        )}
+
+        {kind === "pictures" && pictures.length > 0 && (
           <div className="flex flex-col items-center gap-2">
             <div
               key={preview}

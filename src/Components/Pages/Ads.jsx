@@ -9,6 +9,7 @@ import { AD_WHEN, adStatus, clickRate } from "../../ads";
 import SiteIcon from "../SiteIcon";
 import Modal from "../Modal";
 import AdModal from "../AdModal";
+import AdDesignView from "../AdDesignView";
 import { dangerButton, primaryButton, secondaryButton } from "../formStyles";
 
 const STATUS = {
@@ -68,8 +69,9 @@ export default function Ads() {
     <div className="space-y-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="max-w-2xl text-sm text-muted">
-          Pictures guests see full screen for a few seconds on the Wi-Fi page.
-          If a site has more than one running, they take turns.
+          Pictures, or a page you build with words, pictures, buttons and
+          videos, that guests see full screen for a few seconds on the Wi-Fi
+          page. If a site has more than one running, they take turns.
         </p>
         {canEdit && (
           <button
@@ -122,12 +124,26 @@ export default function Ads() {
                   className={`relative flex h-48 items-center justify-center bg-black/90 p-3 ${canEdit ? "" : "cursor-default"}`}
                   aria-label={canEdit ? `Edit ${ad.name}` : ad.name}
                 >
-                  <img
-                    src={ad.image}
-                    alt=""
-                    className="max-h-full max-w-full rounded-lg object-contain"
-                  />
-                  {ad.more?.length > 0 && (
+                  {ad.design ? (
+                    // A built page: the top of it, as on a phone
+                    <div className="pointer-events-none h-full w-[110px] overflow-hidden rounded-lg">
+                      <div style={{ width: 390, zoom: 110 / 390 }}>
+                        <AdDesignView design={ad.design} device="phone" />
+                      </div>
+                    </div>
+                  ) : (
+                    <img
+                      src={ad.image}
+                      alt=""
+                      className="max-h-full max-w-full rounded-lg object-contain"
+                    />
+                  )}
+                  {ad.design && (
+                    <span className="absolute right-2 bottom-2 rounded-full bg-white/90 px-2 py-0.5 text-xs font-semibold text-gray-900">
+                      Built page
+                    </span>
+                  )}
+                  {!ad.design && ad.more?.length > 0 && (
                     <span className="absolute right-2 bottom-2 rounded-full bg-white/90 px-2 py-0.5 text-xs font-semibold text-gray-900">
                       {ad.more.length + 1} pictures
                     </span>

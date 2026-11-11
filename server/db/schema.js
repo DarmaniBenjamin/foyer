@@ -6,6 +6,7 @@
 // (milliseconds), like the example data had.
 import {
   boolean,
+  customType,
   index,
   integer,
   jsonb,
@@ -17,6 +18,8 @@ import {
 } from "drizzle-orm/pg-core";
 
 const time = (name) => timestamp(name, { withTimezone: true });
+// Raw bytes (an uploaded picture or video)
+const bytes = customType({ dataType: () => "bytea" });
 const createdAt = () => time("created_at").notNull().defaultNow();
 
 // Everyone who signs in: admins (your team) and client logins.
@@ -127,6 +130,9 @@ export const ads = pgTable("ads", {
   image: text("image").notNull(),
   link: text("link").notNull().default(""),
   more: jsonb("more_pictures").notNull().default([]),
+  // A page built in the splash ad builder (see src/adDesign.js), or null
+  // for an ad that's just its pictures
+  design: jsonb("design"),
   seconds: integer("seconds").notNull().default(5),
   when: text("when").notNull().default("before"), // "before" | "after"
   active: boolean("active").notNull().default(true),
@@ -169,3 +175,17 @@ export const connections = pgTable(
   },
   (t) => [index("connections_site_at").on(t.siteId, t.at)],
 );
+
+// Pictures and videos uploaded in the splash ad builder. Kept in the
+// database (not as files), so they survive the app being put up again.
+// key: the random part of their address, /media/<key>
+export const media = pgTable("media", {
+  id: serial("id").primaryKey(),
+  key: text("key").notNull().unique(),
+  siteId: integer("site_id").references(() => sites.id, { onDelete: "cascade" }),
+  type: text("type").notNull(),
+  name: text("name").notNull().default(""),
+  size: integer("size").notNull(),
+  data: bytes("data").notNull(),
+  createdAt: createdAt(),
+});

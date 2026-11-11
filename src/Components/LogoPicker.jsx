@@ -13,6 +13,8 @@ const KINDS = {
   logo: { maxW: 480, maxH: 240, type: "image/png", empty: "No logo", button: "Upload logo", hint: "PNG with a see-through background looks best." },
   background: { maxW: 1600, maxH: 1600, type: "image/jpeg", empty: "No picture", button: "Upload picture", hint: "A wide photo. It's made smaller so it loads fast." },
   ad: { maxW: 1080, maxH: 1350, type: "image/jpeg", empty: "No picture", button: "Upload picture", hint: "A tall picture fits phones best, e.g. 1080 × 1350 (an Instagram post)." },
+  // Pictures in the splash ad page builder: big enough for a computer screen
+  page: { maxW: 1920, maxH: 1920, type: "image/jpeg" },
 };
 
 // A picture (any link the browser can show) made smaller and kept as a

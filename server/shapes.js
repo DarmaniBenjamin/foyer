@@ -1,6 +1,7 @@
 // Turning database rows into what the pages use (and back): the same
 // shapes the example data had, with times as milliseconds.
 import { AD_PICTURES } from "../src/ads.js";
+import { cleanDesign } from "../src/adDesign.js";
 import { normalizeMac } from "../src/whitelist.js";
 
 export const ms = (date) => (date ? date.getTime() : null);
@@ -136,6 +137,7 @@ export const adOut = (a) => ({
   image: a.image,
   link: a.link,
   more: Array.isArray(a.more) ? a.more : [],
+  design: a.design ?? null,
   seconds: a.seconds,
   when: a.when,
   active: a.active,
@@ -151,9 +153,15 @@ export function adIn(body, { partial = false } = {}) {
   const out = {};
   const has = (key) => !partial || key in (body ?? {});
   if (has("name")) out.name = text(body.name, 120);
+  // A built page (src/adDesign.js), or null for an ad that's its pictures
+  if (has("design")) {
+    out.design = body.design ? cleanDesign(body.design) : null;
+    if (out.design && !out.design.sections.length) throw new Problem("Add something to the page first.");
+  }
   if (has("image")) {
-    out.image = picture(body.image);
-    if (!out.image) throw new Problem("Upload the ad's picture.");
+    // A built page needs no picture of its own (the list shows the page)
+    out.image = picture(body.image) ?? "";
+    if (!out.image && !out.design) throw new Problem("Upload the ad's picture.");
   }
   if (has("link")) {
     out.link = text(body.link, 2000);

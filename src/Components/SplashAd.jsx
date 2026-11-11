@@ -2,7 +2,8 @@
 // When it reaches 0 the ad closes by itself and the guest goes on;
 // there's nothing to press. Tapping the picture opens its link.
 // An ad with several pictures shows them one under the other, to scroll
-// through like a web page.
+// through like a web page. An ad built in the page builder shows its page
+// as it looks on this screen (computer, tablet or phone).
 // onView() runs once when it shows, onClick() when the picture is
 // tapped, onDone() when its time is up.
 // In the admin preview (preview), nothing is counted and it sits inside
@@ -10,6 +11,8 @@
 import { useEffect, useRef, useState } from "react";
 import { ChevronDown, ExternalLink } from "lucide-react";
 import { adPictures } from "../ads";
+import { deviceFor } from "../adDesign";
+import AdDesignView from "./AdDesignView";
 
 export default function SplashAd({ ad, onView, onClick, onDone, preview = false }) {
   const [left, setLeft] = useState(ad.seconds);
@@ -55,6 +58,38 @@ export default function SplashAd({ ad, onView, onClick, onDone, preview = false 
       </span>
     </div>
   );
+
+  // Built pages look different on a computer, tablet or phone
+  const [screen, setScreen] = useState(() => (typeof window === "undefined" ? 390 : window.innerWidth));
+  useEffect(() => {
+    if (preview || !ad.design) return undefined;
+    const onResize = () => setScreen(window.innerWidth);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, [preview, ad.design]);
+
+  if (ad.design)
+    return (
+      <div
+        data-portal
+        className={`${preview ? "absolute" : "fixed"} inset-0 z-40 flex flex-col`}
+        style={{ backgroundColor: ad.design.background }}
+        role="dialog"
+        aria-label="Advert"
+      >
+        {skip}
+        <div
+          className="min-h-0 flex-1 overflow-y-auto overscroll-contain"
+          onScroll={(e) => e.currentTarget.scrollTop > 20 && setScrolled(true)}
+        >
+          <AdDesignView
+            design={ad.design}
+            device={preview ? "phone" : deviceFor(screen)}
+            onLinkClick={() => !preview && onClick?.()}
+          />
+        </div>
+      </div>
+    );
 
   if (pictures.length > 1)
     return (
