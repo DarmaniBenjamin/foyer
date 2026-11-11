@@ -335,10 +335,25 @@ export default function ImportPortal({ draft, set, setLook, onPreviewPage }) {
               )}
               {after && !after.blocked && (
                 <div className="pop-in space-y-2">
-                  <p className="text-xs text-muted">
-                    Signed in. It went through {after.steps.length} page{after.steps.length === 1 ? "" : "s"}
-                    {after.leftTo ? " and then on to another website." : "."}
-                  </p>
+                  <div className="text-xs text-muted">
+                    <p>
+                      Signed in. It went through {after.steps.length} page{after.steps.length === 1 ? "" : "s"}
+                      {after.leftTo ? " and then on to another website" : ""}:
+                    </p>
+                    <ol className="mt-1 list-decimal space-y-0.5 pl-5">
+                      {[...after.steps, ...(after.leftTo ? [after.leftTo] : [])].map((step, i) => (
+                        <li key={i} className="truncate">
+                          {step.replace(/^https?:\/\//, "")}
+                        </li>
+                      ))}
+                    </ol>
+                    {after.pictures.length === 0 && (
+                      <p className="mt-2 text-amber-700">
+                        No splash pictures were found on those pages. If that portal shows some after signing in,
+                        they may be loaded in a way Foyer can't read yet.
+                      </p>
+                    )}
+                  </div>
                   {after.pictures.map((pic, i) => (
                     <Pick
                       key={i}

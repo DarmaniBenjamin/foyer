@@ -605,7 +605,7 @@ export async function tryPortal(address, answers = {}) {
       goTo = addressInJson(body);
     } else {
       const root = parse(body, { comment: false, blockTextElements: { script: true, style: true, noscript: false, pre: true } });
-      pages.push({ url: page.url, root });
+      pages.push({ url: page.url, root, html: body });
       goTo =
         root
           .querySelectorAll("meta")
@@ -663,10 +663,20 @@ export async function tryPortal(address, answers = {}) {
   }
 
   // The pictures on every page after signing in (a splash page can have
-  // several), not logos or icons, with where tapping each one goes
-  const seen = new Set();
+  // several), not logos or icons, with where tapping each one goes.
+  // Pictures that were already on the sign-in page (its logo and
+  // background) don't count.
+  const firstHtml = first.body.toString("utf8");
+  const seen = new Set(picturesInText(firstHtml, first.url));
+  for (const img of root.querySelectorAll("img")) {
+    try {
+      seen.add(new URL(img.getAttribute("src") ?? "", first.url).href);
+    } catch {
+      // not a usable address
+    }
+  }
   const found = [];
-  for (const { url: base, root: r } of pages) {
+  for (const { url: base, root: r, html: pageHtml } of pages) {
     const add = (src, link = "") => {
       let address;
       try {
@@ -697,6 +707,9 @@ export async function tryPortal(address, answers = {}) {
       const u = urlIn(el.getAttribute("style"));
       if (u && !/logo|icon|sprite|spinner|loading/i.test(u)) add(u);
     }
+    // Pictures a script puts on the page after it opens (Spotipo's splash
+    // ads): any picture address written in the page's code
+    for (const u of picturesInText(pageHtml, base)) add(u);
   }
   for (const pic of found.slice(0, 8)) {
     const image = await getPicture(pic.address);
@@ -704,6 +717,23 @@ export async function tryPortal(address, answers = {}) {
     if (result.pictures.length >= 6) break;
   }
   return result;
+}
+
+// Every picture address written anywhere in a page's text (its code
+// included), except logos, icons and loading spinners
+function picturesInText(text, base) {
+  const out = [];
+  const re = /(?:https?:\/\/|\/)[^\s"'()<>\\,]+?\.(?:jpe?g|png|webp|gif)(?:\?[^\s"'()<>\\]*)?(?=["'()\s<>\\,]|$)/gi;
+  for (const m of String(text).replace(/\\\//g, "/").matchAll(re)) {
+    if (/logo|icon|favicon|sprite|spinner|loading|loader|pixel|avatar|flag/i.test(m[0])) continue;
+    try {
+      const address = new URL(m[0], base).href;
+      if (!out.includes(address)) out.push(address);
+    } catch {
+      // not a usable address
+    }
+  }
+  return out;
 }
 
 // The next address in a JSON answer ({ "redirect": "/splash/…" } and the
