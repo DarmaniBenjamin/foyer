@@ -16,8 +16,9 @@
 // that device (see lookOn in src/adDesign.js); words, pictures and links
 // are the same everywhere.
 //
-// Pictures and videos are uploaded straight away (/api/media); the page
-// itself is saved with the ad.
+// Pictures and videos are uploaded straight away (/api/media), and each
+// gets its own web address to open, share or download (FileLinks); the
+// page itself is saved with the ad.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
@@ -46,6 +47,7 @@ import {
   X,
 } from "lucide-react";
 import AdDesignView from "./AdDesignView";
+import FileLinks from "./FileLinks";
 import { shrinkFile } from "./LogoPicker";
 import WifiLoader from "./WifiLoader";
 import {
@@ -746,7 +748,9 @@ export default function AdBuilder({ initial, siteId, name, onDone, onClose }) {
                 <Trash2 size={15} />
               </button>
             </div>
-          ) : (
+          ) : null}
+          {section.image && <FileLinks url={section.image} />}
+          {section.image ? null : (
             <UploadButton
               accept="image/*"
               siteId={siteId}
@@ -850,6 +854,7 @@ export default function AdBuilder({ initial, siteId, name, onDone, onClose }) {
         {block.type === "image" && (
           <Group title="Picture">
             {block.src && <img src={block.src} alt="" className="max-h-40 w-full rounded-md bg-black object-contain" />}
+            {block.src && <FileLinks url={block.src} />}
             <UploadButton accept="image/*" siteId={siteId} label={block.src ? "Replace the picture" : "Upload a picture"} onDone={(url) => content("src", url)} />
             <Row label="Link when tapped (optional)">
               <input value={block.link} onChange={(e) => content("link", e.target.value)} placeholder="https://" className={inputClass} inputMode="url" autoCapitalize="none" />
@@ -895,6 +900,7 @@ export default function AdBuilder({ initial, siteId, name, onDone, onClose }) {
                   label={block.src ? "Replace the video" : "Upload a video (up to 40 MB)"}
                   onDone={(url) => content("src", url)}
                 />
+                {block.src && <FileLinks url={block.src} />}
                 <p className={hintClass}>Plays even before guests are online. MP4 works on every phone.</p>
               </>
             ) : (

@@ -2,7 +2,9 @@
 // preview of how guests will see it. An ad has one picture or several:
 // several are shown one under the other, and guests scroll through them
 // like a web page. The arrows set their order, top to bottom. The
-// pictures can be a different size on a computer, tablet and phone.
+// pictures can be a different size on a computer, tablet and phone. Each
+// saved picture has its own web address (FileLinks) to open, share or
+// download.
 // Or "Build a page": the ad is a small web page made in the page builder
 // (AdBuilder): words, pictures, buttons and videos, laid out your way.
 import { useRef, useState } from "react";
@@ -10,6 +12,7 @@ import { ArrowDown, ArrowUp, ImagePlus, LayoutTemplate, Monitor, Smartphone, Tab
 import Modal from "./Modal";
 import { shrinkFile } from "./LogoPicker";
 import SplashAd from "./SplashAd";
+import FileLinks from "./FileLinks";
 import AdBuilder from "./AdBuilder";
 import AdDesignView from "./AdDesignView";
 import { DEVICES, startDesign } from "../adDesign";
@@ -50,6 +53,14 @@ const SCREENS = {
   phone: { icon: Smartphone, width: 390, height: 722, shown: 188 },
 };
 
+// The file name a picture downloads as, e.g. "back-to-school-sale-2.jpg"
+function pictureFileName(adName, n, image) {
+  const type = /^data:image\/([\w+.-]+)/.exec(image)?.[1] ?? "jpeg";
+  const ext = { jpeg: "jpg", "svg+xml": "svg" }[type] ?? type;
+  const base = adName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "splash-ad";
+  return `${base}-${n}.${ext}`;
+}
+
 const choice = (on) =>
   `rounded-lg border px-3 text-sm font-semibold transition ${
     on
@@ -65,6 +76,9 @@ export default function AdModal({ ad, siteId, onSave, onClose }) {
   const [name, setName] = useState(ad?.name ?? "");
   // [{ image, link }], top to bottom
   const [pictures, setPictures] = useState(() => adPictures(ad));
+  // The saved pictures' web addresses: a picture has one once it's saved
+  const saved = adPictures(ad);
+  const linkOf = (image) => ad?.pictureLinks?.[saved.findIndex((s) => s.image === image)] ?? "";
   const [adding, setAdding] = useState(false);
   const fileRef = useRef(null);
   // A page made in the page builder, or null: the ad is its pictures
@@ -276,6 +290,12 @@ export default function AdModal({ ad, siteId, onSave, onClose }) {
                       autoCapitalize="none"
                       aria-label={`Picture ${i + 1} link`}
                       className={`${inputClass} ${validLink(p.link.trim()) ? "" : "border-red-300"}`}
+                    />
+                    <FileLinks
+                      url={linkOf(p.image)}
+                      file={p.image}
+                      name={pictureFileName(name, i + 1, p.image)}
+                      waiting="Its own web address comes once you save the ad."
                     />
                   </div>
                   <div className="flex shrink-0 flex-col sm:flex-row">

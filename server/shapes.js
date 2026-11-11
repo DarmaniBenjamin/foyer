@@ -1,6 +1,7 @@
 // Turning database rows into what the pages use (and back): the same
 // shapes the example data had, with times as milliseconds.
-import { AD_PICTURES, cleanLook } from "../src/ads.js";
+import crypto from "node:crypto";
+import { AD_PICTURES, adPictures, cleanLook } from "../src/ads.js";
 import { cleanDesign } from "../src/adDesign.js";
 import { normalizeMac } from "../src/whitelist.js";
 
@@ -130,6 +131,12 @@ export function whitelistIn(body) {
   };
 }
 
+// A picture's own web address: /ad-pictures/<ad id>/<a code made from the
+// picture>. It stays the same when pictures are put in another order and
+// changes when the picture is replaced, and it can't be guessed.
+export const pictureCode = (image) => crypto.createHash("sha256").update(image).digest("base64url").slice(0, 16);
+export const pictureLinks = (a) => adPictures(a).map((p) => `/ad-pictures/${a.id}/${pictureCode(p.image)}`);
+
 export const adOut = (a) => ({
   id: a.id,
   siteId: a.siteId,
@@ -139,6 +146,7 @@ export const adOut = (a) => ({
   more: Array.isArray(a.more) ? a.more : [],
   design: a.design ?? null,
   look: a.look ?? null,
+  pictureLinks: a.design ? [] : pictureLinks(a),
   seconds: a.seconds,
   when: a.when,
   active: a.active,
