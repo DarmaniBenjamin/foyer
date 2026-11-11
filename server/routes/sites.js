@@ -12,7 +12,7 @@ import { SIGN_IN_MODES, SITE_COLORS, makeSite, makeSlug } from "../../src/data.j
 import crypto from "node:crypto";
 import { Problem, SERVER_ONLY, siteIn, siteOut, text } from "../shapes.js";
 import { seal } from "../secrets.js";
-import { readPortal } from "../importPortal.js";
+import { readPortal, tryPortal } from "../importPortal.js";
 import {
   ControllerError,
   setUpOmada,
@@ -40,6 +40,18 @@ sitesRouter.post("/import-look", async (req, res) => {
   if (!/^https?:\/\/\S+$/i.test(url))
     throw new Problem("Paste the portal's full address, starting with https://");
   res.json(await readPortal(url));
+});
+
+// …and "Try signing in": sends the portal's form with test answers
+// ({ boxName: value }) and reads what comes after. Nothing is saved here.
+sitesRouter.post("/import-try", async (req, res) => {
+  const url = text(req.body?.url, 2000);
+  if (!/^https?:\/\/\S+$/i.test(url))
+    throw new Problem("Paste the portal's full address, starting with https://");
+  const answers = {};
+  for (const [k, v] of Object.entries(req.body?.answers ?? {}).slice(0, 30))
+    answers[text(k, 100)] = typeof v === "boolean" ? v : text(v, 300);
+  res.json(await tryPortal(url, answers));
 });
 
 sitesRouter.post("/", async (req, res) => {

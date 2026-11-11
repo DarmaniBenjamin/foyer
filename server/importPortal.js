@@ -38,7 +38,12 @@ function isPrivate(ip) {
 
 // Fetches a public address (following up to 5 redirects, each checked).
 // Returns { url, type, body: Buffer }.
-async function getPublic(address, { accept, max, what }) {
+// For trying the sign-in (see tryPortal):
+//   jar: a Map of cookies, kept and sent like a browser would
+//   method / form: "POST" with the form's answers (URLSearchParams)
+//   stayOn: a host name; a redirect to another website isn't followed,
+//     and comes back as { leftTo: its address }
+async function getPublic(address, { accept, max, what, jar, method = "GET", form, stayOn }) {
   let url;
   try {
     url = new URL(address);
@@ -60,10 +65,15 @@ async function getPublic(address, { accept, max, what }) {
     }
     let res;
     try {
+      const headers = { "User-Agent": AGENT, Accept: accept };
+      if (jar?.size) headers.Cookie = [...jar].map(([k, v]) => `${k}=${v}`).join("; ");
+      if (method === "POST") headers["Content-Type"] = "application/x-www-form-urlencoded";
       res = await fetch(url, {
+        method,
+        body: method === "POST" ? form.toString() : undefined,
         redirect: "manual",
         signal: AbortSignal.timeout(TIMEOUT),
-        headers: { "User-Agent": AGENT, Accept: accept },
+        headers,
       });
     } catch (err) {
       throw new Problem(
@@ -72,8 +82,19 @@ async function getPublic(address, { accept, max, what }) {
           : `Couldn't reach ${url.hostname} (${err.cause?.code ?? err.message}).`,
       );
     }
+    if (jar)
+      for (const cookie of res.headers.getSetCookie?.() ?? []) {
+        const [pair] = cookie.split(";");
+        const at = pair.indexOf("=");
+        if (at > 0) jar.set(pair.slice(0, at).trim(), pair.slice(at + 1).trim());
+      }
     if ([301, 302, 303, 307, 308].includes(res.status) && res.headers.get("location")) {
-      url = new URL(res.headers.get("location"), url);
+      const next = new URL(res.headers.get("location"), url);
+      // Like a browser: after a redirect the answers are only sent again
+      // for 307 and 308
+      if (![307, 308].includes(res.status)) method = "GET";
+      if (stayOn && next.host !== stayOn) return { url: url.href, leftTo: next.href, type: "", body: Buffer.alloc(0) };
+      url = next;
       continue;
     }
     if (!res.ok) throw new Problem(`The ${what} answered with error ${res.status}.`);
@@ -392,6 +413,7 @@ export async function readPortal(address) {
     seen.add(key);
     fields.push({
       label,
+      name,
       type: kind,
       required: el.hasAttribute("required") || el.getAttribute("aria-required") === "true",
       options:
@@ -416,11 +438,231 @@ export async function readPortal(address) {
   const result = {
     logo, backgroundImage, heading, message, button, footer,
     color, background, cardColor, cardOpacity, fields, terms,
+    // Whether there's a form to try signing in with (see tryPortal)
+    canTry: Boolean(formOf(root)),
   };
   const anything = logo || backgroundImage || fields.length || heading || message;
   if (!anything)
     throw new Problem(
       "Nothing could be read from that page. It probably draws itself with JavaScript after it opens, so there's no logo or questions in what it sends.",
     );
+  return result;
+}
+
+// The page's sign-in form: the one with the most boxes to fill in
+function formOf(root) {
+  return (
+    root
+      .querySelectorAll("form")
+      .map((form) => ({
+        form,
+        boxes: form.querySelectorAll('input:not([type="hidden"]), select, textarea').length,
+      }))
+      .filter((f) => f.boxes > 0)
+      .sort((a, b) => b.boxes - a.boxes)[0]?.form ?? null
+  );
+}
+
+// What to type in a box the admin didn't fill in, if it must be filled
+function filler(el) {
+  const type = (el.getAttribute("type") ?? "text").toLowerCase();
+  const name = (el.getAttribute("name") ?? "").toLowerCase();
+  if (type === "email" || /e-?mail/.test(name)) return "test@example.com";
+  if (type === "tel" || /phone|mobile|tel\b/.test(name)) return "4730000000";
+  if (type === "number") return "1";
+  if (type === "date") return "2000-01-01";
+  return "Test";
+}
+
+// The words of an error message on the page, if it shows one
+function errorOn(root) {
+  const el = root
+    .querySelectorAll("[class], [role=alert]")
+    .find(
+      (e) =>
+        e.getAttribute("role") === "alert" ||
+        /\b(alert|error|errors|danger|invalid|warning|flash|message-error)\b/i.test(e.getAttribute("class")),
+    );
+  return words(el).slice(0, 300);
+}
+
+// Where a script on the page sends the browser, e.g.
+// window.location.href = "https://example.com"
+function scriptGoesTo(html, base) {
+  const m = html.match(/(?:window\.|document\.)?location(?:\.href)?\s*(?:=|\.replace\(|\.assign\()\s*["'`]([^"'`]+)["'`]/i);
+  if (!m) return null;
+  try {
+    return new URL(m[1], base).href;
+  } catch {
+    return null;
+  }
+}
+
+// Site settings → Look → Copy an existing portal → "Try signing in":
+// fills in the portal's form with the admin's test answers (by the boxes'
+// names; anything else that must be filled gets a stand-in), sends it
+// like a guest would, and reads the page that comes after: its pictures
+// (a splash ad), its words, and where it sends the guest next.
+// It stops at the first other website (usually where guests are sent at
+// the end), without opening it.
+// Returns { steps: [address…], blocked: why it didn't get through, or "",
+//   pictures: [{ image, link }], heading, message, leftTo }
+export async function tryPortal(address, answers = {}) {
+  const jar = new Map();
+  const first = await getPublic(address, { accept: "text/html,*/*", max: MAX_PAGE, what: "page", jar });
+  const host = new URL(first.url).host;
+  const root = parse(first.body.toString("utf8"), { comment: false });
+  const form = formOf(root);
+  if (!form) throw new Problem("There's no sign-in form on that page to fill in.");
+
+  const data = new URLSearchParams();
+  const done = new Set();
+  for (const el of form.querySelectorAll("input, select, textarea")) {
+    const name = el.getAttribute("name");
+    if (!name) continue;
+    const tag = el.tagName.toLowerCase();
+    const type = (el.getAttribute("type") ?? (tag === "input" ? "text" : tag)).toLowerCase();
+    if (["submit", "button", "image", "reset", "file"].includes(type)) continue;
+    const given = answers[name];
+    if (type === "checkbox") {
+      // Tick the terms, anything that must be ticked, and what the admin ticked
+      const label = labelWords(el.closest("label")) || labelWords(root.querySelector(`label[for="${el.getAttribute("id")}"]`));
+      if (given === true || el.hasAttribute("required") || el.hasAttribute("checked") || /terms|conditions|policy|agree|accept/i.test(label))
+        data.append(name, el.getAttribute("value") ?? "on");
+      continue;
+    }
+    if (type === "radio") {
+      if (done.has(name)) continue;
+      const pick = form.querySelectorAll(`input[type="radio"]`).filter((r) => r.getAttribute("name") === name);
+      const chosen = pick.find((r) => r.hasAttribute("checked")) ?? pick[0];
+      data.append(name, chosen.getAttribute("value") ?? "on");
+      done.add(name);
+      continue;
+    }
+    if (tag === "select") {
+      const options = el.querySelectorAll("option").filter((o) => !o.hasAttribute("disabled"));
+      const byWords = typeof given === "string" && options.find((o) => words(o) === given || o.getAttribute("value") === given);
+      const option = byWords || options.find((o) => o.hasAttribute("selected")) || options.find((o) => (o.getAttribute("value") ?? words(o)) !== "");
+      data.append(name, option ? (option.getAttribute("value") ?? words(option)) : "");
+      continue;
+    }
+    let value = typeof given === "string" ? given : tag === "textarea" ? words(el) : (el.getAttribute("value") ?? "");
+    if (!value && type !== "hidden" && el.hasAttribute("required")) value = filler(el);
+    data.append(name, value);
+  }
+  // The button itself, if it has a name, is part of what's sent
+  const button = form.querySelector('button[type="submit"][name], input[type="submit"][name], button:not([type])[name]');
+  if (button) data.append(button.getAttribute("name"), button.getAttribute("value") ?? "");
+
+  let target;
+  try {
+    target = new URL(form.getAttribute("action") || first.url, first.url);
+  } catch {
+    throw new Problem("The form on that page sends its answers to an address that isn't valid.");
+  }
+  const post = (form.getAttribute("method") ?? "get").toLowerCase() === "post";
+  if (!post) target.search = data.toString();
+
+  // Send it, then follow the pages that come after (a page can also send
+  // the browser on by itself, with a "refresh" or a script)
+  const steps = [first.url];
+  let page = await getPublic(target.href, {
+    accept: "text/html,*/*",
+    max: MAX_PAGE,
+    what: "page after signing in",
+    jar,
+    method: post ? "POST" : "GET",
+    form: data,
+    stayOn: host,
+  });
+  let leftTo = page.leftTo ?? null;
+  let after = null;
+  let html = "";
+  for (let hop = 0; hop < 3 && !leftTo; hop++) {
+    steps.push(page.url);
+    html = page.body.toString("utf8");
+    after = parse(html, { comment: false, blockTextElements: { script: true, style: true, noscript: false, pre: true } });
+    const refresh = after
+      .querySelectorAll("meta")
+      .find((m) => /refresh/i.test(m.getAttribute("http-equiv") ?? ""))
+      ?.getAttribute("content")
+      ?.match(/url\s*=\s*['"]?([^'";]+)/i)?.[1];
+    const next = refresh ?? scriptGoesTo(html, page.url);
+    if (!next) break;
+    let nextUrl;
+    try {
+      nextUrl = new URL(next, page.url);
+    } catch {
+      break;
+    }
+    if (nextUrl.host !== host) {
+      leftTo = nextUrl.href;
+      break;
+    }
+    if (nextUrl.href === page.url) break;
+    page = await getPublic(nextUrl.href, { accept: "text/html,*/*", max: MAX_PAGE, what: "page after signing in", jar, stayOn: host });
+    leftTo = page.leftTo ?? null;
+  }
+
+  const result = { steps, blocked: "", pictures: [], heading: "", message: "", leftTo };
+  if (!after) return result; // went straight on to another website
+
+  for (const el of after.querySelectorAll("script, noscript, template")) el.remove();
+  // Back on the same form: the portal didn't let the test through
+  const again = formOf(after);
+  const sameForm =
+    again &&
+    form.querySelectorAll("[name]").some((el) =>
+      again.querySelectorAll("[name]").some((e) => e.getAttribute("name") === el.getAttribute("name") && el.getAttribute("type") !== "hidden"),
+    );
+  if (sameForm) {
+    result.blocked =
+      errorOn(after) || "It came back to the same sign-in form, so the portal didn't let the test sign-in through.";
+    return result;
+  }
+
+  result.heading =
+    [...after.querySelectorAll("h1"), ...after.querySelectorAll("h2"), ...after.querySelectorAll("h3")]
+      .map(words)
+      .find((t) => t && t.length <= 120) ?? "";
+  result.message =
+    after
+      .querySelectorAll("p")
+      .filter((p) => !p.closest("footer"))
+      .map(words)
+      .find((t) => t.length >= 8 && t.length <= 300) ?? "";
+
+  // The pictures on it (not logos or icons), with where tapping them goes
+  const base = steps.at(-1);
+  const seen = new Set();
+  const found = after
+    .querySelectorAll("img")
+    .map((img) => {
+      const hint = ["src", "alt", "class", "id"].map((a) => img.getAttribute(a) ?? "").join(" ").toLowerCase();
+      const src = img.getAttribute("src") || img.getAttribute("data-src");
+      const width = Number(img.getAttribute("width")) || 0;
+      let link = img.closest("a")?.getAttribute("href") ?? "";
+      try {
+        link = link ? new URL(link, base).href : "";
+      } catch {
+        link = "";
+      }
+      return { src, hint, width, link: /^https?:/.test(link) ? link : "" };
+    })
+    .filter((i) => i.src && !/logo|brand|icon|pixel|spacer|track|avatar/.test(i.hint) && (i.width === 0 || i.width >= 120))
+    .filter((i) => !seen.has(i.src) && seen.add(i.src))
+    .slice(0, 3);
+  const styled = after.querySelectorAll("[style]").map((el) => urlIn(el.getAttribute("style"))).filter(Boolean);
+  if (!found.length && styled[0]) found.push({ src: styled[0], link: "" });
+  for (const pic of found) {
+    let address;
+    try {
+      address = new URL(pic.src, base).href;
+    } catch {
+      continue;
+    }
+    const image = await getPicture(address);
+    if (image) result.pictures.push({ image, link: pic.link });
+  }
   return result;
 }

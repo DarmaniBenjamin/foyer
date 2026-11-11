@@ -2,9 +2,13 @@
 // page's address (e.g. a Spotipo portal), see what Foyer found on it,
 // tick what to copy (logo, background, words, colours, questions), and it goes into this site's settings. Nothing is
 // saved until Save, so it's easy to look at the preview first.
+// "Try signing in" fills in that portal's form with test details and
+// signs in once, to see what comes after: its splash picture (added to
+// Splash ads straight away), its words and where it sends guests.
 import { useState } from "react";
-import { CircleAlert, CircleCheck, Download } from "lucide-react";
+import { CircleAlert, CircleCheck, Download, LogIn, TriangleAlert } from "lucide-react";
 import { api } from "../api";
+import useData from "../useData";
 import { FIELD_TYPES, makeField } from "../data";
 import { shrinkPicture } from "./LogoPicker";
 import WifiLoader from "./WifiLoader";
@@ -27,13 +31,33 @@ function Pick({ checked, onChange, title, children }) {
   );
 }
 
+// What to type in the test sign-in, to start with
+function testAnswer(field) {
+  if (field.type === "email") return "test@example.com";
+  if (field.type === "phone") return "4730000000";
+  if (field.type === "choice") return field.options[0] ?? "";
+  return "Foyer Test";
+}
+
+// Where the portal sends guests at the end, unless it looks like the
+// Wi-Fi controller itself (an IP address, a port, /guest/s/…)
+const looksLikeWebsite = (address) =>
+  /^https:\/\/[^/:]+\.[a-z]{2,}(\/|$)/i.test(address) && !/\/guest\/s\/|\/portal\//i.test(address);
+
 export default function ImportPortal({ draft, set, setLook, onPreviewPage }) {
+  const { addAd, can } = useData();
+  const canAddAds = can("ads", "write");
   const [url, setUrl] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [found, setFound] = useState(null);
   const [picks, setPicks] = useState({});
   const [done, setDone] = useState(false);
+  const [test, setTest] = useState({}); // test answers, by the box's name
+  const [trying, setTrying] = useState(false);
+  const [tryError, setTryError] = useState("");
+  const [after, setAfter] = useState(null); // what came after signing in
+  const [addedAds, setAddedAds] = useState(0);
 
   async function read(e) {
     e?.preventDefault();
@@ -41,6 +65,8 @@ export default function ImportPortal({ draft, set, setLook, onPreviewPage }) {
     setError("");
     setDone(false);
     setFound(null);
+    setAfter(null);
+    setTryError("");
     try {
       const result = await api("/sites/import-look", { method: "POST", body: { url: url.trim() } });
       setFound(result);
@@ -52,10 +78,34 @@ export default function ImportPortal({ draft, set, setLook, onPreviewPage }) {
         color: Boolean(result.color || result.background || result.cardColor),
         questions: result.fields.length > 0 || result.terms,
       });
+      setTest(
+        Object.fromEntries(
+          result.fields.filter((f) => f.name && f.type !== "checkbox").map((f) => [f.name, testAnswer(f)]),
+        ),
+      );
     } catch (err) {
       setError(err.message);
     }
     setBusy(false);
+  }
+
+  async function trySignIn() {
+    setTrying(true);
+    setTryError("");
+    setAfter(null);
+    try {
+      const result = await api("/sites/import-try", { method: "POST", body: { url: url.trim(), answers: test } });
+      setAfter(result);
+      setPicks((p) => ({
+        ...p,
+        ...Object.fromEntries(result.pictures.map((_, i) => [`ad${i}`, canAddAds])),
+        success: Boolean(result.message || result.heading),
+        redirect: Boolean(result.leftTo && looksLikeWebsite(result.leftTo)),
+      }));
+    } catch (err) {
+      setTryError(err.message);
+    }
+    setTrying(false);
   }
 
   async function copy() {
@@ -68,6 +118,7 @@ export default function ImportPortal({ draft, set, setLook, onPreviewPage }) {
     }
     if (picks.words)
       for (const key of ["heading", "message", "button", "footer"]) if (found[key]) look[key] = found[key];
+    if (after && picks.success) look.success = after.message || after.heading;
     if (picks.color) {
       if (found.color) look.color = found.color;
       if (found.background) look.background = found.background;
@@ -87,9 +138,35 @@ export default function ImportPortal({ draft, set, setLook, onPreviewPage }) {
         requireTerms: found.terms || (fields.length ? draft.requireTerms : true),
       });
     }
-    onPreviewPage("signin");
+    if (after && picks.redirect) set({ redirectUrl: after.leftTo });
+    // The splash pictures: added to Splash ads now (they're saved there,
+    // not with the site), shown after the guest connects
+    let added = 0;
+    if (after && canAddAds) {
+      const host = new URL(url.trim()).hostname;
+      for (const [i, pic] of after.pictures.entries()) {
+        if (!picks[`ad${i}`]) continue;
+        const image = await shrinkPicture(pic.image, "ad");
+        if (!image) continue;
+        await addAd({
+          siteId: draft.id,
+          name: `Copied from ${host}${after.pictures.length > 1 ? ` (${i + 1})` : ""}`,
+          image,
+          link: pic.link,
+          seconds: 5,
+          when: "after",
+          active: true,
+          startsAt: null,
+          endsAt: null,
+        });
+        added++;
+      }
+    }
+    setAddedAds(added);
+    onPreviewPage(after && picks.success && !Object.keys(look).some((k) => k !== "success") ? "success" : "signin");
     setBusy(false);
     setFound(null);
+    setAfter(null);
     setDone(true);
   }
 
@@ -125,7 +202,11 @@ export default function ImportPortal({ draft, set, setLook, onPreviewPage }) {
       {done && (
         <p className="flex gap-2 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
           <CircleCheck size={16} className="mt-0.5 shrink-0" />
-          Copied into this site. Check the preview, change anything you like, then press Save.
+          <span>
+            Copied into this site. Check the preview, change anything you like, then press Save.
+            {addedAds > 0 &&
+              ` ${addedAds === 1 ? "The splash picture is" : `${addedAds} splash pictures are`} already in Splash ads, shown after guests connect.`}
+          </span>
         </p>
       )}
 
@@ -193,12 +274,117 @@ export default function ImportPortal({ draft, set, setLook, onPreviewPage }) {
               <span className="mt-1 block">Replaces this site's questions.</span>
             </Pick>
           )}
+          {found.canTry && (
+            <div className="space-y-3 rounded-lg border border-dashed border-line p-3">
+              <div>
+                <p className="text-sm font-medium">See what comes after signing in</p>
+                <p className="mt-1 text-xs text-muted">
+                  Foyer fills in that portal's form with these details and signs in once, like a guest,
+                  to find the page that comes next and its splash picture. That portal will count it as
+                  one guest.
+                </p>
+              </div>
+              {found.fields.some((f) => f.name && f.type !== "checkbox") && (
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {found.fields
+                    .filter((f) => f.name && f.type !== "checkbox")
+                    .map((f) => (
+                      <label key={f.name} className="block min-w-0">
+                        <span className="mb-1 block truncate text-xs font-medium text-muted">{f.label}</span>
+                        {f.type === "choice" ? (
+                          <select
+                            value={test[f.name] ?? ""}
+                            onChange={(e) => setTest((t) => ({ ...t, [f.name]: e.target.value }))}
+                            className={inputClass}
+                          >
+                            {f.options.map((o) => (
+                              <option key={o}>{o}</option>
+                            ))}
+                          </select>
+                        ) : (
+                          <input
+                            type={f.type === "email" ? "email" : f.type === "phone" ? "tel" : "text"}
+                            value={test[f.name] ?? ""}
+                            onChange={(e) => setTest((t) => ({ ...t, [f.name]: e.target.value }))}
+                            className={inputClass}
+                          />
+                        )}
+                      </label>
+                    ))}
+                </div>
+              )}
+              <button type="button" onClick={trySignIn} disabled={trying || busy} className={secondaryButton}>
+                {trying ? <WifiLoader size={16} /> : <LogIn size={16} />}
+                {trying ? "Signing in…" : after ? "Try again" : "Sign in and look"}
+              </button>
+              {tryError && (
+                <p className="flex gap-2 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+                  <CircleAlert size={16} className="mt-0.5 shrink-0" />
+                  {tryError}
+                </p>
+              )}
+              {after?.blocked && (
+                <p className="flex gap-2 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                  <TriangleAlert size={16} className="mt-0.5 shrink-0" />
+                  <span>
+                    The portal didn't let the test sign-in through: “{after.blocked}” Many portals only let in
+                    phones that are on their Wi-Fi, so this part may only work from there.
+                  </span>
+                </p>
+              )}
+              {after && !after.blocked && (
+                <div className="pop-in space-y-2">
+                  <p className="text-xs text-muted">
+                    Signed in. It went through {after.steps.length} page{after.steps.length === 1 ? "" : "s"}
+                    {after.leftTo ? " and then on to another website." : "."}
+                  </p>
+                  {after.pictures.map((pic, i) => (
+                    <Pick
+                      key={i}
+                      checked={Boolean(picks[`ad${i}`])}
+                      onChange={toggle(`ad${i}`)}
+                      title={after.pictures.length > 1 ? `Splash picture ${i + 1}` : "Splash picture"}
+                    >
+                      <img src={pic.image} alt="" className="mt-1 max-h-32 max-w-40 rounded object-contain" />
+                      <span className="mt-1 block">
+                        {canAddAds
+                          ? "Added to Splash ads, shown for 5 seconds after guests connect."
+                          : "Your login can't add splash ads."}
+                        {pic.link && ` Tapping it opens ${pic.link}`}
+                      </span>
+                    </Pick>
+                  ))}
+                  {(after.message || after.heading) && (
+                    <Pick checked={Boolean(picks.success)} onChange={toggle("success")} title="Words after signing in">
+                      “{after.message || after.heading}”
+                    </Pick>
+                  )}
+                  {after.leftTo && (
+                    <Pick checked={Boolean(picks.redirect)} onChange={toggle("redirect")} title="Where guests go next">
+                      <span className="block truncate">{after.leftTo}</span>
+                      <span className="mt-1 block">Becomes this site's “Send guests to” address (Access tab, After signing in).</span>
+                    </Pick>
+                  )}
+                  {!after.pictures.length && !after.message && !after.heading && !after.leftTo && (
+                    <p className="text-xs text-muted">Nothing to copy came after signing in.</p>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
           <div className="flex flex-wrap gap-2 pt-1">
             <button type="button" onClick={copy} disabled={busy || nothingPicked} className={primaryButton}>
               {busy ? <WifiLoader size={16} /> : <Download size={16} />}
               Copy into this site
             </button>
-            <button type="button" onClick={() => setFound(null)} className={secondaryButton}>
+            <button
+              type="button"
+              onClick={() => {
+                setFound(null);
+                setAfter(null);
+              }}
+              className={secondaryButton}
+            >
               Cancel
             </button>
           </div>
