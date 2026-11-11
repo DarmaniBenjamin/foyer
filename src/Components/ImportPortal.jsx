@@ -31,9 +31,10 @@ function Pick({ checked, onChange, title, children }) {
   );
 }
 
-// What to type in the test sign-in, to start with
-function testAnswer(field) {
-  if (field.type === "email") return "test@example.com";
+// What to type in the test sign-in, to start with. The email is the
+// admin's own: portals like Spotipo refuse made-up ones (test@example.com)
+function testAnswer(field, email) {
+  if (field.type === "email") return email ?? "";
   if (field.type === "phone") return "4730000000";
   if (field.type === "choice") return field.options[0] ?? "";
   return "Foyer Test";
@@ -45,7 +46,7 @@ const looksLikeWebsite = (address) =>
   /^https:\/\/[^/:]+\.[a-z]{2,}(\/|$)/i.test(address) && !/\/guest\/s\/|\/portal\//i.test(address);
 
 export default function ImportPortal({ draft, set, setLook, onPreviewPage }) {
-  const { addAd, can } = useData();
+  const { addAd, can, currentAdmin } = useData();
   const canAddAds = can("ads", "write");
   const [url, setUrl] = useState("");
   const [busy, setBusy] = useState(false);
@@ -80,7 +81,7 @@ export default function ImportPortal({ draft, set, setLook, onPreviewPage }) {
       });
       setTest(
         Object.fromEntries(
-          result.fields.filter((f) => f.name && f.type !== "checkbox").map((f) => [f.name, testAnswer(f)]),
+          result.fields.filter((f) => f.name && f.type !== "checkbox").map((f) => [f.name, testAnswer(f, currentAdmin?.email)]),
         ),
       );
     } catch (err) {
@@ -280,8 +281,8 @@ export default function ImportPortal({ draft, set, setLook, onPreviewPage }) {
                 <p className="text-sm font-medium">See what comes after signing in</p>
                 <p className="mt-1 text-xs text-muted">
                   Foyer fills in that portal's form with these details and signs in once, like a guest,
-                  to find the page that comes next and its splash picture. That portal will count it as
-                  one guest.
+                  to find the pages that come next and their splash pictures. That portal will count it
+                  as one guest. Use an email address that works: portals like Spotipo refuse made-up ones.
                 </p>
               </div>
               {found.fields.some((f) => f.name && f.type !== "checkbox") && (

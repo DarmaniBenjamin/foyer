@@ -224,6 +224,12 @@ function weigh(selector, el) {
   return weight;
 }
 
+// A tick box for marketing emails, not the terms of use, even when it says
+// "you agree to receive marketing emails"
+const MARKETING = /news|offer|promo|marketing|updates|email me|mailing/i;
+const TERMS = /terms|conditions|policy|agree|accept/i;
+const isTerms = (label) => TERMS.test(label) && !MARKETING.test(label);
+
 const urlIn = (text) => text?.match(/url\(\s*["']?([^"')]+)["']?\s*\)/i)?.[1] ?? null;
 const BACKGROUND_PLACE = /(^|[\s,>.#-])(html|body|bg|background|backdrop|wrapper|landing|splash|page|main|container|hero|cover)\b/i;
 
@@ -394,7 +400,7 @@ export async function readPortal(address) {
       human(name);
     label = tidy(label).replace(/\s*\*$/, "").slice(0, 80);
     if (!label) continue;
-    if (type === "checkbox" && /terms|conditions|policy|agree|accept/i.test(label)) {
+    if (type === "checkbox" && isTerms(label)) {
       terms = true;
       continue;
     }
@@ -425,7 +431,7 @@ export async function readPortal(address) {
               .filter(Boolean)
               .slice(0, 30)
           : [],
-      consent: kind === "checkbox" && /news|offer|promo|marketing|updates|email me/i.test(label),
+      consent: kind === "checkbox" && MARKETING.test(label),
     });
     if (fields.length >= 10) break;
   }
@@ -525,9 +531,10 @@ export async function tryPortal(address, answers = {}) {
     if (["submit", "button", "image", "reset", "file"].includes(type)) continue;
     const given = answers[name];
     if (type === "checkbox") {
-      // Tick the terms, anything that must be ticked, and what the admin ticked
+      // Tick the terms, anything that must be ticked, and what the admin
+      // ticked; not marketing emails, unless the portal insists
       const label = labelWords(el.closest("label")) || labelWords(root.querySelector(`label[for="${el.getAttribute("id")}"]`));
-      if (given === true || el.hasAttribute("required") || el.hasAttribute("checked") || /terms|conditions|policy|agree|accept/i.test(label))
+      if (given === true || el.hasAttribute("required") || el.hasAttribute("checked") || isTerms(label))
         data.append(name, el.getAttribute("value") ?? "on");
       continue;
     }
@@ -563,53 +570,73 @@ export async function tryPortal(address, answers = {}) {
   const post = (form.getAttribute("method") ?? "get").toLowerCase() === "post";
   if (!post) target.search = data.toString();
 
-  // Send it, then follow the pages that come after (a page can also send
-  // the browser on by itself, with a "refresh" or a script)
+  // Send it, then follow the pages that come after: the portal's answer,
+  // then pages that send the browser on by themselves (a "refresh", a
+  // script, or an answer in JSON naming the next address), e.g. Spotipo:
+  // sign-in → splash ad page → "Loading" page → the venue's website
   const steps = [first.url];
-  let page = await getPublic(target.href, {
-    accept: "text/html,*/*",
-    max: MAX_PAGE,
-    what: "page after signing in",
-    jar,
-    method: post ? "POST" : "GET",
-    form: data,
-    stayOn: host,
-  });
-  let leftTo = page.leftTo ?? null;
-  let after = null;
-  let html = "";
-  for (let hop = 0; hop < 3 && !leftTo; hop++) {
+  const pages = []; // the pages after signing in: { url, root }
+  let leftTo = null;
+  let next = { url: target.href, method: post ? "POST" : "GET" };
+  for (let hop = 0; hop < 5 && next; hop++) {
+    let page;
+    try {
+      page = await getPublic(next.url, {
+        accept: "text/html,application/json,*/*",
+        max: MAX_PAGE,
+        what: "page after signing in",
+        jar,
+        method: next.method,
+        form: data,
+        stayOn: host,
+      });
+    } catch (err) {
+      if (!pages.length) throw err; // the sign-in itself didn't work
+      break; // a later page didn't open: keep what was found
+    }
+    if (page.leftTo) {
+      leftTo = page.leftTo;
+      break;
+    }
     steps.push(page.url);
-    html = page.body.toString("utf8");
-    after = parse(html, { comment: false, blockTextElements: { script: true, style: true, noscript: false, pre: true } });
-    const refresh = after
-      .querySelectorAll("meta")
-      .find((m) => /refresh/i.test(m.getAttribute("http-equiv") ?? ""))
-      ?.getAttribute("content")
-      ?.match(/url\s*=\s*['"]?([^'";]+)/i)?.[1];
-    const next = refresh ?? scriptGoesTo(html, page.url);
-    if (!next) break;
+    const body = page.body.toString("utf8");
+    let goTo = null;
+    if (/json/.test(page.type) || /^\s*[[{]/.test(body)) {
+      goTo = addressInJson(body);
+    } else {
+      const root = parse(body, { comment: false, blockTextElements: { script: true, style: true, noscript: false, pre: true } });
+      pages.push({ url: page.url, root });
+      goTo =
+        root
+          .querySelectorAll("meta")
+          .find((m) => /refresh/i.test(m.getAttribute("http-equiv") ?? ""))
+          ?.getAttribute("content")
+          ?.match(/url\s*=\s*['"]?([^'";]+)/i)?.[1] ?? scriptGoesTo(body, page.url);
+    }
+    next = null;
+    if (!goTo) break;
     let nextUrl;
     try {
-      nextUrl = new URL(next, page.url);
+      nextUrl = new URL(goTo, page.url);
     } catch {
       break;
     }
+    if (!/^https?:$/.test(nextUrl.protocol)) break;
     if (nextUrl.host !== host) {
       leftTo = nextUrl.href;
       break;
     }
-    if (nextUrl.href === page.url) break;
-    page = await getPublic(nextUrl.href, { accept: "text/html,*/*", max: MAX_PAGE, what: "page after signing in", jar, stayOn: host });
-    leftTo = page.leftTo ?? null;
+    if (steps.includes(nextUrl.href)) break;
+    next = { url: nextUrl.href, method: "GET" };
   }
 
   const result = { steps, blocked: "", pictures: [], heading: "", message: "", leftTo };
-  if (!after) return result; // went straight on to another website
+  if (!pages.length) return result; // went straight on to another website
 
-  for (const el of after.querySelectorAll("script, noscript, template")) el.remove();
-  // Back on the same form: the portal didn't let the test through
-  const again = formOf(after);
+  for (const { root: r } of pages) for (const el of r.querySelectorAll("script, noscript, template")) el.remove();
+  // The portal's answer is the same form again: it didn't let the test through
+  const answer = pages[0].root;
+  const again = formOf(answer);
   const sameForm =
     again &&
     form.querySelectorAll("[name]").some((el) =>
@@ -617,52 +644,84 @@ export async function tryPortal(address, answers = {}) {
     );
   if (sameForm) {
     result.blocked =
-      errorOn(after) || "It came back to the same sign-in form, so the portal didn't let the test sign-in through.";
+      errorOn(answer) || "It came back to the same sign-in form, so the portal didn't let the test sign-in through.";
     return result;
   }
 
-  result.heading =
-    [...after.querySelectorAll("h1"), ...after.querySelectorAll("h2"), ...after.querySelectorAll("h3")]
-      .map(words)
-      .find((t) => t && t.length <= 120) ?? "";
-  result.message =
-    after
-      .querySelectorAll("p")
-      .filter((p) => !p.closest("footer"))
-      .map(words)
-      .find((t) => t.length >= 8 && t.length <= 300) ?? "";
+  // The words: from the first page after signing in that has some
+  for (const { root: r } of pages) {
+    result.heading ||=
+      [...r.querySelectorAll("h1"), ...r.querySelectorAll("h2"), ...r.querySelectorAll("h3")]
+        .map(words)
+        .find((t) => t && t.length <= 120 && !/^loading/i.test(t)) ?? "";
+    result.message ||=
+      r
+        .querySelectorAll("p")
+        .filter((el) => !el.closest("footer"))
+        .map(words)
+        .find((t) => t.length >= 8 && t.length <= 300 && !/^loading/i.test(t)) ?? "";
+  }
 
-  // The pictures on it (not logos or icons), with where tapping them goes
-  const base = steps.at(-1);
+  // The pictures on every page after signing in (a splash page can have
+  // several), not logos or icons, with where tapping each one goes
   const seen = new Set();
-  const found = after
-    .querySelectorAll("img")
-    .map((img) => {
+  const found = [];
+  for (const { url: base, root: r } of pages) {
+    const add = (src, link = "") => {
+      let address;
+      try {
+        address = new URL(src, base).href;
+      } catch {
+        return;
+      }
+      if (seen.has(address)) return;
+      seen.add(address);
+      found.push({ address, link });
+    };
+    for (const img of r.querySelectorAll("img")) {
       const hint = ["src", "alt", "class", "id"].map((a) => img.getAttribute(a) ?? "").join(" ").toLowerCase();
-      const src = img.getAttribute("src") || img.getAttribute("data-src");
+      const src = img.getAttribute("src") || img.getAttribute("data-src") || img.getAttribute("data-lazy-src");
       const width = Number(img.getAttribute("width")) || 0;
+      if (!src || /^data:image\/gif/.test(src) || /logo|brand|icon|pixel|spacer|track|avatar|loading|spinner/.test(hint)) continue;
+      if (width && width < 120) continue;
       let link = img.closest("a")?.getAttribute("href") ?? "";
       try {
         link = link ? new URL(link, base).href : "";
       } catch {
         link = "";
       }
-      return { src, hint, width, link: /^https?:/.test(link) ? link : "" };
-    })
-    .filter((i) => i.src && !/logo|brand|icon|pixel|spacer|track|avatar/.test(i.hint) && (i.width === 0 || i.width >= 120))
-    .filter((i) => !seen.has(i.src) && seen.add(i.src))
-    .slice(0, 3);
-  const styled = after.querySelectorAll("[style]").map((el) => urlIn(el.getAttribute("style"))).filter(Boolean);
-  if (!found.length && styled[0]) found.push({ src: styled[0], link: "" });
-  for (const pic of found) {
-    let address;
-    try {
-      address = new URL(pic.src, base).href;
-    } catch {
-      continue;
+      add(src, /^https?:/.test(link) ? link : "");
     }
-    const image = await getPicture(address);
+    // Pictures set as a background (style="background-image: url(…)")
+    for (const el of r.querySelectorAll("[style]")) {
+      const u = urlIn(el.getAttribute("style"));
+      if (u && !/logo|icon|sprite|spinner|loading/i.test(u)) add(u);
+    }
+  }
+  for (const pic of found.slice(0, 8)) {
+    const image = await getPicture(pic.address);
     if (image) result.pictures.push({ image, link: pic.link });
+    if (result.pictures.length >= 6) break;
   }
   return result;
+}
+
+// The next address in a JSON answer ({ "redirect": "/splash/…" } and the
+// like), or null
+function addressInJson(text) {
+  let data;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    return null;
+  }
+  const found = [];
+  const walk = (v, key = "") => {
+    if (found.length) return;
+    if (typeof v === "string") {
+      if (/redirect|next|url|location|goto|href/i.test(key) && /^(https?:\/\/|\/)/.test(v)) found.push(v);
+    } else if (v && typeof v === "object") for (const [k, x] of Object.entries(v)) walk(x, k);
+  };
+  walk(data);
+  return found[0] ?? null;
 }
