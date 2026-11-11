@@ -12,7 +12,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { CircleAlert } from "lucide-react";
 import { BrandBadge, ConnectedMark, SignalBars, SignalChip } from "./PortalMotion";
 import WifiLoader from "./WifiLoader";
-import { COUNTRIES, NO_TIME_LIMIT, formatMinutes, pageParts, textOn } from "../data";
+import { COUNTRIES, NO_TIME_LIMIT, formatMinutes, pageParts, textOn, textStyle } from "../data";
 
 const validEmail = (text) => /^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(text);
 
@@ -40,12 +40,12 @@ const DOMAIN_TYPOS = {
   "live.co": "live.com",
 };
 
-// Long words in a box get smaller until they fit (14px down to 10px),
-// so the box stays the same size and the guest can read it all.
-const FIT_MAX = 14;
+// Long words in a box get smaller until they fit (from the size set in
+// Site settings → Look → Text, down to 10px), so the box stays the same
+// size and the guest can read it all.
 const FIT_MIN = 10;
 let measurer;
-function fitSize(el, text) {
+function fitSize(el, text, FIT_MAX) {
   if (!el || !text) return FIT_MAX;
   const css = getComputedStyle(el);
   // Room for the words: the box less its padding (and a list's arrow)
@@ -59,21 +59,21 @@ function fitSize(el, text) {
   measurer.font = `${css.fontStyle} ${css.fontWeight} ${FIT_MAX}px ${css.fontFamily}`;
   const width = measurer.measureText(text).width;
   if (width <= room) return FIT_MAX;
-  return Math.max(FIT_MIN, Math.floor(((FIT_MAX * room) / width) * 2) / 2);
+  return Math.max(Math.min(FIT_MIN, FIT_MAX), Math.floor(((FIT_MAX * room) / width) * 2) / 2);
 }
 
-function useFitText(text) {
+function useFitText(text, max) {
   const ref = useRef(null);
-  const [size, setSize] = useState(FIT_MAX);
+  const [size, setSize] = useState(max);
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return undefined;
-    const update = () => setSize(fitSize(el, text));
+    const update = () => setSize(fitSize(el, text, max));
     update();
     const watch = new ResizeObserver(update);
     watch.observe(el);
     return () => watch.disconnect();
-  }, [text]);
+  }, [text, max]);
   return [ref, size];
 }
 
@@ -84,7 +84,7 @@ function withOpacity(hex, opacity) {
   return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${opacity})`;
 }
 
-function Question({ field, value, onChange, color, invalid, inside, ink, dial }) {
+function Question({ field, value, onChange, color, invalid, inside, ink, dial, labelStyle, boxStyle }) {
   const placeholder = inside ? `${field.label}${field.required ? "*" : ""}` : undefined;
   const shown =
     field.type === "choice"
@@ -92,17 +92,17 @@ function Question({ field, value, onChange, color, invalid, inside, ink, dial })
       : field.type === "phone"
         ? value?.number || placeholder
         : value || placeholder;
-  const [fitRef, fit] = useFitText(field.type === "checkbox" ? "" : String(shown ?? ""));
+  const [fitRef, fit] = useFitText(field.type === "checkbox" ? "" : String(shown ?? ""), boxStyle.fontSize);
   // Typed words shrink themselves; an empty box shrinks only its hint
   const fitStyle =
     field.type !== "choice" && !(field.type === "phone" ? value?.number : value)
-      ? { "--hint-size": `${fit}px` }
-      : { fontSize: fit };
+      ? { ...boxStyle, "--hint-size": `${fit}px` }
+      : { ...boxStyle, fontSize: fit };
   const box = `portal-field h-11 w-full min-w-0 rounded-xl border bg-white px-3 text-sm text-gray-900 outline-none placeholder:text-gray-500 focus:border-current ${
     invalid ? "border-red-400 ring-2 ring-red-400/40" : "border-black/10"
   }`;
   const label = !inside && (
-    <span className="mb-1 block text-sm font-medium" style={{ color: ink }}>
+    <span className="mb-1 block text-sm font-medium" style={{ ...labelStyle, color: ink }}>
       {field.label || "Untitled question"}
       {field.required && <span className="text-red-500"> *</span>}
     </span>
@@ -110,7 +110,7 @@ function Question({ field, value, onChange, color, invalid, inside, ink, dial })
 
   if (field.type === "checkbox")
     return (
-      <label className="flex items-start gap-2 text-left text-sm" style={{ color: ink }}>
+      <label className="flex items-start gap-2 text-left text-sm" style={{ ...labelStyle, color: ink }}>
         <input
           type="checkbox"
           checked={Boolean(value)}
@@ -157,6 +157,7 @@ function Question({ field, value, onChange, color, invalid, inside, ink, dial })
             value={value?.dial ?? dial}
             onChange={(e) => onChange({ dial: e.target.value, number: value?.number ?? "" })}
             className="portal-field h-11 w-24 shrink-0 rounded-xl border border-black/10 bg-white px-2 text-sm text-gray-900 outline-none"
+            style={{ ...boxStyle, fontSize: Math.min(boxStyle.fontSize, 16) }}
             aria-label="Country code"
           >
             {[...new Set(COUNTRIES.map((c) => c.dial))].map((d) => (
@@ -332,6 +333,15 @@ export default function PortalPreview({
   const ink = textOn(cardColor) === "#ffffff" ? "#ffffff" : "#111827";
   const soft = ink === "#ffffff" ? "rgba(255,255,255,0.8)" : "#4b5563";
   const buttonStyle = { backgroundColor: look.color, color: textOn(look.color) };
+  // The size, bold and italic of the words (Site settings → Look → Text)
+  const words = {
+    heading: textStyle(look, "heading"),
+    message: textStyle(look, "message"),
+    labels: textStyle(look, "labels"),
+    boxes: textStyle(look, "boxes"),
+    button: { ...buttonStyle, ...textStyle(look, "button") },
+    footer: textStyle(look, "footer"),
+  };
   const dial =
     COUNTRIES.find((c) => c.code === site.countryCode)?.dial ?? COUNTRIES[0].dial;
   const inside = look.labels === "inside";
@@ -425,10 +435,10 @@ export default function PortalPreview({
               </div>
             )}
             <ConnectedMark color={look.color} />
-            <h1 className="text-xl font-semibold" style={{ color: ink }}>
+            <h1 className="text-xl font-semibold" style={{ ...words.heading, fontSize: Math.round(words.heading.fontSize * 0.85), color: ink }}>
               {site.name}
             </h1>
-            <p className="mt-2 text-sm whitespace-pre-line" style={{ color: soft }}>
+            <p className="mt-2 text-sm whitespace-pre-line" style={{ ...words.message, color: soft }}>
               {look.success}
             </p>
             {result?.minutes && (
@@ -442,16 +452,16 @@ export default function PortalPreview({
               (online ? (
                 <a
                   href={site.redirectUrl}
-                  className="pop-in mt-5 flex h-12 w-full items-center justify-center rounded-xl text-[15px] font-semibold"
-                  style={buttonStyle}
+                  className="pop-in mt-5 flex min-h-12 w-full items-center justify-center rounded-xl text-[15px] font-semibold"
+                  style={words.button}
                 >
                   Continue
                 </a>
               ) : (
                 <div
                   role="status"
-                  className="mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-xl text-[15px] font-semibold opacity-80"
-                  style={buttonStyle}
+                  className="mt-5 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl text-[15px] font-semibold opacity-80"
+                  style={words.button}
                 >
                   <WifiLoader size={20} />
                   Getting you online…
@@ -474,19 +484,19 @@ export default function PortalPreview({
                 );
               if (p.id === "heading")
                 return look.heading ? (
-                  <h1 key="heading" className="text-2xl font-semibold" style={{ color: ink }}>
+                  <h1 key="heading" className="text-2xl font-semibold" style={{ ...words.heading, color: ink }}>
                     {look.heading}
                   </h1>
                 ) : null;
               if (p.id === "message")
                 return look.message ? (
-                  <p key="message" className="-mt-1 text-sm whitespace-pre-line" style={{ color: soft }}>
+                  <p key="message" className="-mt-1 text-sm whitespace-pre-line" style={{ ...words.message, color: soft }}>
                     {look.message}
                   </p>
                 ) : null;
               if (p.id === "footer")
                 return look.footer ? (
-                  <p key="footer" className="text-xs" style={{ color: soft }}>
+                  <p key="footer" className="text-xs" style={{ ...words.footer, color: soft }}>
                     {look.footer}
                   </p>
                 ) : null;
@@ -505,13 +515,15 @@ export default function PortalPreview({
                           inside={inside}
                           ink={ink}
                           dial={dial}
+                          labelStyle={words.labels}
+                          boxStyle={words.boxes}
                         />
                       ))}
 
                     {site.mode === "voucher" && (
                       <label className="block">
                         {!inside && (
-                          <span className="mb-1 block text-sm font-medium" style={{ color: ink }}>
+                          <span className="mb-1 block text-sm font-medium" style={{ ...words.labels, color: ink }}>
                             Voucher code
                           </span>
                         )}
@@ -521,6 +533,7 @@ export default function PortalPreview({
                           className={`portal-field h-11 w-full rounded-xl border bg-white px-3 text-center font-mono text-sm tracking-widest text-gray-900 uppercase outline-none ${
                             problem?.bad.has("_code") ? "border-red-400 ring-2 ring-red-400/40" : "border-black/10"
                           }`}
+                          style={words.boxes}
                           placeholder={inside ? "Voucher code" : "ABCD-1234"}
                           autoCapitalize="characters"
                           autoComplete="off"
@@ -532,7 +545,7 @@ export default function PortalPreview({
 
                     {site.requireTerms && (
                       <div>
-                        <label className="flex items-start gap-2 text-sm" style={{ color: ink }}>
+                        <label className="flex items-start gap-2 text-sm" style={{ ...words.labels, color: ink }}>
                           <input
                             type="checkbox"
                             checked={termsOk}
@@ -574,8 +587,8 @@ export default function PortalPreview({
                   <button
                     type="submit"
                     disabled={busy}
-                    className="portal-button mt-5 flex h-12 w-full items-center justify-center gap-2.5 rounded-xl text-[15px] font-semibold transition hover:brightness-105 active:scale-[0.98] disabled:opacity-90"
-                    style={buttonStyle}
+                    className="portal-button mt-5 flex min-h-12 w-full items-center justify-center gap-2.5 rounded-xl px-3 text-[15px] font-semibold transition hover:brightness-105 active:scale-[0.98] disabled:opacity-90"
+                    style={words.button}
                   >
                     {busy && <SignalBars />}
                     {busy ? "Connecting…" : look.button || "Connect"}
@@ -587,7 +600,7 @@ export default function PortalPreview({
         )}
 
         {success && look.footer && showing("footer") && (
-          <p className="mt-4 text-xs" style={{ color: soft }}>
+          <p className="mt-4 text-xs" style={{ ...words.footer, color: soft }}>
             {look.footer}
           </p>
         )}

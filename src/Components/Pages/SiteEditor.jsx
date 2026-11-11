@@ -4,7 +4,7 @@
 //   Sign-in: form questions, terms or voucher
 //   Look:    copying another portal's look, logo (and its size), background picture (moved, zoomed,
 //            darkened), what's on the page and in what order, colours,
-//            the box and words
+//            the box and words, and their size, bold and italic
 //   Access:  how long guests stay on, speed and data limits
 // Changes only count once you press Save.
 import { useEffect, useState } from "react";
@@ -32,7 +32,7 @@ import ControllerSetup from "../ControllerSetup";
 import PortalPreview from "../PortalPreview";
 import FieldEditor from "../FieldEditor";
 import LogoPicker from "../LogoPicker";
-import { BackgroundAdjuster, PageParts, Slider } from "../LookControls";
+import { BackgroundAdjuster, PageParts, Slider, TextStyles } from "../LookControls";
 import ImportPortal from "../ImportPortal";
 import Modal from "../Modal";
 import {
@@ -530,6 +530,16 @@ function LookTab({ draft, set, setLook, onPreviewPage }) {
         {text("button", "Button")}
         {text("success", "After signing in", 3)}
         {text("footer", "Small print at the bottom")}
+      </Section>
+
+      <Section title="Text size and style" hint="How big each kind of words is, and whether it's bold or italic.">
+        <TextStyles
+          look={look}
+          setLook={(changes) => {
+            onPreviewPage("signin");
+            setLook(changes);
+          }}
+        />
       </Section>
     </>
   );

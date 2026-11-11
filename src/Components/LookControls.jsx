@@ -4,9 +4,10 @@
 //                      darken it
 //   PageParts:         what's on the page, top to bottom: move each part
 //                      up or down, show or hide it
+//   TextStyles:        each kind of words: its size, bold, italic
 import { useRef } from "react";
-import { ArrowDown, ArrowUp, Eye, EyeOff, RotateCcw } from "lucide-react";
-import { PAGE_PARTS, pageParts } from "../data";
+import { ArrowDown, ArrowUp, Bold, Eye, EyeOff, Italic, Minus, Plus, RotateCcw } from "lucide-react";
+import { PAGE_PARTS, TEXT_PARTS, pageParts, textLook } from "../data";
 import { hintClass, labelClass, secondaryButton } from "./formStyles";
 
 export function Slider({ id, label, value, min, max, step = 1, onChange, shown }) {
@@ -179,5 +180,89 @@ export function PageParts({ look, setLook }) {
         );
       })}
     </ul>
+  );
+}
+
+const toggleButton = (on) =>
+  `flex h-8 w-8 items-center justify-center rounded-lg border transition ${
+    on ? "border-brand bg-brand/10 text-brand" : "border-line text-muted hover:border-brand/40 hover:text-ink"
+  }`;
+
+// look.text, see data.js
+export function TextStyles({ look, setLook }) {
+  const change = (part, changes) =>
+    setLook({ text: { ...look.text, [part]: { ...textLook(look, part), ...changes } } });
+  return (
+    <div className="space-y-2">
+      <ul className="divide-y divide-line rounded-lg border border-line">
+        {Object.entries(TEXT_PARTS).map(([part, info]) => {
+          const t = textLook(look, part);
+          return (
+            <li key={part} className="flex flex-wrap items-center gap-x-3 gap-y-2 px-3 py-2">
+              <div className="min-w-0 flex-1 basis-32">
+                <p
+                  className="truncate text-sm"
+                  style={{ fontWeight: t.bold ? 600 : 400, fontStyle: t.italic ? "italic" : "normal" }}
+                >
+                  {info.label}
+                </p>
+                {info.detail && <p className="truncate text-xs text-muted">{info.detail}</p>}
+              </div>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => change(part, { size: t.size - 1 })}
+                  disabled={t.size <= info.min}
+                  className={`${iconButton} text-muted`}
+                  aria-label={`${info.label} smaller`}
+                >
+                  <Minus size={15} />
+                </button>
+                <span className="w-12 text-center text-sm tabular-nums" aria-label={`${info.label} size`}>
+                  {t.size} px
+                </span>
+                <button
+                  type="button"
+                  onClick={() => change(part, { size: t.size + 1 })}
+                  disabled={t.size >= info.max}
+                  className={`${iconButton} text-muted`}
+                  aria-label={`${info.label} bigger`}
+                >
+                  <Plus size={15} />
+                </button>
+              </div>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => change(part, { bold: !t.bold })}
+                  className={toggleButton(t.bold)}
+                  aria-label={`${info.label} bold`}
+                  aria-pressed={t.bold}
+                  title="Bold"
+                >
+                  <Bold size={15} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => change(part, { italic: !t.italic })}
+                  className={toggleButton(t.italic)}
+                  aria-label={`${info.label} italic`}
+                  aria-pressed={t.italic}
+                  title="Italic"
+                >
+                  <Italic size={15} />
+                </button>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+      {look.text && Object.keys(look.text).length > 0 && (
+        <button type="button" onClick={() => setLook({ text: {} })} className={secondaryButton}>
+          <RotateCcw size={16} />
+          Back to the usual sizes
+        </button>
+      )}
+    </div>
   );
 }

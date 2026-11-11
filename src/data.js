@@ -202,6 +202,41 @@ export function pageParts(look) {
   return parts;
 }
 
+// The words on the guest page whose size, bold and italic the admin can
+// change (Site settings → Look → Text). size in px; weight is how heavy
+// it is when not bold (bold is 600, or 700 if it's already 600).
+export const TEXT_PARTS = {
+  heading: { label: "Heading", size: 24, bold: true, min: 14, max: 48 },
+  message: { label: "Message", size: 14, min: 10, max: 28 },
+  labels: { label: "Questions", detail: "The words above or next to each box", size: 14, weight: 500, min: 10, max: 24 },
+  boxes: { label: "Text in the boxes", size: 14, min: 12, max: 22 },
+  button: { label: "Button", size: 15, bold: true, min: 12, max: 26 },
+  footer: { label: "Small print", size: 12, min: 9, max: 20 },
+};
+
+// look.text[part] ({ size, bold, italic }), filled in from TEXT_PARTS
+export function textLook(look, part) {
+  const preset = TEXT_PARTS[part];
+  const own = look?.text?.[part] ?? {};
+  const size = Number(own.size);
+  return {
+    size: size >= preset.min && size <= preset.max ? size : preset.size,
+    bold: typeof own.bold === "boolean" ? own.bold : Boolean(preset.bold),
+    italic: Boolean(own.italic),
+  };
+}
+
+// …as a React style
+export function textStyle(look, part) {
+  const t = textLook(look, part);
+  const plain = TEXT_PARTS[part].weight ?? 400;
+  return {
+    fontSize: t.size,
+    fontWeight: t.bold ? (plain >= 600 ? 700 : 600) : plain,
+    fontStyle: t.italic ? "italic" : "normal",
+  };
+}
+
 // Everything a new site starts with.
 // slug: its part of the portal's web address (Omada: /omada/<slug>)
 // siteKey: UniFi only: the UniFi site's name ("default", or the short
@@ -217,6 +252,7 @@ export function pageParts(look) {
 //   bgDim (0–0.7, a dark layer over it): the background picture.
 //   cardPosition: "top", "middle" or "bottom" of the screen.
 //   parts: what's on the page, top to bottom (see pageParts).
+//   text: the size, bold and italic of the words (see TEXT_PARTS).
 // countryCode: the country picked first for phone numbers
 // timezone: the site's time zone (for its reports)
 // verifyEmailDomain: refuse email addresses with a misspelt or fake
