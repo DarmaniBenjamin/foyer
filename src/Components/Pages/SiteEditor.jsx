@@ -661,10 +661,20 @@ function AccessTab({ draft, set }) {
             className={inputClass}
           />
           <p className={hintClass}>
-            E.g. the client's website or Instagram. Empty: they stay on the
-            "connected" page.
+            E.g. the client's website or Instagram. Empty: where the guest was
+            going, if their phone says.
           </p>
         </div>
+        <Toggle
+          checked={draft.showConnected !== false}
+          onChange={(showConnected) => set({ showConnected })}
+          label="Show the “You're connected” page"
+          detail={
+            draft.showConnected !== false
+              ? "Guests see it after signing in and the splash ad, and press Continue to go on."
+              : "Off: as soon as the splash ad's time is up (or straight after signing in, without one), guests go to the address above."
+          }
+        />
       </Section>
     </>
   );

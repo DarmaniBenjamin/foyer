@@ -4,7 +4,9 @@
 // It gets the site's page and its splash ads from the server
 // (/api/portal), and signing in saves the guest there. If the site has a
 // running splash ad, it shows first ("before") or right after they
-// connect ("after"), and its views and taps are counted.
+// connect ("after"), and its views and taps are counted. It closes by
+// itself when its time is up; with no "You're connected" page (Site
+// settings → Access), the guest then goes straight to the site's address.
 //
 // The controller sends guests to the server first (Omada: /omada/<name>,
 // UniFi: /guest/s/<site>/), which sends them here with their phone's
@@ -94,6 +96,7 @@ function Portal({ site, ads, guest, done }) {
         page={done ? "success" : "signin"}
         fullPage
         onSignIn={signIn}
+        paused={Boolean(showing)}
       />
       {showing && (
         <SplashAd

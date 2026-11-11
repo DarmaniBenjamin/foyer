@@ -8,7 +8,7 @@
 // link: where tapping the picture goes (optional)
 // more: more pictures under it, top to bottom ([{ image, link }]): with
 //   more than one picture, guests scroll through them like a web page
-// seconds: how long before the guest can skip it
+// seconds: how long it shows before it closes by itself
 // when: "before" (as the page opens) or "after" (after they connect)
 // active: on or off
 // startsAt / endsAt: when it runs (ms, or null = no start / no end)

@@ -283,7 +283,7 @@ export default function AdModal({ ad, siteId, onSave, onClose }) {
         </div>
 
         <div>
-          <span className={labelClass}>Guests can skip it after</span>
+          <span className={labelClass}>Shows for (then closes by itself)</span>
           <div className="flex flex-wrap gap-2">
             {AD_SECONDS.map((s) => (
               <button

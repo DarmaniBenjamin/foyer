@@ -1,13 +1,14 @@
-// A splash ad over the whole guest page: the picture, and a countdown
-// until the guest can skip it. Tapping the picture opens its link.
+// A splash ad over the whole guest page: the picture, and a countdown.
+// When it reaches 0 the ad closes by itself and the guest goes on;
+// there's nothing to press. Tapping the picture opens its link.
 // An ad with several pictures shows them one under the other, to scroll
-// through like a web page, with "Continue" at the bottom.
+// through like a web page.
 // onView() runs once when it shows, onClick() when the picture is
-// tapped, onDone() when the guest skips it.
+// tapped, onDone() when its time is up.
 // In the admin preview (preview), nothing is counted and it sits inside
 // its box instead of covering the screen.
 import { useEffect, useRef, useState } from "react";
-import { ChevronDown, ExternalLink, X } from "lucide-react";
+import { ChevronDown, ExternalLink } from "lucide-react";
 import { adPictures } from "../ads";
 
 export default function SplashAd({ ad, onView, onClick, onDone, preview = false }) {
@@ -27,25 +28,31 @@ export default function SplashAd({ ad, onView, onClick, onDone, preview = false 
     return () => clearTimeout(timer);
   }, [left]);
 
+  // Time's up: the ad closes and the guest goes on, once
+  const finished = useRef(false);
+  const doneRef = useRef(onDone);
+  doneRef.current = onDone;
+  useEffect(() => {
+    if (left > 0 || finished.current) return;
+    finished.current = true;
+    doneRef.current?.();
+  }, [left]);
+
   const pictures = adPictures(ad);
   const [scrolled, setScrolled] = useState(false);
 
   const skip = (
     <div className="absolute top-3 right-3 z-10">
-      {left > 0 ? (
-        <span className="flex h-9 items-center rounded-full bg-black/60 px-3 text-xs font-semibold text-white backdrop-blur">
-          Skip in {left}
-        </span>
-      ) : (
-        <button
-          type="button"
-          onClick={onDone}
-          className="flex h-9 items-center gap-1.5 rounded-full bg-white px-3 text-xs font-semibold text-gray-900 shadow"
-        >
-          <X size={14} />
-          Skip
-        </button>
-      )}
+      <span className="flex h-9 items-center gap-2 rounded-full bg-black/60 px-3 text-xs font-semibold text-white tabular-nums backdrop-blur">
+        <span
+          className="h-4 w-4 rounded-full"
+          style={{
+            background: `conic-gradient(white ${(1 - Math.max(left, 0) / Math.max(ad.seconds, 1)) * 360}deg, rgba(255,255,255,0.25) 0)`,
+            transition: "background 1s linear",
+          }}
+        />
+        {left > 0 ? `${left}` : "…"}
+      </span>
     </div>
   );
 
@@ -80,14 +87,6 @@ export default function SplashAd({ ad, onView, onClick, onDone, preview = false 
                 <div key={i}>{img}</div>
               );
             })}
-            <button
-              type="button"
-              onClick={onDone}
-              disabled={left > 0}
-              className="mt-2 flex h-12 items-center justify-center rounded-xl bg-white text-[15px] font-semibold text-gray-900 shadow disabled:opacity-60"
-            >
-              {left > 0 ? `Continue in ${left}` : "Continue"}
-            </button>
             <p className="text-center text-[11px] text-white/50">Advert</p>
           </div>
         </div>

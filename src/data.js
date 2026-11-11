@@ -253,6 +253,9 @@ export function textStyle(look, part) {
 //   cardPosition: "top", "middle" or "bottom" of the screen.
 //   parts: what's on the page, top to bottom (see pageParts).
 //   text: the size, bold and italic of the words (see TEXT_PARTS).
+// showConnected: after signing in (and the splash ad), show the "You're
+//   connected" page with Continue (true, the start), or go straight on to
+//   redirectUrl (false)
 // countryCode: the country picked first for phone numbers
 // timezone: the site's time zone (for its reports)
 // verifyEmailDomain: refuse email addresses with a misspelt or fake

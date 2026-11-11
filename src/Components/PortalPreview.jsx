@@ -294,12 +294,14 @@ function useOnline(waiting, url) {
 
 // onSignIn({ answers, code }) → { error } or { minutes }: the guest page.
 // onConnect(): the editor's preview (just shows the "connected" page).
+// paused: a splash ad is on screen (the guest page), so don't go on yet.
 export default function PortalPreview({
   site,
   page = "signin",
   onSignIn,
   onConnect,
   fullPage = false,
+  paused = false,
 }) {
   const { look } = site;
   const [answers, setAnswers] = useState({});
@@ -327,6 +329,13 @@ export default function PortalPreview({
     const meta = document.querySelector('meta[name="viewport"]');
     if (meta && !/maximum-scale/.test(meta.content)) meta.content += ", maximum-scale=1";
   }, [fullPage]);
+
+  // Site settings → Access: no "You're connected" page. Once the guest is
+  // online and any splash ad is over, they go straight to the address.
+  const goStraightOn = fullPage && site.showConnected === false && Boolean(site.redirectUrl);
+  useEffect(() => {
+    if (goStraightOn && result && !paused && online) window.location.replace(site.redirectUrl);
+  }, [goStraightOn, result, paused, online, site.redirectUrl]);
 
   const cardColor = look.cardColor ?? "#ffffff";
   // Text on the box: dark on a light box, white on a dark one
@@ -448,7 +457,16 @@ export default function PortalPreview({
                   : `You're on for ${formatMinutes(result.minutes)}.`}
               </p>
             )}
-            {site.redirectUrl &&
+            {goStraightOn && result ? (
+              <div
+                role="status"
+                className="mt-5 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl text-[15px] font-semibold opacity-80"
+                style={words.button}
+              >
+                <WifiLoader size={20} />
+                Taking you on…
+              </div>
+            ) : site.redirectUrl &&
               (online ? (
                 <a
                   href={site.redirectUrl}
