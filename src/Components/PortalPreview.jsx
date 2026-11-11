@@ -292,6 +292,34 @@ function useOnline(waiting, url) {
   return !waiting || online;
 }
 
+// The guest page's loading screen, over everything: while signing in
+// (until the splash ad), and while going on to the site's address
+function LoadingScreen({ color, text, detail }) {
+  return (
+    <div
+      className="fade-in fixed inset-0 z-30 flex items-center justify-center bg-black/45 p-6 backdrop-blur-md"
+      role="status"
+      aria-live="polite"
+    >
+      <div className="pop-in flex w-full max-w-xs flex-col items-center gap-3 rounded-3xl bg-white px-6 py-8 text-center shadow-2xl">
+        <span style={{ color }}>
+          <WifiLoader size={64} />
+        </span>
+        <p className="mt-1 text-base font-semibold text-gray-900">{text}</p>
+        {detail && <p className="text-sm text-gray-500">{detail}</p>}
+      </div>
+    </div>
+  );
+}
+
+const hostOf = (address) => {
+  try {
+    return new URL(address).hostname.replace(/^www\./, "");
+  } catch {
+    return "";
+  }
+};
+
 // onSignIn({ answers, code }) → { error } or { minutes }: the guest page.
 // onConnect(): the editor's preview (just shows the "connected" page).
 // paused: a splash ad is on screen (the guest page), so don't go on yet.
@@ -396,6 +424,15 @@ export default function PortalPreview({
     if (outcome.error) setProblem({ message: outcome.error, bad: new Set(["_code"]) });
     else setResult(outcome);
   }
+
+  // The loading screen (guest page only): signing in, then going on
+  const loading = !fullPage
+    ? null
+    : busy
+      ? { text: "Connecting you…", detail: `${site.name} Wi-Fi` }
+      : goStraightOn && result && !paused
+        ? { text: `Taking you to ${hostOf(site.redirectUrl) || "the website"}…`, detail: "You're connected." }
+        : null;
 
   return (
     <div
@@ -623,6 +660,7 @@ export default function PortalPreview({
           </p>
         )}
       </div>
+      {loading && <LoadingScreen color={look.color} text={loading.text} detail={loading.detail} />}
     </div>
   );
 }

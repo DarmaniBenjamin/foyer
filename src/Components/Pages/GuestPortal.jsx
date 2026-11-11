@@ -77,10 +77,15 @@ function Portal({ site, ads, guest, done }) {
 
   async function signIn(values) {
     try {
-      const outcome = await api(`/portal/${site.slug}/signin`, {
-        method: "POST",
-        body: { ...values, ...(guest ?? { mac: demoDeviceMac() }) },
-      });
+      // The loading screen shows for at least a moment, so it doesn't
+      // just flash before the splash ad
+      const [outcome] = await Promise.all([
+        api(`/portal/${site.slug}/signin`, {
+          method: "POST",
+          body: { ...values, ...(guest ?? { mac: demoDeviceMac() }) },
+        }),
+        new Promise((done) => setTimeout(done, 1200)),
+      ]);
       if (!outcome.error && after) setShowing(after);
       if (outcome.next) setNext(outcome.next);
       return outcome;
