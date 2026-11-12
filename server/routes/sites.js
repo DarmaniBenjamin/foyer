@@ -9,7 +9,6 @@ import { db } from "../db/index.js";
 import { controllers, sites, users } from "../db/schema.js";
 import { requireAccess } from "../auth.js";
 import { SIGN_IN_MODES, SITE_COLORS, makeSite, makeSlug } from "../../src/data.js";
-import crypto from "node:crypto";
 import { Problem, SERVER_ONLY, siteIn, siteOut, text } from "../shapes.js";
 import { seal } from "../secrets.js";
 import { readPortal, tryPortal } from "../importPortal.js";
@@ -257,9 +256,9 @@ sitesRouter.post("/:id/omada-setup", requireAccess("controllers"), async (req, r
   const origin = `${req.protocol}://${req.get("host")}`;
   const portalUrl = `${origin}/omada/${row.slug}`;
   const operatorName = `foyer-${row.slug}`.slice(0, 60);
-  const operatorPassword = crypto.randomBytes(18).toString("base64url");
 
-  const { done, before } = await onController(() =>
+  // The operator's password is made there, as Omada will take it
+  const { done, before, operatorPassword } = await onController(() =>
     setUpOmada(controllerId, siteKey, {
       ssidId: wlanId,
       portalName: `Foyer ${row.name}`.slice(0, 120),
@@ -267,7 +266,6 @@ sitesRouter.post("/:id/omada-setup", requireAccess("controllers"), async (req, r
       host: req.hostname,
       minutes: row.settings?.minutes,
       operatorName,
-      operatorPassword,
     }),
   );
 

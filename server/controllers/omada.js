@@ -18,6 +18,7 @@
 //     data limits in the same request
 // The unit is picked from the version Test connection finds, or set by
 // hand on the controller (Time unit) if a version behaves differently.
+import crypto from "node:crypto";
 import { ControllerError, CookieJar, request } from "./http.js";
 
 const sessions = new Map(); // controller id → { jar, token, at, stamp }
@@ -282,11 +283,13 @@ export async function api(controller, method, path, body) {
     const code = res.json?.errorCode;
     if (code === 0) return res.json.result;
     if (attempt === 0 && (res.status === 401 || [-44112, -44113].includes(code))) continue;
-    throw new ControllerError(
+    const err = new ControllerError(
       code === -1005 || res.status === 403
         ? "The Open API app isn't allowed to do that. Give it an admin role, with this site ticked."
         : `Omada said no (${code ?? res.status}${res.json?.msg ? `: ${res.json.msg}` : ""}).`,
     );
+    err.omadaCode = code;
+    throw err;
   }
 }
 
@@ -337,16 +340,39 @@ const portalBody = (detail) => {
 
 const OPERATOR_NOTE = "Made by Foyer to let guests on. Don't delete.";
 
+// Passwords for the site's Hotspot Operator, to try in turn. Omada
+// versions differ in what they accept: some refuse "-" and "_", others
+// want a symbol. First letters and numbers only (always a capital, a small
+// letter and a number), then the same with symbols. Omada answers
+// -30105 "invalid password" to one it won't take.
+const LETTERS = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
+const randomFrom = (chars, n) => [...crypto.randomBytes(n)].map((b) => chars[b % chars.length]).join("");
+const shuffle = (text) => {
+  const a = [...text];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = crypto.randomInt(i + 1);
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a.join("");
+};
+export function operatorPasswords() {
+  const base = () =>
+    randomFrom("ABCDEFGHJKLMNPQRSTUVWXYZ", 1) + randomFrom("abcdefghijkmnopqrstuvwxyz", 1) + randomFrom("23456789", 1);
+  return [shuffle(base() + randomFrom(LETTERS, 17)), shuffle(base() + randomFrom(LETTERS, 13) + randomFrom("!@#$%", 2))];
+}
+const BAD_PASSWORD = -30105;
+
 // Sets one Omada site up for Foyer:
 //   1. the Wi-Fi network comes off any other portal (e.g. Spotipo's)
 //   2. a "Foyer <name>" portal, External Portal Server = portalUrl
 //   3. Pre-Authentication Access for Foyer's address (host)
 //   4. a Hotspot Operator for this site, to let guests on
-// Returns { done: steps in words, before: for Undo, operator }
+// Returns { done: steps in words, before: for Undo, operatorPassword:
+// the password the operator was made with }
 export async function setUpPortalApi(
   controller,
   siteId,
-  { ssidId, portalName, portalUrl, host, minutes, operatorName, operatorPassword },
+  { ssidId, portalName, portalUrl, host, minutes, operatorName },
 ) {
   const done = [];
   const before = { siteId, portals: [], createdPortalId: null, accessControl: null };
@@ -426,16 +452,29 @@ export async function setUpPortalApi(
   );
   for (const op of list?.data ?? [])
     if (op.name === operatorName) await api(controller, "DELETE", `/sites/${siteId}/hotspot/operators/${op.id}`);
-  await api(controller, "POST", `/sites/${siteId}/hotspot/operators`, {
-    name: operatorName,
-    password: operatorPassword,
-    note: OPERATOR_NOTE,
-    operatorRoleType: 0,
-    selectedSites: [siteId],
-  });
+  let operatorPassword = null;
+  for (const password of operatorPasswords()) {
+    try {
+      await api(controller, "POST", `/sites/${siteId}/hotspot/operators`, {
+        name: operatorName,
+        password,
+        note: OPERATOR_NOTE,
+        operatorRoleType: 0,
+        selectedSites: [siteId],
+      });
+      operatorPassword = password;
+      break;
+    } catch (err) {
+      if (err.omadaCode !== BAD_PASSWORD) throw err;
+    }
+  }
+  if (!operatorPassword)
+    throw new ControllerError(
+      `Omada wouldn't take a password for the site's Hotspot Operator (${BAD_PASSWORD}: invalid password). Check the password rules Omada shows under Hotspot Manager → Operators → Add.`,
+    );
   done.push(`Hotspot Operator "${operatorName}" made for letting guests on`);
 
-  return { done, before };
+  return { done, before, operatorPassword };
 }
 
 // Undo: the other portals and Pre-Authentication Access as they were,
