@@ -177,7 +177,9 @@ export async function listWlans(controller, siteKey) {
 }
 
 // What the UniFi site's guest portal does now, so the page can warn
-// before Foyer takes it over: { enabled, external, address }
+// before Foyer takes it over: { enabled, external, address, https }.
+// https: "Use Secure Portal" or "HTTPS Redirection" is on, which makes
+// phones open the portal server's IP over https and show "not secure"
 export async function portalState(controller, siteKey) {
   const got = await call(controller, "GET", `/api/s/${encodeURIComponent(siteKey)}/get/setting`);
   if (got.json?.meta?.rc !== "ok") throw failed(got, "share its guest portal settings");
@@ -186,6 +188,7 @@ export async function portalState(controller, siteKey) {
     enabled: Boolean(g.portal_enabled),
     external: g.auth === "custom",
     address: g.custom_ip || g.portal_hostname || null,
+    https: Boolean(g.redirect_https || g.redirect_to_https),
   };
 }
 
@@ -221,10 +224,18 @@ export async function setUpPortal(controller, siteKey, { wlanId, portalIp, allow
     auth: "custom",
     custom_ip: portalIp,
     portal_use_hostname: false,
-    // HTTPS redirection off: with it on, UniFi answers https:// sites
-    // itself before the guest is on, with a certificate that isn't
-    // theirs, and Android shows "This site is not secure"
+    // Both https settings off. Guests go to http://<Linode IP>/guest/s/…,
+    // which the Linode's nginx sends on to Foyer's https address.
+    // "Use Secure Portal" (redirect_https) on: UniFi sends them to
+    // https://<Linode IP>/… instead, and the Linode's certificate is for
+    // its domain, not its IP, so phones say "not secure" (Android:
+    // SSL_IDMISMATCH) and show the IP.
+    // "HTTPS Redirection" (redirect_to_https) on: UniFi answers https://
+    // sites itself before the guest is on, with a certificate that isn't
+    // theirs: the same warning.
+    // New UniFi sites can start with these on, so they're set every time.
     redirect_https: false,
+    redirect_to_https: false,
   };
   for (const k of Object.keys(settings)) if (/^allowed_subnet_\d+$/.test(k)) delete settings[k];
   allAllowed.forEach((s, i) => (settings[`allowed_subnet_${i + 1}`] = s));
@@ -237,6 +248,7 @@ export async function setUpPortal(controller, siteKey, { wlanId, portalIp, allow
   if (saved.json?.meta?.rc !== "ok") throw failed(saved, "save the guest portal settings");
   done.push(`Guest portal on, with External portal server ${portalIp}`);
   done.push(`Pre-authorization access for ${wanted.join(", ")}`);
+  done.push("Secure Portal and HTTPS Redirection off, so phones don't show the IP as \"not secure\"");
 
   // 2. The Wi-Fi network (and whether its guest portal was on before)
   const old = await call(controller, "GET", `${site}/rest/wlanconf/${encodeURIComponent(wlanId)}`);

@@ -11,7 +11,7 @@
 // Omada: the same, when the controller has an Open API app (the portal,
 // Pre-Authentication Access and a Hotspot Operator for the site are made
 // by Foyer). Without one, it's done by hand with the steps shown here.
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   CircleAlert,
   CircleCheck,
@@ -225,6 +225,41 @@ function AutoSetup({ site, draft, set, controller }) {
 
   const setUp = saved?.setupAt && site.controllerId === controller.id && !changing;
 
+  // A set-up UniFi site: check its https settings are still off (a new
+  // UniFi site, or someone in UniFi, can turn them back on)
+  const [httpsOn, setHttpsOn] = useState(false);
+  const checkKey = !omada && setUp ? draft.siteKey : null;
+  useEffect(() => {
+    setHttpsOn(false);
+    if (!checkKey) return undefined;
+    let live = true;
+    api(`/controllers/${controller.id}/sites/${encodeURIComponent(checkKey)}/portal`)
+      .then((now) => live && setHttpsOn(Boolean(now?.https)))
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [checkKey, controller.id, saved?.setupAt]);
+
+  // Set up again with the same UniFi site, Wi-Fi and portal IP
+  async function fixHttps() {
+    setBusy("fix");
+    setError("");
+    const result = await setUpUnifi(site.id, {
+      controllerId: controller.id,
+      siteKey: draft.siteKey,
+      siteName: saved.siteName,
+      wlanId: saved.wlanId,
+      wlanName: saved.wlanName,
+      portalIp: saved.portalIp,
+    });
+    setBusy("");
+    if (result.error) return setError(result.error);
+    set({ controllerId: result.site.controllerId, siteKey: result.site.siteKey, unifi: result.site.unifi, unifiUndo: result.site.unifiUndo });
+    setDone(result.done);
+    setHttpsOn(false);
+  }
+
   async function load(what, path, then) {
     setBusy(what);
     setError("");
@@ -350,6 +385,22 @@ function AutoSetup({ site, draft, set, controller }) {
             </p>
           </div>
         </div>
+        {httpsOn && (
+          <div className="space-y-2 rounded-lg bg-amber-50 px-3 py-3 text-sm text-amber-800">
+            <p className="flex gap-2">
+              <TriangleAlert size={16} className="mt-0.5 shrink-0" />
+              <span>
+                <b>Secure Portal or HTTPS Redirection is on</b> for this UniFi
+                site. Phones open the sign-in page on the controller's IP and show
+                "not secure" (Android: SSL_IDMISMATCH). Turn them off:
+              </span>
+            </p>
+            <button type="button" onClick={fixHttps} disabled={busy === "fix"} className={primaryButton}>
+              {busy === "fix" ? <WifiLoader size={18} /> : <Wifi size={18} />}
+              {busy === "fix" ? "Fixing…" : "Fix it"}
+            </button>
+          </div>
+        )}
         {done && (
           <ul className="space-y-1 text-sm text-muted">
             {done.map((d) => (
@@ -485,6 +536,10 @@ function AutoSetup({ site, draft, set, controller }) {
                 </li>
                 <li>
                   Your Linode and Foyer added to <b>Pre-authorization access</b>
+                </li>
+                <li>
+                  <b>Secure Portal</b> and <b>HTTPS Redirection</b> off, so phones
+                  don't show the controller's IP as "not secure"
                 </li>
                 <li>
                   Guest portal turned on for <b>{wlans.find((w) => w.id === wlanId)?.name}</b>
