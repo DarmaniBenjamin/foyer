@@ -218,7 +218,8 @@ function AutoSetup({ site, draft, set, controller }) {
   const [wlanId, setWlanId] = useState(null);
   const [siteKey, setSiteKey] = useState(null); // the controller site chosen
   const [choosing, setChoosing] = useState(false); // the site box is open
-  const [portalIp, setPortalIp] = useState(draft.unifi?.portalIp ?? "");
+  // Starts empty: left empty, Foyer uses the controller's IP when you set up
+  const [portalIp, setPortalIp] = useState("");
   const [busy, setBusy] = useState(""); // "sites", "wlans", "setup"
   const [error, setError] = useState("");
   const [done, setDone] = useState(null);
