@@ -104,8 +104,7 @@ function Sidebar({ open, onClose }) {
           </div>
         </nav>
 
-        <div className="space-y-2 border-t border-line p-3">
-          <ThemeSwitch />
+        <div className="border-t border-line p-3">
           {/* The site picker, and the door that signs you out */}
           <div className="flex items-center gap-1.5">
             <div className="min-w-0 flex-1">
@@ -183,9 +182,11 @@ export default function Layout({ children }) {
             <Menu size={22} />
           </button>
           <h1 className="min-w-0 truncate text-base font-semibold sm:text-lg">{title}</h1>
-          {/* Which site you're looking at, on the right: click it to switch
-              site. Next to it, a link to the site's guest sign-in page */}
+          {/* On the right: light or dark, which site you're looking at
+              (click it to switch site), and a link to the site's guest
+              sign-in page */}
           <div className="ml-auto flex shrink-0 items-center gap-2">
+            <ThemeSwitch />
             <SiteSwitcher variant="header" />
             {currentSite && (
               <Link

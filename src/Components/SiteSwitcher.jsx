@@ -169,7 +169,7 @@ export default function SiteSwitcher({ onPicked, variant = "sidebar" }) {
           title="Switch site"
         >
           {/* The site's name, shortened with … when there isn't room */}
-          <span className="max-w-[9rem] min-w-0 truncate text-[13px] font-medium sm:max-w-48">
+          <span className="max-w-[7rem] min-w-0 truncate text-[13px] font-medium min-[400px]:max-w-[9rem] sm:max-w-48">
             {currentSite ? currentSite.name : "All sites"}
           </span>
           <ChevronsUpDown size={15} className="shrink-0 text-muted" />
