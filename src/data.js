@@ -186,6 +186,28 @@ export const PAGE_PARTS = {
   footer: { label: "Small print" },
 };
 
+// Ways a background can blend into its second colour
+export const GRADIENTS = {
+  down: { label: "Down", css: "180deg" },
+  diagonal: { label: "Diagonal", css: "135deg" },
+  across: { label: "Across", css: "90deg" },
+  middle: { label: "From the middle", css: "radial" },
+};
+
+// The page background's CSS: its colour, and its gradient if it has one
+export function backgroundStyle(look) {
+  const g = look?.gradient;
+  if (!g?.to || look?.backgroundImage) return { backgroundColor: look?.background };
+  const how = GRADIENTS[g.direction] ?? GRADIENTS.diagonal;
+  return {
+    backgroundColor: look.background,
+    backgroundImage:
+      how.css === "radial"
+        ? `radial-gradient(circle at 50% 40%, ${look.background}, ${g.to})`
+        : `linear-gradient(${how.css}, ${look.background}, ${g.to})`,
+  };
+}
+
 // look.parts, filled in: every part once, in the admin's order. Before
 // the admin has arranged anything, the Wi-Fi sign only shows when there's
 // no logo, so a logo is shown on its own.
@@ -251,6 +273,8 @@ export function textStyle(look, part) {
 //   bgZoom (1–3), bgX / bgY (0–100, where the picture is centred) and
 //   bgDim (0–0.7, a dark layer over it): the background picture.
 //   cardPosition: "top", "middle" or "bottom" of the screen.
+//   gradient: { to, direction } or null: the background colour blends
+//     into the colour "to" (see GRADIENTS), when there's no picture.
 //   parts: what's on the page, top to bottom (see pageParts).
 //   text: the size, bold and italic of the words (see TEXT_PARTS).
 // showConnected: after signing in (and the splash ad), show the "You're

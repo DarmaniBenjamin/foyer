@@ -20,6 +20,7 @@ import {
 import useData from "../../useData";
 import {
   COUNTRIES,
+  GRADIENTS,
   NO_TIME_LIMIT,
   SIGN_IN_MODES,
   TIMEZONES,
@@ -445,6 +446,47 @@ function LookTab({ draft, set, setLook, onPreviewPage }) {
           value={look.background}
           onChange={(background) => setLook({ background })}
         />
+        {!look.backgroundImage && (
+          <>
+            <Toggle
+              checked={Boolean(look.gradient)}
+              onChange={(on) =>
+                setLook({ gradient: on ? { to: look.color ?? "#111827", direction: "diagonal" } : null })
+              }
+              label="Gradient"
+              detail="Blend the background colour into a second colour"
+            />
+            {look.gradient && (
+              <>
+                <ColorField
+                  id="look-gradient"
+                  label="Blends into"
+                  value={look.gradient.to}
+                  onChange={(to) => setLook({ gradient: { ...look.gradient, to } })}
+                />
+                <div>
+                  <span className={labelClass}>Direction</span>
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                    {Object.entries(GRADIENTS).map(([value, { label }]) => (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => setLook({ gradient: { ...look.gradient, direction: value } })}
+                        className={`h-9 rounded-lg border text-sm font-semibold transition ${
+                          (look.gradient.direction ?? "diagonal") === value
+                            ? "border-brand bg-brand/10 text-brand"
+                            : "border-line text-muted hover:border-brand/40 hover:bg-brand/5"
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+          </>
+        )}
       </Section>
 
       <Section

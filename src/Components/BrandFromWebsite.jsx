@@ -4,13 +4,14 @@
 // "Use these colours" or "Use this logo"; a site that already has a logo
 // keeps it unless you do.
 //   look: the site's look now
-//   onUse(changes): put { color, background, cardColor } or { logo } into
+//   onUse(changes): put { color, background, cardColor, cardOpacity,
+//     gradient } or { logo } into
 //     the look (saved with the site's Save, or when the site is made)
 //   keep: what to do to keep them ("press Save to keep")
 import { useState } from "react";
 import { Check, Globe, Palette } from "lucide-react";
 import { api } from "../api";
-import { textOn } from "../data";
+import { GRADIENTS, backgroundStyle, textOn } from "../data";
 import { shrinkPicture } from "./LogoPicker";
 import WifiLoader from "./WifiLoader";
 import { hintClass, inputClass, primaryButton, secondaryButton } from "./formStyles";
@@ -33,6 +34,8 @@ const near = (a, b) => {
   const [x, y] = [rgbOf(a), rgbOf(b)];
   return Math.hypot(x[0] - y[0], x[1] - y[1], x[2] - y[2]) < 40;
 };
+// "#d62828" + 0.8 → "rgba(214, 40, 40, 0.8)"
+const withOpacity = (hex, opacity) => `rgba(${rgbOf(hex).join(", ")}, ${opacity})`;
 // A colour mixed with white (0 = the colour, 1 = white)
 const tint = (hex, amount) => hexOf(...rgbOf(hex).map((c) => c + (255 - c) * amount));
 
@@ -108,7 +111,7 @@ function suggest(colors) {
   const dark = colors
     .filter((c) => c.hex !== button && lightness(c.hex) < 0.35)
     .sort((a, b) => b.score - a.score)[0];
-  return { color: button, background: dark?.hex ?? tint(button, 0.88), cardColor: "#ffffff" };
+  return { color: button, background: dark?.hex ?? tint(button, 0.88), cardColor: "#ffffff", cardOpacity: 1, gradient: null };
 }
 
 function Swatch({ hex, on, onClick, label }) {
@@ -120,12 +123,61 @@ function Swatch({ hex, on, onClick, label }) {
       aria-label={label ?? hex}
       aria-pressed={on}
       className={`relative h-8 w-8 shrink-0 rounded-full border transition ${
-        on ? "border-transparent ring-2 ring-brand ring-offset-2 ring-offset-white" : "border-black/10 hover:scale-110"
+        on ? "border-transparent outline-2 outline-offset-2 outline-brand" : "border-line hover:scale-110"
       }`}
       style={{ backgroundColor: hex }}
     >
       {on && <Check size={14} className="absolute inset-0 m-auto" style={{ color: textOn(hex) }} />}
     </button>
+  );
+}
+
+// The page background's gradient: on or off, the colour it blends into,
+// and which way
+function GradientPick({ found, picked, pick, choices }) {
+  const other = found.colors.find((c) => c.hex !== picked.background && c.hex !== picked.color)?.hex ?? picked.color;
+  return (
+    <div className="mt-2 space-y-2">
+      <label className="flex cursor-pointer items-center gap-2 text-sm font-medium">
+        <input
+          type="checkbox"
+          checked={Boolean(picked.gradient)}
+          onChange={(e) => pick({ gradient: e.target.checked ? { to: other, direction: "diagonal" } : null })}
+          className="h-4 w-4 accent-brand"
+        />
+        Gradient: blend into a second colour
+      </label>
+      {picked.gradient && (
+        <>
+          <div className="flex flex-wrap gap-2">
+            {choices("background").map((hex) => (
+              <Swatch
+                key={hex}
+                hex={hex}
+                on={picked.gradient.to === hex}
+                onClick={() => pick({ gradient: { ...picked.gradient, to: hex } })}
+              />
+            ))}
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {Object.entries(GRADIENTS).map(([value, { label }]) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => pick({ gradient: { ...picked.gradient, direction: value } })}
+                className={`h-8 rounded-md border px-2.5 text-xs font-semibold transition ${
+                  picked.gradient.direction === value
+                    ? "border-brand bg-brand/10 text-brand"
+                    : "border-line text-muted hover:border-brand/40"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
   );
 }
 
@@ -142,6 +194,7 @@ export default function BrandFromWebsite({ look, onUse, keep = "press Save to ke
   const [found, setFound] = useState(null); // what the website has
   const [picked, setPicked] = useState(null); // { color, background, cardColor }
   const [used, setUsed] = useState({}); // { colors, logo }: pressed
+  const pick = (changes) => setPicked((p) => ({ ...p, ...changes }));
 
   async function look_up() {
     if (!url.trim()) return setError("Enter the company's website, e.g. mix959fm.com");
@@ -225,24 +278,52 @@ export default function BrandFromWebsite({ look, onUse, keep = "press Save to ke
                             key={hex}
                             hex={hex}
                             on={picked[role] === hex}
-                            onClick={() => setPicked((p) => ({ ...p, [role]: hex }))}
+                            onClick={() => pick({ [role]: hex })}
                           />
                         ))}
                       </div>
+                      {role === "background" && <GradientPick found={found} picked={picked} pick={pick} choices={choices} />}
+                      {role === "cardColor" && (
+                        <div className="mt-2">
+                          <label htmlFor="brand-opacity" className="flex items-center justify-between text-sm font-medium">
+                            See-through box
+                            <span className="tabular-nums text-muted">{Math.round((1 - picked.cardOpacity) * 100)}%</span>
+                          </label>
+                          <input
+                            id="brand-opacity"
+                            type="range"
+                            min="30"
+                            max="100"
+                            value={Math.round(picked.cardOpacity * 100)}
+                            onChange={(e) => pick({ cardOpacity: Number(e.target.value) / 100 })}
+                            className="w-full accent-brand"
+                          />
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
 
                 {/* A small look at the result */}
                 <div
-                  className="flex h-44 w-full shrink-0 items-center justify-center rounded-lg border border-line p-4 sm:w-40"
-                  style={{ backgroundColor: picked.background }}
+                  className="flex h-48 w-full shrink-0 items-center justify-center self-start rounded-lg border border-line p-4 sm:sticky sm:top-4 sm:w-44"
+                  style={backgroundStyle({ background: picked.background, gradient: picked.gradient })}
                   aria-hidden="true"
                 >
-                  <div className="w-full max-w-[9rem] space-y-1.5 rounded-lg p-3 shadow-md" style={{ backgroundColor: picked.cardColor }}>
+                  <div
+                    className="w-full max-w-[9rem] space-y-1.5 rounded-lg p-3 shadow-md"
+                    style={{
+                      backgroundColor: withOpacity(picked.cardColor, picked.cardOpacity),
+                      backdropFilter: picked.cardOpacity < 1 ? "blur(6px)" : undefined,
+                    }}
+                  >
                     {found.logo && <img src={found.logo} alt="" className="mx-auto mb-1 max-h-7 max-w-full object-contain" />}
-                    <div className="h-1.5 rounded-full opacity-25" style={{ backgroundColor: textOn(picked.cardColor) }} />
-                    <div className="h-5 rounded border border-black/10 bg-white" />
+                    <div
+                      className="h-1.5 rounded-full opacity-25"
+                      style={{ backgroundColor: textOn(picked.cardOpacity < 0.6 ? picked.background : picked.cardColor) }}
+                    />
+                    {/* Inline colours: the app's dark theme mustn't change them */}
+                    <div className="h-5 rounded border border-black/10" style={{ backgroundColor: "#ffffff" }} />
                     <div
                       className="flex h-6 items-center justify-center rounded text-[10px] font-semibold"
                       style={{ backgroundColor: picked.color, color: textOn(picked.color) }}
@@ -275,22 +356,28 @@ export default function BrandFromWebsite({ look, onUse, keep = "press Save to ke
           )}
 
           {found.logo && (
-            <div className="flex flex-wrap items-center gap-3 border-t border-line pt-3">
-              <span className="flex h-14 w-24 shrink-0 items-center justify-center rounded-lg border border-line bg-[repeating-conic-gradient(#f3f4f6_0%_25%,#fff_0%_50%)] bg-[length:12px_12px] p-1.5">
-                <img src={found.logo} alt="The logo found" className="max-h-full max-w-full object-contain" />
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium">Logo, from {found.logoFrom}</p>
-                <p className={hintClass}>
-                  {look.logo ? "This site already has a logo; it stays unless you use this one." : "This site has no logo yet."}
-                </p>
+            // On a phone the button goes under the logo and its words
+            <div className="flex flex-col gap-3 border-t border-line pt-3 sm:flex-row sm:items-center">
+              <div className="flex min-w-0 flex-1 items-center gap-3">
+                <span
+                  className="flex h-14 w-24 shrink-0 items-center justify-center rounded-lg border border-line bg-[length:12px_12px] p-1.5"
+                  style={{ backgroundImage: "repeating-conic-gradient(#f3f4f6 0% 25%, #ffffff 0% 50%)" }}
+                >
+                  <img src={found.logo} alt="The logo found" className="max-h-full max-w-full object-contain" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium">Logo, from {found.logoFrom}</p>
+                  <p className={hintClass}>
+                    {look.logo ? "This site already has a logo; it stays unless you use this one." : "This site has no logo yet."}
+                  </p>
+                </div>
               </div>
               {used.logo ? (
                 <span className="flex items-center gap-1 text-sm font-medium text-emerald-700">
                   <Check size={15} /> Put in: {keep}
                 </span>
               ) : (
-                <button type="button" onClick={useLogo} className={secondaryButton}>
+                <button type="button" onClick={useLogo} className={`${secondaryButton} w-full sm:w-auto`}>
                   {look.logo ? "Use this logo instead" : "Use this logo"}
                 </button>
               )}

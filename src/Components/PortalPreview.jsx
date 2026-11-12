@@ -12,7 +12,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { CircleAlert } from "lucide-react";
 import { BrandBadge, ConnectedMark, SignalBars, SignalChip } from "./PortalMotion";
 import WifiLoader from "./WifiLoader";
-import { COUNTRIES, NO_TIME_LIMIT, formatMinutes, pageParts, textOn, textStyle } from "../data";
+import { COUNTRIES, NO_TIME_LIMIT, backgroundStyle, formatMinutes, pageParts, textOn, textStyle } from "../data";
 
 const validEmail = (text) => /^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(text);
 
@@ -438,7 +438,7 @@ export default function PortalPreview({
     <div
       data-portal
       className={`relative flex flex-col items-center overflow-hidden px-4 ${align} ${fullPage ? "min-h-dvh py-10" : "min-h-full py-8"}`}
-      style={{ "--portal-color": look.color, backgroundColor: look.background }}
+      style={{ "--portal-color": look.color, ...backgroundStyle(look) }}
     >
       {look.backgroundImage && (
         // The picture, zoomed in on and moved as set in Site settings → Look
