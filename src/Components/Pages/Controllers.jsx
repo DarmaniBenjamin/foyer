@@ -2,11 +2,11 @@
 // signs its guests in through one of them.
 //
 // Test connection signs in to the controller from the server (UniFi: a
-// local admin; Omada: a Hotspot Operator) and shows what it found.
+// local admin; Omada: a Hotspot Operator) and shows what it found. Foyer
+// also does that by itself every 5 minutes (server/controllers/watch.js),
+// so each one shows Online or Offline without pressing anything.
 import { useState } from "react";
 import {
-  CircleAlert,
-  CircleCheck,
   Pencil,
   PlugZap,
   Plus,
@@ -15,35 +15,12 @@ import {
 } from "lucide-react";
 import WifiLoader from "../WifiLoader";
 import useData from "../../useData";
-import { CONTROLLER_KINDS, timeAgo } from "../../data";
+import { CONTROLLER_KINDS } from "../../data";
+import ControllerStatus from "../ControllerStatus";
 import ControllerModal from "../ControllerModal";
 import Modal from "../Modal";
 import SiteIcon from "../SiteIcon";
 import { dangerButton, primaryButton, secondaryButton } from "../formStyles";
-
-function TestResult({ test }) {
-  if (!test)
-    return <p className="text-sm text-muted">Not tested yet</p>;
-  const Icon = test.ok ? CircleCheck : CircleAlert;
-  return (
-    <div
-      className={`flex gap-2 rounded-lg px-3 py-2 text-sm ${
-        test.ok ? "bg-emerald-50 text-emerald-800" : "bg-red-50 text-red-700"
-      }`}
-    >
-      <Icon size={18} className="mt-0.5 shrink-0" />
-      <div className="min-w-0">
-        <p className="font-medium">
-          {test.ok ? "Connected" : "Couldn't connect"} · {timeAgo(test.at)}
-        </p>
-        {/* Working: just "Connected" (and a warning, if there is one) */}
-        {(test.ok ? test.warning : test.message) && (
-          <p className="opacity-90">{test.ok ? test.warning : test.message}</p>
-        )}
-      </div>
-    </div>
-  );
-}
 
 function ControllerCard({ controller, usedBy, isCurrent, onEdit, onDelete }) {
   const { testController } = useData();
@@ -107,7 +84,7 @@ function ControllerCard({ controller, usedBy, isCurrent, onEdit, onDelete }) {
         )}
       </div>
 
-      <TestResult test={controller.lastTest} />
+      <ControllerStatus test={controller.lastTest} />
 
       <div className="mt-auto flex gap-2">
         <button

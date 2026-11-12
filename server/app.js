@@ -17,6 +17,7 @@ import { mediaRouter, serveAdPicture, serveMedia } from "./routes/media.js";
 import { arriveRouter } from "./routes/arrive.js";
 import { maintenanceRouter } from "./routes/maintenance.js";
 import { announceChanges, liveRouter, startLive } from "./live.js";
+import { startWatching } from "./controllers/watch.js";
 
 const DIST = path.join(ROOT, "dist");
 
@@ -58,6 +59,8 @@ export function makeApp() {
   app.use("/api", announceChanges);
   app.use("/api/live", liveRouter);
   startLive();
+  // Every controller checked every 5 minutes (controllers/watch.js)
+  startWatching();
   app.use("/api/auth", authRouter);
   app.use("/api/setup", setupRouter);
   app.use("/api/data", dataRouter);

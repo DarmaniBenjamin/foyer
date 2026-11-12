@@ -21,9 +21,17 @@ const withPassword = (row) => ({
 });
 
 // Test connection. The result is saved on the controller (lastTest), so
-// the Controllers page shows when each one last worked. For Omada it
-// also keeps the version and controller ID, needed to let guests on.
-export async function testController(row) {
+// the Controllers page shows whether each one works. For Omada it also
+// keeps the version and controller ID, needed to let guests on.
+// lastTest = { ok, message, warning, version, omadaId, sites,
+//   at: when it was checked, since: since when it's been online (or
+//   offline), auto: checked by Foyer itself (watch.js) }
+export async function testController(row, { auto = false } = {}) {
+  return saveTest(row, await runTest(row), { auto });
+}
+
+// The check itself, not saved
+export async function runTest(row) {
   let result;
   try {
     const controller = withPassword(row);
@@ -45,7 +53,17 @@ export async function testController(row) {
       result.version = row.lastTest.version;
     }
   }
-  result.at = Date.now();
+  return result;
+}
+
+// Saves a check's result on the controller
+export async function saveTest(row, result, { auto = false } = {}) {
+  const before = row.lastTest;
+  const now = Date.now();
+  result.at = now;
+  result.auto = auto;
+  // Still the same (online, or offline): since when it's been that way
+  result.since = before && before.ok === result.ok ? (before.since ?? before.at ?? now) : now;
   const [saved] = await db
     .update(controllers)
     .set({ lastTest: result })

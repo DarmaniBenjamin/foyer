@@ -23,6 +23,7 @@ import useData from "../../useData";
 import { api } from "../../api";
 import { timeAgo } from "../../data";
 import SiteIcon from "../SiteIcon";
+import ControllerStatus from "../ControllerStatus";
 import Modal from "../Modal";
 import { dangerButton, labelClass, secondaryButton } from "../formStyles";
 
@@ -191,7 +192,8 @@ function Status({ ok, children }) {
 }
 
 function SystemHealth() {
-  const { testController } = useData();
+  // The controllers come from the shared data, so they change live
+  const { testController, controllers } = useData();
   const [health, setHealth] = useState(null);
   const [error, setError] = useState("");
   const [testing, setTesting] = useState(false);
@@ -211,7 +213,7 @@ function SystemHealth() {
 
   async function testAll() {
     setTesting(true);
-    for (const c of health?.controllers ?? []) await testController(c.id);
+    for (const c of controllers) await testController(c.id);
     await load();
     setTesting(false);
   }
@@ -279,30 +281,21 @@ function SystemHealth() {
               <button
                 type="button"
                 onClick={testAll}
-                disabled={testing || !health.controllers.length}
+                disabled={testing || !controllers.length}
                 className={`${secondaryButton} h-9`}
               >
                 {testing ? <WifiLoader size={16} /> : <PlugZap size={16} />}
                 Test all
               </button>
             </div>
-            {health.controllers.length === 0 ? (
+            {controllers.length === 0 ? (
               <p className="text-sm text-muted">No controllers yet.</p>
             ) : (
               <ul className="divide-y divide-line rounded-lg border border-line">
-                {health.controllers.map((c) => (
+                {controllers.map((c) => (
                   <li key={c.id} className="flex flex-col gap-1 p-3 sm:flex-row sm:items-center sm:gap-3">
                     <span className="min-w-0 flex-1 truncate text-sm font-medium">{c.name}</span>
-                    {c.lastTest ? (
-                      <span className="text-xs text-muted sm:text-right">
-                        <Status ok={c.lastTest.ok}>
-                          {c.lastTest.ok ? "Connected" : "Couldn't connect"} ·{" "}
-                          {timeAgo(c.lastTest.at)}
-                        </Status>
-                      </span>
-                    ) : (
-                      <span className="text-xs text-muted">Not tested yet</span>
-                    )}
+                    <ControllerStatus test={c.lastTest} compact />
                   </li>
                 ))}
               </ul>

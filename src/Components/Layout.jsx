@@ -10,7 +10,8 @@ import SiteSwitcher from "./SiteSwitcher";
 import ThemeSwitch from "./ThemeSwitch";
 import useData from "../useData";
 
-function SidebarLink({ link, onClick }) {
+// alert: a red dot on the link (a controller is offline)
+function SidebarLink({ link, onClick, alert = "" }) {
   const Icon = link.icon;
   return (
     <NavLink
@@ -29,6 +30,9 @@ function SidebarLink({ link, onClick }) {
         <>
           <Icon size={17} strokeWidth={isActive ? 2.2 : 1.8} />
           {link.label}
+          {alert && (
+            <span className="ml-auto h-2 w-2 animate-pulse rounded-full bg-red-500" title={alert} aria-label={alert} />
+          )}
         </>
       )}
     </NavLink>
@@ -36,7 +40,15 @@ function SidebarLink({ link, onClick }) {
 }
 
 function Sidebar({ open, onClose }) {
-  const { currentAdmin, can, signOut, currentSite } = useData();
+  const { currentAdmin, can, signOut, currentSite, controllers } = useData();
+  // Controllers that are offline (Foyer checks them every 5 minutes)
+  const offline = controllers.filter((c) => c.lastTest && !c.lastTest.ok);
+  const alertFor = (link) =>
+    link.path === "/controllers" && offline.length
+      ? `${offline.length === 1 ? offline[0].name : `${offline.length} controllers`} offline`
+      : link.label === "Site settings" && offline.some((c) => c.id === currentSite?.controllerId)
+        ? "This site's controller is offline"
+        : "";
   const navigate = useNavigate();
   return (
     <>
@@ -82,7 +94,7 @@ function Sidebar({ open, onClose }) {
                 : link,
             )
             .map((link) => (
-              <SidebarLink key={link.path} link={link} onClick={onClose} />
+              <SidebarLink key={link.path} link={link} onClick={onClose} alert={alertFor(link)} />
             ))}
           <div className="mt-auto pt-2">
             <SidebarLink
