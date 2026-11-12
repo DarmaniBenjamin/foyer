@@ -172,22 +172,50 @@ export default function DataProvider({ children }) {
       }, 400);
     };
 
+    // When the live line last said anything (it pings every 25 seconds)
+    let heard = 0;
+    const newBuild = (said) => {
+      if (said === build) return;
+      if (document.hidden) return window.location.reload();
+      setNewVersion(true);
+    };
+
+    live.addEventListener("ping", () => (heard = Date.now()));
     live.addEventListener("hello", (e) => {
+      heard = Date.now();
       const said = JSON.parse(e.data);
       if (build === null) build = said.build;
       else {
         // Connected again (Foyer restarted, or the network dropped):
         // something may have changed meanwhile
-        if (said.build !== build) {
-          if (document.hidden) return window.location.reload();
-          setNewVersion(true);
-        }
+        newBuild(said.build);
         refresh();
       }
     });
     live.addEventListener("changed", (e) => {
+      heard = Date.now();
       if (JSON.parse(e.data).from !== TAB_ID) refresh();
     });
+
+    // The backup: if the live line has been quiet for 40 seconds (a
+    // host's proxy holding it back), ask every 10 seconds when the last
+    // change was, and load again when it's newer
+    let stamp = null;
+    api("/live/stamp")
+      .then((now) => stamp === null && (stamp = now.stamp))
+      .catch(() => {});
+    const check = setInterval(async () => {
+      if (document.hidden || Date.now() - heard < 40 * 1000) return;
+      try {
+        const now = await api("/live/stamp");
+        if (build === null) build = now.build;
+        else newBuild(now.build);
+        if (stamp !== null && now.stamp !== stamp) refresh();
+        stamp = now.stamp;
+      } catch {
+        // Offline for a moment: next time
+      }
+    }, 10 * 1000);
 
     const onShow = () => {
       if (!document.hidden && waiting) {
@@ -198,6 +226,7 @@ export default function DataProvider({ children }) {
     document.addEventListener("visibilitychange", onShow);
     return () => {
       live.close();
+      clearInterval(check);
       clearTimeout(timer);
       document.removeEventListener("visibilitychange", onShow);
     };

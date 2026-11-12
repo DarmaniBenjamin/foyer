@@ -10,6 +10,10 @@
 // A host may run several copies of the app, each with its own tabs, so
 // the news goes through the database (PostgreSQL's NOTIFY), which every
 // copy listens to.
+//
+// The backup: some hosts' proxies hold a long connection's messages back,
+// or cut it. Tabs that haven't heard from /api/live for a while ask
+// /api/live/stamp instead, every few seconds: when the last change was.
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
@@ -38,6 +42,17 @@ try {
 const tabs = new Set(); // { res }
 const PING_EVERY = 25 * 1000;
 
+// When the last change was (from any copy of the app that this one heard)
+let lastChange = Date.now();
+const noteChange = (payload) => {
+  try {
+    const at = Number(JSON.parse(payload).at);
+    if (at > lastChange) lastChange = at;
+  } catch {
+    lastChange = Date.now();
+  }
+};
+
 export const liveRouter = Router();
 
 liveRouter.get("/", requireUser, (req, res) => {
@@ -52,16 +67,24 @@ liveRouter.get("/", requireUser, (req, res) => {
   res.write(`retry: 3000\nevent: hello\ndata: ${JSON.stringify({ build })}\n\n`);
   const tab = { res };
   tabs.add(tab);
-  // A comment now and then, so nothing in between closes a quiet line
-  const ping = setInterval(() => res.write(": ping\n\n"), PING_EVERY);
+  // A ping now and then, so nothing in between closes a quiet line, and
+  // the tab knows the line still works
+  const ping = setInterval(() => res.write("event: ping\ndata: {}\n\n"), PING_EVERY);
   req.on("close", () => {
     clearInterval(ping);
     tabs.delete(tab);
   });
 });
 
+// When the last change was, for tabs whose live line is quiet
+liveRouter.get("/stamp", requireUser, (req, res) => {
+  res.setHeader("Cache-Control", "no-store");
+  res.json({ stamp: lastChange, build });
+});
+
 // Sends the news to this copy's tabs
 function tellTabs(payload) {
+  noteChange(payload);
   const message = `event: changed\ndata: ${payload}\n\n`;
   for (const { res } of tabs) res.write(message);
 }
@@ -101,7 +124,7 @@ export function startLive() {
 // Tells every open tab that something changed. from: the tab that made
 // the change (it already shows it, so it skips loading again).
 export async function announceChange(from = "") {
-  const payload = JSON.stringify({ from });
+  const payload = JSON.stringify({ from, at: Date.now() });
   if (listening) {
     try {
       await db.execute(sql`select pg_notify(${CHANNEL}, ${payload})`);
