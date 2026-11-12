@@ -6,7 +6,6 @@ import { useNavigate } from "react-router";
 import { ChevronRight, Plus, Search } from "lucide-react";
 import useData from "../../useData";
 import { CONTROLLER_KINDS, SIGN_IN_MODES, formatMinutes } from "../../data";
-import SiteIcon from "../SiteIcon";
 import NewSiteModal from "../NewSiteModal";
 import { primaryButton } from "../formStyles";
 
@@ -26,7 +25,6 @@ function SiteCard({ site, controller, selected, onOpen }) {
         selected ? "border-brand/50 ring-[3px] ring-brand/10" : "border-line"
       }`}
     >
-      <SiteIcon site={site} size="lg" />
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
           <h3 className="font-semibold group-hover:text-brand">{site.name}</h3>

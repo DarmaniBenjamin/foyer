@@ -405,16 +405,6 @@ export const STARTING_SITES = exampleSites();
 
 // ---------- Small helpers ----------
 
-// "Grand Anse Mall" → "GA"
-export function initials(name) {
-  return name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((w) => w[0].toUpperCase())
-    .join("");
-}
-
 // Dark or white text, whichever is easier to read on a colour
 export function textOn(hex) {
   let h = String(hex ?? "").replace("#", "");

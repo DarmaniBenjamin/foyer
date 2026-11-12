@@ -17,7 +17,6 @@ import DateRangePicker from "../DateRangePicker";
 import ChartCard from "../ChartCard";
 import { GUEST_SERIES } from "../chartColors";
 import StatTile from "../StatTile";
-import SiteIcon from "../SiteIcon";
 
 function DownloadButton({ icon, title, detail, onClick, busy, disabled }) {
   const Icon = icon;
@@ -201,7 +200,6 @@ export default function Reports() {
                   <tr key={r.site.id} className="border-t border-line">
                     <td className="px-5 py-3">
                       <span className="flex items-center gap-2 whitespace-nowrap">
-                        <SiteIcon site={r.site} size="sm" />
                         {r.site.name}
                       </span>
                     </td>

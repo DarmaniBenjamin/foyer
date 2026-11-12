@@ -4,7 +4,6 @@
 import { useState } from "react";
 import { Trash2 } from "lucide-react";
 import Modal from "./Modal";
-import SiteIcon from "./SiteIcon";
 import useData from "../useData";
 import { answerText, dateTime, guestName } from "../guests";
 import { dangerButton, secondaryButton } from "./formStyles";
@@ -84,7 +83,6 @@ export default function GuestModal({ guest, onClose }) {
     >
       {site && (
         <div className="mb-3 flex items-center gap-2 text-sm text-muted">
-          <SiteIcon site={site} size="sm" />
           {site.name}
         </div>
       )}

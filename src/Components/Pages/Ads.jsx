@@ -6,7 +6,6 @@ import { useState } from "react";
 import { Eye, MousePointerClick, Pencil, Plus, Trash2 } from "lucide-react";
 import useData from "../../useData";
 import { AD_WHEN, adStatus, clickRate } from "../../ads";
-import SiteIcon from "../SiteIcon";
 import Modal from "../Modal";
 import AdModal from "../AdModal";
 import AdDesignView from "../AdDesignView";
@@ -177,7 +176,6 @@ export default function Ads() {
 
                   {!currentSite && site && (
                     <p className="flex items-center gap-2 text-sm">
-                      <SiteIcon site={site} size="sm" />
                       <span className="truncate">{site.name}</span>
                     </p>
                   )}

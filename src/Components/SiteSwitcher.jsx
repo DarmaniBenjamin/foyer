@@ -11,30 +11,21 @@
 // are, then opens its Site settings.
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
-import { Check, ChevronsUpDown, LayoutGrid, Plus, Search } from "lucide-react";
+import { Check, ChevronsUpDown, Plus, Search } from "lucide-react";
 import useData from "../useData";
 import { ALL_SITES } from "../data";
-import SiteIcon from "./SiteIcon";
 import NewSiteModal from "./NewSiteModal";
 
-function AllSitesIcon() {
-  return (
-    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand">
-      <LayoutGrid size={18} />
-    </span>
-  );
-}
-
-function Option({ selected, onClick, icon, name, detail }) {
+// One site in the list (names only: no badges)
+function Option({ selected, onClick, name, detail }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left transition-colors ${
+      className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition-colors ${
         selected ? "bg-brand/10" : "hover:bg-brand/5"
       }`}
     >
-      {icon}
       <span className="min-w-0 flex-1">
         <span className="block truncate text-sm font-medium">{name}</span>
         <span className="block truncate text-xs text-muted">{detail}</span>
@@ -128,7 +119,6 @@ export default function SiteSwitcher({ onPicked, variant = "sidebar" }) {
             <Option
               selected={!currentSite}
               onClick={() => choose(ALL_SITES)}
-              icon={<AllSitesIcon />}
               name="All sites"
               detail={`Overview of ${sites.length} sites`}
             />
@@ -138,7 +128,6 @@ export default function SiteSwitcher({ onPicked, variant = "sidebar" }) {
                 key={site.id}
                 selected={currentSite?.id === site.id}
                 onClick={() => choose(site.id)}
-                icon={<SiteIcon site={site} />}
                 name={site.name}
                 detail={controllerName(site)}
               />
@@ -159,11 +148,9 @@ export default function SiteSwitcher({ onPicked, variant = "sidebar" }) {
                   setSearch("");
                   setAdding(true);
                 }}
-                className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left text-sm font-medium text-brand transition-colors hover:bg-brand/5"
+                className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-brand transition-colors hover:bg-brand/5"
               >
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-dashed border-brand/40">
-                  <Plus size={18} />
-                </span>
+                <Plus size={16} className="shrink-0" />
                 Add site
               </button>
             </>
@@ -175,20 +162,14 @@ export default function SiteSwitcher({ onPicked, variant = "sidebar" }) {
         <button
           type="button"
           onClick={() => setOpen((o) => !o)}
-          className={`flex h-9 max-w-full min-w-0 items-center gap-2 rounded-lg border px-1.5 text-left transition hover:border-brand/40 hover:bg-brand/5 sm:pr-2 ${
+          className={`flex h-9 max-w-full min-w-0 items-center gap-1.5 rounded-lg border pr-2 pl-3 text-left transition hover:border-brand/40 hover:bg-brand/5 ${
             open ? "border-brand/40 bg-brand/5" : "border-line"
           }`}
           aria-label="Switch site"
           title="Switch site"
         >
-          {currentSite ? (
-            <SiteIcon site={currentSite} size="sm" />
-          ) : (
-            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand">
-              <LayoutGrid size={15} />
-            </span>
-          )}
-          <span className="hidden max-w-48 truncate text-[13px] font-medium sm:block">
+          {/* The site's name, shortened with … when there isn't room */}
+          <span className="max-w-[9rem] min-w-0 truncate text-[13px] font-medium sm:max-w-48">
             {currentSite ? currentSite.name : "All sites"}
           </span>
           <ChevronsUpDown size={15} className="shrink-0 text-muted" />
@@ -197,19 +178,12 @@ export default function SiteSwitcher({ onPicked, variant = "sidebar" }) {
         <button
           type="button"
           onClick={() => setOpen((o) => !o)}
-          className={`flex h-10 w-full items-center gap-2 rounded-lg border px-1.5 text-left transition hover:border-brand/40 hover:bg-brand/5 ${
+          className={`flex h-10 w-full items-center gap-2 rounded-lg border pr-2 pl-3 text-left transition hover:border-brand/40 hover:bg-brand/5 ${
             open ? "border-brand/40 bg-brand/5" : "border-line"
           }`}
           aria-label="Switch site"
           title="Switch site"
         >
-          {currentSite ? (
-            <SiteIcon site={currentSite} size="sm" />
-          ) : (
-            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand">
-              <LayoutGrid size={15} />
-            </span>
-          )}
           <span className="min-w-0 flex-1 truncate text-[13px] font-semibold">
             {currentSite ? currentSite.name : "All sites"}
           </span>

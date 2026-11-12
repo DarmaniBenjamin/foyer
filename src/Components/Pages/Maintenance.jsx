@@ -22,7 +22,6 @@ import WifiLoader from "../WifiLoader";
 import useData from "../../useData";
 import { api } from "../../api";
 import { timeAgo } from "../../data";
-import SiteIcon from "../SiteIcon";
 import ControllerStatus from "../ControllerStatus";
 import Modal from "../Modal";
 import { dangerButton, labelClass, secondaryButton } from "../formStyles";
@@ -157,7 +156,6 @@ function MaintenanceMode() {
         {sites.map((site) => (
           <div key={site.id} className="flex flex-col gap-2 p-3 sm:flex-row sm:items-center">
             <div className="flex min-w-0 flex-1 items-center gap-3">
-              <SiteIcon site={site} size="sm" />
               <div className="min-w-0">
                 <p className="truncate text-sm font-medium">{site.name}</p>
                 {modeOf(site) !== "off" && site.maintenance?.since && (

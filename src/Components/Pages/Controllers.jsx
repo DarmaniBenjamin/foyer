@@ -19,7 +19,6 @@ import { CONTROLLER_KINDS } from "../../data";
 import ControllerStatus from "../ControllerStatus";
 import ControllerModal from "../ControllerModal";
 import Modal from "../Modal";
-import SiteIcon from "../SiteIcon";
 import { dangerButton, primaryButton, secondaryButton } from "../formStyles";
 
 function ControllerCard({ controller, usedBy, isCurrent, onEdit, onDelete }) {
@@ -74,7 +73,6 @@ function ControllerCard({ controller, usedBy, isCurrent, onEdit, onDelete }) {
                 key={site.id}
                 className="flex items-center gap-2 rounded-full border border-line py-1 pr-3 pl-1 text-sm"
               >
-                <SiteIcon site={site} size="sm" />
                 {site.name}
               </span>
             ))}

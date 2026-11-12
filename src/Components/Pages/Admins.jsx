@@ -21,7 +21,6 @@ import {
 } from "../../admins";
 import Modal from "../Modal";
 import PasswordInput from "../PasswordInput";
-import SiteIcon from "../SiteIcon";
 import {
   dangerButton,
   hintClass,
@@ -186,7 +185,6 @@ function UserModal({ user, isYou, sites, emailsTaken, onSave, onClose }) {
                       onChange={() => toggleSite(site.id)}
                       className="h-4 w-4 accent-brand"
                     />
-                    <SiteIcon site={site} size="sm" />
                     <span className="truncate text-sm">{site.name}</span>
                   </label>
                 ))}
@@ -266,7 +264,6 @@ function UserRow({ user, you, sites, onEdit, onRemove }) {
                   key={site.id}
                   className="flex items-center gap-1.5 rounded-full border border-line py-0.5 pr-2.5 pl-0.5 text-xs"
                 >
-                  <SiteIcon site={site} size="sm" />
                   {site.name}
                 </span>
               ))}

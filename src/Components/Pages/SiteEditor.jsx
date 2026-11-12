@@ -27,7 +27,6 @@ import {
   formatMinutes,
   makeSlug,
 } from "../../data";
-import SiteIcon from "../SiteIcon";
 import CopyBox from "../CopyBox";
 import ControllerSetup from "../ControllerSetup";
 import PortalPreview from "../PortalPreview";
@@ -892,7 +891,6 @@ function SiteEditor({ siteId }) {
         >
           <ArrowLeft size={18} />
         </Link>
-        <SiteIcon site={draft} />
         <div className="min-w-0">
           <h2 className="truncate text-lg font-semibold">
             {draft.name || "Untitled site"}

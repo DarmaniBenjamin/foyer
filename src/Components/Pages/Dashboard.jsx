@@ -13,7 +13,6 @@ import DateRangePicker from "../DateRangePicker";
 import ChartCard from "../ChartCard";
 import { GUEST_SERIES } from "../chartColors";
 import StatTile from "../StatTile";
-import SiteIcon from "../SiteIcon";
 
 export default function Dashboard() {
   const {
@@ -88,7 +87,6 @@ export default function Dashboard() {
                   title={`Show only ${r.site.name}`}
                 >
                   <div className="mb-1 flex items-center gap-2 text-sm">
-                    <SiteIcon site={r.site} size="sm" />
                     <span className="truncate font-medium group-hover:text-brand">
                       {r.site.name}
                     </span>
@@ -121,7 +119,6 @@ export default function Dashboard() {
                 const guest = guestById.get(c.guestId);
                 return (
                   <li key={c.id} className="flex items-center gap-3 py-2.5">
-                    {site && <SiteIcon site={site} size="sm" />}
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium">
                         {/* Names are guest data: client logins need access */}

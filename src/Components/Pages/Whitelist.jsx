@@ -6,7 +6,6 @@ import { useState } from "react";
 import { Pencil, Plus, Search, Trash2 } from "lucide-react";
 import useData from "../../useData";
 import { whitelistStatus } from "../../whitelist";
-import SiteIcon from "../SiteIcon";
 import Modal from "../Modal";
 import WhitelistModal from "../WhitelistModal";
 import { dangerButton, primaryButton, secondaryButton } from "../formStyles";
@@ -166,7 +165,6 @@ export default function Whitelist() {
                           <td className="px-4 py-3">
                             {site && (
                               <span className="flex items-center gap-2 whitespace-nowrap">
-                                <SiteIcon site={site} size="sm" />
                                 {site.name}
                               </span>
                             )}

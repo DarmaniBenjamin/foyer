@@ -20,7 +20,6 @@ import { SIGN_IN_MODES } from "../../data";
 import { resolveRange } from "../../dates";
 import { guestsIn } from "../../reports";
 import { answerText, dateTime, guestEmail, guestName } from "../../guests";
-import SiteIcon from "../SiteIcon";
 import GuestModal from "../GuestModal";
 import DateRangePicker from "../DateRangePicker";
 import { secondaryButton } from "../formStyles";
@@ -286,7 +285,6 @@ export default function Guests() {
                             <td className="px-4 py-3">
                               {site && (
                                 <span className="flex items-center gap-2 whitespace-nowrap">
-                                  <SiteIcon site={site} size="sm" />
                                   {site.name}
                                 </span>
                               )}
@@ -319,7 +317,6 @@ export default function Guests() {
                     onClick={() => setOpen(g)}
                     className="flex w-full items-center gap-3 p-4 text-left transition-colors hover:bg-brand/5"
                   >
-                    {site && <SiteIcon site={site} size="sm" />}
                     <div className="min-w-0 flex-1">
                       <p className="truncate font-medium">{guestName(g, site)}</p>
                       <p className="truncate text-sm text-muted">

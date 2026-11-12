@@ -15,7 +15,6 @@ import {
 import useData from "../../useData";
 import { SIGN_IN_MODES, formatMinutes } from "../../data";
 import { VOUCHER_STATUSES, voucherStatus } from "../../vouchers";
-import SiteIcon from "../SiteIcon";
 import Modal from "../Modal";
 import VoucherModal from "../VoucherModal";
 import VoucherPrint from "../VoucherPrint";
@@ -343,7 +342,6 @@ export default function Vouchers() {
                           <td className="px-4 py-3">
                             {site && (
                               <span className="flex items-center gap-2">
-                                <SiteIcon site={site} size="sm" />
                                 <span className="truncate">{site.name}</span>
                               </span>
                             )}
