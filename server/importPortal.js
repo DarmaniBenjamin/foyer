@@ -43,7 +43,7 @@ function isPrivate(ip) {
 //   method / form: "POST" with the form's answers (URLSearchParams)
 //   stayOn: a host name; a redirect to another website isn't followed,
 //     and comes back as { leftTo: its address }
-async function getPublic(address, { accept, max, what, jar, method = "GET", form, stayOn }) {
+export async function getPublic(address, { accept, max, what, jar, method = "GET", form, stayOn }) {
   let url;
   try {
     url = new URL(address);
@@ -111,7 +111,7 @@ async function getPublic(address, { accept, max, what, jar, method = "GET", form
 }
 
 // A picture as a data: link, or null if it isn't one
-async function getPicture(address) {
+export async function getPicture(address) {
   if (!address) return null;
   if (address.startsWith("data:image/")) return address;
   try {
@@ -148,7 +148,7 @@ const human = (name) => {
 };
 
 // The CSS rules (selector + declarations) in some CSS text
-function rules(css) {
+export function rules(css) {
   const out = [];
   const clean = css.replace(/\/\*[\s\S]*?\*\//g, "");
   for (const m of clean.matchAll(/([^{}]+)\{([^{}]*)\}/g)) out.push({ selector: tidy(m[1]), body: m[2] });
@@ -181,7 +181,7 @@ export function readColor(text) {
 }
 
 // "a: 1; b: 2" → [["a", "1"], ["b", "2"]]
-const declarations = (body) =>
+export const declarations = (body) =>
   String(body ?? "")
     .split(";")
     .map((d) => d.split(/:(.*)/s))

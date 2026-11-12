@@ -12,6 +12,7 @@ import { SIGN_IN_MODES, SITE_COLORS, makeSite, makeSlug } from "../../src/data.j
 import { Problem, SERVER_ONLY, siteIn, siteOut, text } from "../shapes.js";
 import { seal } from "../secrets.js";
 import { readPortal, tryPortal } from "../importPortal.js";
+import { readBrand } from "../brandLook.js";
 import {
   ControllerError,
   setUpOmada,
@@ -39,6 +40,12 @@ sitesRouter.post("/import-look", async (req, res) => {
   if (!/^https?:\/\/\S+$/i.test(url))
     throw new Problem("Paste the portal's full address, starting with https://");
   res.json(await readPortal(url));
+});
+
+// Site settings → Look → Colours from the company's website: its brand
+// colours and logo (see brandLook.js). Nothing is saved here.
+sitesRouter.post("/brand-look", async (req, res) => {
+  res.json(await readBrand(text(req.body?.url, 2000)));
 });
 
 // …and "Try signing in": sends the portal's form with test answers

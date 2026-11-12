@@ -392,8 +392,14 @@ export default function DataProvider({ children }) {
   // ---------- Sites ----------
 
   // values: { name, controllerId, mode }. Returns the new site, or null.
-  async function addSite(values) {
-    const site = await send("/sites", { method: "POST", body: values });
+  // look: colours and a logo picked when making it (Add site → Colours
+  // from the company's website), saved straight after
+  async function addSite({ look, ...values }) {
+    let site = await send("/sites", { method: "POST", body: values });
+    if (site && look) {
+      const whole = { ...site, look: { ...site.look, ...look } };
+      site = (await send(`/sites/${site.id}`, { method: "PATCH", body: whole })) ?? site;
+    }
     if (site) change("sites", (list) => [...list, site]);
     return site;
   }

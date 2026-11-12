@@ -1,7 +1,10 @@
-// The "Add site" box: just the name, controller and how guests sign in.
+// The "Add site" box: the name, controller and how guests sign in, and
+// (if you like) the company's colours and logo from its website.
 // Everything else is set on the site's page afterwards.
 import { useState } from "react";
+import { ChevronDown } from "lucide-react";
 import Modal from "./Modal";
+import BrandFromWebsite from "./BrandFromWebsite";
 import useData from "../useData";
 import { CONTROLLER_KINDS, SIGN_IN_MODES } from "../data";
 import {
@@ -17,12 +20,15 @@ export default function NewSiteModal({ onCreate, onClose }) {
   const [controllerId, setControllerId] = useState(controllers[0]?.id ?? "");
   const [mode, setMode] = useState("form");
   const [error, setError] = useState("");
+  // Colours and logo picked from the company's website, if any
+  const [brand, setBrand] = useState(null);
+  const [branding, setBranding] = useState(false);
 
   function save() {
     if (!name.trim()) return setError("Enter the site's name.");
     if (!controllerId) return setError("Add a controller first (Controllers page).");
     document.activeElement?.blur();
-    onCreate({ name: name.trim(), controllerId: Number(controllerId), mode });
+    onCreate({ name: name.trim(), controllerId: Number(controllerId), mode, look: brand ?? undefined });
   }
 
   return (
@@ -98,6 +104,32 @@ export default function NewSiteModal({ onCreate, onClose }) {
               </button>
             ))}
           </div>
+        </div>
+
+        <div className="rounded-lg border border-line">
+          <button
+            type="button"
+            onClick={() => setBranding((b) => !b)}
+            aria-expanded={branding}
+            className="flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left text-sm font-semibold"
+          >
+            <span>
+              Colours from the company's website
+              <span className="block text-xs font-normal text-muted">
+                {brand ? "Picked: they're added when you make the site" : "Optional"}
+              </span>
+            </span>
+            <ChevronDown size={16} className={`shrink-0 text-muted transition ${branding ? "rotate-180" : ""}`} />
+          </button>
+          {branding && (
+            <div className="border-t border-line p-3">
+              <BrandFromWebsite
+                look={brand ?? {}}
+                keep="added when you make the site"
+                onUse={(changes) => setBrand((b) => ({ ...b, ...changes }))}
+              />
+            </div>
+          )}
         </div>
 
         {error && (

@@ -34,6 +34,7 @@ import FieldEditor from "../FieldEditor";
 import LogoPicker from "../LogoPicker";
 import { BackgroundAdjuster, PageParts, Slider, TextStyles } from "../LookControls";
 import ImportPortal from "../ImportPortal";
+import BrandFromWebsite from "../BrandFromWebsite";
 import Modal from "../Modal";
 import {
   dangerButton,
@@ -93,6 +94,8 @@ function Toggle({ checked, onChange, label, detail }) {
 
 function ColorField({ id, label, value, onChange }) {
   const [text, setText] = useState(value);
+  // Changed from elsewhere (e.g. Use these colours): show the new one
+  useEffect(() => setText(value), [value]);
   return (
     <div>
       <label className={labelClass} htmlFor={id}>
@@ -383,6 +386,19 @@ function LookTab({ draft, set, setLook, onPreviewPage }) {
         hint="Paste the address of another sign-in page (e.g. this site's Spotipo portal) to copy its logo, background, words, colours and questions."
       >
         <ImportPortal draft={draft} set={set} setLook={setLook} onPreviewPage={onPreviewPage} />
+      </Section>
+
+      <Section
+        title="Colours from the company's website"
+        hint="Type the company's website to see its brand colours and logo. Nothing changes until you press Use."
+      >
+        <BrandFromWebsite
+          look={look}
+          onUse={(changes) => {
+            onPreviewPage("signin");
+            setLook(changes);
+          }}
+        />
       </Section>
 
       <Section title="Logo">
