@@ -1,33 +1,35 @@
-// The Light / Auto / Dark switch: an icon at the top right (a sun, a
-// screen or a moon, for the one in use) that opens a small menu. Auto
-// follows the device's own setting; Light and Dark stay until you change
-// them.
-import { useEffect, useRef, useState } from "react";
-import { Check, Monitor, Moon, Sun } from "lucide-react";
+// The light / dark button at the top right. It starts out the way the
+// phone or computer is set (light or dark), and each press switches to
+// the other one, which then stays (after a reload, and in other tabs)
+// until it's pressed again. It shows a moon in light mode (press for
+// dark) and a sun in dark mode (press for light).
+import { useEffect, useState } from "react";
+import { Moon, Sun } from "lucide-react";
 import {
   applyTheme,
   getThemeChoice,
   onSystemThemeChange,
   onThemeChoiceChange,
+  resolveTheme,
   saveThemeChoice,
 } from "../theme";
 
-const CHOICES = [
-  { value: "light", label: "Light", icon: Sun },
-  { value: "system", label: "Auto", icon: Monitor },
-  { value: "dark", label: "Dark", icon: Moon },
-];
-
 export default function ThemeSwitch() {
   const [choice, setChoice] = useState(getThemeChoice);
+  // What's showing now: "light" or "dark"
+  const [shown, setShown] = useState(() => resolveTheme(getThemeChoice()));
 
-  // On Auto, follow the device when its setting changes (e.g. at night)
+  // Not pressed yet: follow the device when its setting changes (e.g. at night)
   useEffect(() => {
-    if (choice !== "system") return;
-    return onSystemThemeChange(() => applyTheme("system"));
+    setShown(resolveTheme(choice));
+    if (choice !== "system") return undefined;
+    return onSystemThemeChange(() => {
+      applyTheme("system");
+      setShown(resolveTheme("system"));
+    });
   }, [choice]);
 
-  // Picked in another tab: this one follows
+  // Pressed in another tab: this one follows
   useEffect(
     () =>
       onThemeChoiceChange((value) => {
@@ -37,75 +39,25 @@ export default function ThemeSwitch() {
     [],
   );
 
-  function pick(value) {
-    setChoice(value);
-    saveThemeChoice(value);
+  const dark = shown === "dark";
+  const label = dark ? "Switch to light mode" : "Switch to dark mode";
+  const Icon = dark ? Sun : Moon;
+
+  function toggle() {
+    const next = dark ? "light" : "dark";
+    setChoice(next);
+    saveThemeChoice(next);
   }
 
-  // The menu closes when you click anywhere else, or press Escape
-  const [open, setOpen] = useState(false);
-  const boxRef = useRef(null);
-  useEffect(() => {
-    if (!open) return;
-    const onClick = (e) => !boxRef.current?.contains(e.target) && setOpen(false);
-    const onKey = (e) => e.key === "Escape" && setOpen(false);
-    document.addEventListener("pointerdown", onClick);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("pointerdown", onClick);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [open]);
-
-  const current = CHOICES.find((c) => c.value === choice) ?? CHOICES[1];
-  const CurrentIcon = current.icon;
-
   return (
-    <div ref={boxRef} className="relative shrink-0">
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        aria-haspopup="menu"
-        aria-expanded={open}
-        aria-label={`Theme: ${current.label}`}
-        title={`Theme: ${current.label}`}
-        className={`flex h-9 w-9 items-center justify-center rounded-lg border text-muted transition hover:border-brand/40 hover:bg-brand/5 hover:text-ink ${
-          open ? "border-brand/40 bg-brand/5 text-ink" : "border-line"
-        }`}
-      >
-        <CurrentIcon size={16} />
-      </button>
-      {open && (
-        <div
-          role="menu"
-          aria-label="Theme"
-          className="absolute top-full left-0 z-40 mt-1.5 w-40 space-y-0.5 rounded-xl border border-line bg-white p-1.5 shadow-lg"
-        >
-          {CHOICES.map(({ value, label, icon }) => {
-            const Icon = icon;
-            const active = choice === value;
-            return (
-              <button
-                key={value}
-                type="button"
-                role="menuitemradio"
-                aria-checked={active}
-                onClick={() => {
-                  pick(value);
-                  setOpen(false);
-                }}
-                className={`flex h-9 w-full items-center gap-2 rounded-lg px-2.5 text-sm font-medium transition ${
-                  active ? "bg-brand/10 text-brand" : "text-ink hover:bg-brand/5"
-                }`}
-              >
-                <Icon size={15} />
-                <span className="flex-1 text-left">{label}</span>
-                {active && <Check size={15} />}
-              </button>
-            );
-          })}
-        </div>
-      )}
-    </div>
+    <button
+      type="button"
+      onClick={toggle}
+      aria-label={label}
+      title={label}
+      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-line text-muted transition hover:border-brand/40 hover:bg-brand/5 hover:text-ink"
+    >
+      <Icon size={16} />
+    </button>
   );
 }

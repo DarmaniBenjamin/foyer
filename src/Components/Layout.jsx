@@ -6,6 +6,7 @@ import { Link, NavLink, useLocation, useNavigate } from "react-router";
 import { ExternalLink, LogOut, Menu, Settings2, UserRound, Wifi, X } from "lucide-react";
 import { navLinks, getPageTitle } from "./navLinks";
 import { APP_NAME } from "../brand";
+import { ALL_SITES } from "../data";
 import SiteSwitcher from "./SiteSwitcher";
 import ThemeSwitch from "./ThemeSwitch";
 import useData from "../useData";
@@ -40,7 +41,7 @@ function SidebarLink({ link, onClick, alert = "" }) {
 }
 
 function Sidebar({ open, onClose }) {
-  const { currentAdmin, can, signOut, currentSite, controllers } = useData();
+  const { currentAdmin, can, signOut, currentSite, controllers, pickSite } = useData();
   // Controllers that are offline (Foyer checks them every 5 minutes)
   const offline = controllers.filter((c) => c.lastTest && !c.lastTest.ok);
   const alertFor = (link) =>
@@ -65,12 +66,23 @@ function Sidebar({ open, onClose }) {
         }`}
       >
         <div className="flex h-16 items-center justify-between px-5">
-          <div className="flex items-center gap-2">
+          {/* The logo: back to All sites, on the Dashboard */}
+          <button
+            type="button"
+            onClick={() => {
+              pickSite(ALL_SITES);
+              navigate("/");
+              onClose?.();
+            }}
+            className="-ml-1 flex items-center gap-2 rounded-lg p-1 transition hover:opacity-80"
+            aria-label={`${APP_NAME}: all sites`}
+            title="All sites"
+          >
             <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand text-white shadow-md shadow-brand/30">
               <Wifi size={20} />
             </span>
             <span className="text-lg font-semibold">{APP_NAME}</span>
-          </div>
+          </button>
           <button
             type="button"
             onClick={onClose}
