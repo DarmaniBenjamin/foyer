@@ -591,16 +591,33 @@ html.dark {
   transition: none !important;
 }
 
-/* The circle of the new theme's colour (ThemeSwitch.jsx): drawn once,
-   small, then only enlarged and faded, which the graphics chip does
-   without redrawing the page, so it stays smooth */
-.theme-circle {
-  position: fixed;
-  z-index: 9999;
-  border-radius: 9999px;
-  pointer-events: none;
-  transform: scale(0);
-  will-change: transform, opacity;
+/* The old look comes off like a cover pulled off a car (ThemeSwitch.jsx):
+   the browser's picture of the page as it was (view-transition-old) sits
+   on top of the new one and slides away from the button's corner, top
+   right, toward the bottom left, tipping as it goes, with a shadow on its
+   edge. It's only moved, never redrawn, so it stays smooth. */
+.theme-switching::view-transition-group(root) {
+  animation: none;
+}
+.theme-switching::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+  z-index: 1;
+}
+.theme-switching::view-transition-old(root) {
+  z-index: 2;
+  mix-blend-mode: normal;
+  transform-origin: 0% 100%;
+  box-shadow: 0 0 70px 20px rgb(0 0 0 / 0.35);
+  animation: theme-peel 1200ms cubic-bezier(0.5, 0, 0.2, 1) forwards;
+}
+@keyframes theme-peel {
+  0% {
+    transform: translate(0, 0) rotate(0deg);
+  }
+  100% {
+    transform: translate(-115%, 30%) rotate(-14deg);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
