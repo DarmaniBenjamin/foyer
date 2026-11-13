@@ -53,6 +53,15 @@ function controllerIn(body, { editing }) {
   return out;
 }
 
+// "https://unifi.example.com:8443/x" → "https://unifi.example.com:8443"
+function whereTo(url) {
+  try {
+    return new URL(url).origin.toLowerCase();
+  } catch {
+    return String(url);
+  }
+}
+
 controllersRouter.post("/", async (req, res) => {
   const [row] = await db
     .insert(controllers)
@@ -64,20 +73,34 @@ controllersRouter.post("/", async (req, res) => {
 controllersRouter.patch("/:id", async (req, res) => {
   const id = Number(req.params.id);
   const body = req.body ?? {};
-  // Only the last test result changed (the page saves it after testing)
-  const changes =
-    Object.keys(body).length === 1 && "lastTest" in body
-      ? { lastTest: body.lastTest }
-      : controllerIn(body, { editing: true });
+  const changes = controllerIn(body, { editing: true });
+  const [old] = await db.select().from(controllers).where(eq(controllers.id, id));
+  if (!old) throw new Problem("That controller was already removed.", 404);
+  // A saved password is only ever sent to the address it was saved for.
+  // Otherwise someone at a signed-in computer could point the controller
+  // at their own server and have Foyer hand the password over.
+  const moved = whereTo(changes.url) !== whereTo(old.url);
+  const lessSafe = changes.allowSelfSigned && !old.allowSelfSigned;
+  if ((moved || lessSafe) && changes.username && !changes.passwordSealed)
+    throw new Problem(
+      moved
+        ? "The address changed: enter the controller's password again."
+        : "To allow a self-signed certificate, enter the controller's password again.",
+    );
   // An Open API Client ID without a new secret keeps the saved secret
   if (changes.openApi && !changes.openApi.secretSealed) {
-    const [old] = await db.select().from(controllers).where(eq(controllers.id, id));
-    if (!old?.openApi?.secretSealed || old.openApi.clientId !== changes.openApi.clientId)
+    if (!old.openApi?.secretSealed || old.openApi.clientId !== changes.openApi.clientId)
       throw new Problem("Enter the Open API Client Secret.");
+    if (moved || lessSafe)
+      throw new Problem(
+        moved
+          ? "The address changed: enter the Open API Client Secret again."
+          : "To allow a self-signed certificate, enter the Open API Client Secret again.",
+      );
     changes.openApi.secretSealed = old.openApi.secretSealed;
   }
   // A changed address, login or password: the old test no longer says much
-  if (!("lastTest" in changes)) changes.lastTest = null;
+  changes.lastTest = null;
   const [row] = await db.update(controllers).set(changes).where(eq(controllers.id, id)).returning();
   if (!row) throw new Problem("That controller was already removed.", 404);
   res.json(controllerOut(row));

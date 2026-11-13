@@ -55,6 +55,32 @@ export function databaseUrl() {
 }
 fallback("DATABASE_URL", databaseUrl());
 
+// How to connect, for every connection Foyer opens. DB_SSL=on scrambles
+// what goes between Foyer and a database on another server (not needed
+// when the database is on the same server, "localhost": nothing leaves
+// the machine). DB_SSL=no-verify does too, without checking the
+// database's certificate (for hosts that use their own).
+export function databaseConnection() {
+  const ssl = (env.DB_SSL ?? "").toLowerCase();
+  return {
+    connectionString: env.DATABASE_URL,
+    ...(ssl === "on" ? { ssl: { rejectUnauthorized: true } } : {}),
+    ...(ssl === "no-verify" ? { ssl: { rejectUnauthorized: false } } : {}),
+  };
+}
+
+// Is the database on another machine, without DB_SSL?
+export function databaseInTheClear() {
+  if (env.DB_SSL) return false;
+  try {
+    const url = new URL(env.DATABASE_URL);
+    if (/sslmode=(require|verify)/.test(url.search)) return false;
+    return !["localhost", "127.0.0.1", "::1", "[::1]", ""].includes(url.hostname) && !url.hostname.startsWith("/");
+  } catch {
+    return false;
+  }
+}
+
 // A plain-words reason a database problem happened, with what to do
 export function explainDatabaseError(err) {
   const message = String(err?.message ?? err);

@@ -57,18 +57,23 @@ export function fromOmada(q) {
   };
 }
 
-// → { ctx: "…", sig: "…" } for the page's address
-export function seal(ctx) {
+// → { ctx: "…", sig: "…" } for the page's address. siteId: the Foyer
+// site the guest arrived at; the details only work for that site's
+// sign-in page (so a code-only Wi-Fi can't be joined through another
+// site's free sign-in page).
+export function seal(ctx, siteId) {
+  ctx = { ...ctx, site: siteId };
   const text = Buffer.from(JSON.stringify(ctx)).toString("base64url");
   return { ctx: text, sig: sign(`ctx:${text}`) };
 }
 
 // Back from the page → the details, or null if changed or too old
-export function open(text, sig) {
+export function open(text, sig, siteId) {
   if (!text || !verify(`ctx:${text}`, sig)) return null;
   try {
     const ctx = JSON.parse(Buffer.from(String(text), "base64url").toString());
     if (!ctx?.mac || Date.now() - ctx.at > MAX_AGE) return null;
+    if (ctx.site !== siteId) return null;
     return ctx;
   } catch {
     return null;

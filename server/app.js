@@ -1,12 +1,13 @@
 // The web server: the API under /api, and the built pages (the dist
 // folder, made by "npm run build") for every other address, so
 // /sites/3 or /p/grand-anse-mall open the right page.
+import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import express from "express";
 import compression from "compression";
 import { ROOT, PRODUCTION } from "./config.js";
-import { authRouter, loadSession, requireUser, setupRouter } from "./auth.js";
+import { authRouter, loadSession, requireAccess, setupRouter } from "./auth.js";
 import { healthDetails } from "./healthDetails.js";
 import { dataRouter } from "./routes/data.js";
 import { usersRouter } from "./routes/users.js";
@@ -21,6 +22,39 @@ import { announceChanges, liveRouter, startLive } from "./live.js";
 import { startWatching } from "./controllers/watch.js";
 
 const DIST = path.join(ROOT, "dist");
+
+// The Content-Security-Policy. The one script written into index.html
+// (it picks light or dark before the page draws) is allowed by its
+// fingerprint, so it's read from the built page.
+function contentPolicy() {
+  const inline = [];
+  try {
+    const html = fs.readFileSync(path.join(DIST, "index.html"), "utf8");
+    for (const [, code] of html.matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/g))
+      inline.push(`'sha256-${crypto.createHash("sha256").update(code).digest("base64")}'`);
+  } catch {
+    // Not built yet
+  }
+  return [
+    "default-src 'self'",
+    `script-src 'self' ${inline.join(" ")}`.trim(),
+    // The pages set colours and sizes on elements themselves
+    "style-src 'self' 'unsafe-inline'",
+    // Pictures and videos in ads can be anywhere on the web
+    "img-src 'self' data: blob: https: http:",
+    "media-src 'self' data: blob: https: http:",
+    "font-src 'self' data:",
+    // (the sign-in page also checks the guest is online by asking a
+    // website for nothing)
+    "connect-src 'self' data: blob: https: http:",
+    // Videos in ads: YouTube and Vimeo players only
+    "frame-src https://www.youtube-nocookie.com https://www.youtube.com https://player.vimeo.com",
+    "frame-ancestors 'self'",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+  ].join("; ");
+}
 
 export function makeApp() {
   const app = express();
@@ -41,6 +75,45 @@ export function makeApp() {
     next();
   });
 
+  // What browsers are told to refuse, on every answer:
+  // - only Foyer's own code may run on its pages (a planted script in a
+  //   name, an ad or a copied portal does nothing)
+  // - no other website may show Foyer inside itself (to trick clicks)
+  // - files are shown as the type Foyer says, never guessed
+  // - other websites aren't told the address you came from (a guest's
+  //   sign-in details are in theirs)
+  // - once opened over https, always https
+  const policy = contentPolicy();
+  app.use((req, res, next) => {
+    res.setHeader("Content-Security-Policy", policy);
+    res.setHeader("X-Frame-Options", "SAMEORIGIN");
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+    res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=()");
+    if (req.secure) res.setHeader("Strict-Transport-Security", "max-age=15552000");
+    next();
+  });
+
+  // A change (anything but reading) must come from Foyer's own pages.
+  // Browsers say where a request came from (Origin); another website
+  // can't use your sign-in to change things behind your back.
+  app.use("/api", (req, res, next) => {
+    if (req.method === "GET" || req.method === "HEAD" || req.method === "OPTIONS") return next();
+    const origin = req.get("origin");
+    const site = req.get("sec-fetch-site");
+    let foreign = site === "cross-site";
+    if (origin && origin !== "null") {
+      try {
+        const from = new URL(origin);
+        foreign = from.host !== req.get("host") && from.hostname !== req.hostname;
+      } catch {
+        foreign = true;
+      }
+    } else if (origin === "null") foreign = true;
+    if (foreign) return res.status(403).json({ error: "That came from another website, so it was refused." });
+    next();
+  });
+
   // Everything sent is squeezed (gzip) when the browser can take it: the
   // app's code and the data (sites, guests…) come down 3–5 times smaller.
   // Not the live line (it must arrive at once, not when a block is full),
@@ -57,19 +130,18 @@ export function makeApp() {
 
   // Pictures (logos, backgrounds, ads) come inside the JSON
   app.use("/api", express.json({ limit: "15mb" }));
-  // copy: which running copy of the app answered (a host may run several)
+  // Anyone can ask this (hosts check it), so it only says it's running
   app.get("/api/health", (req, res) =>
     res.json({
       server: "ok",
       database: "ok",
       // false: controllers can't be saved until SECRET_KEY is added
       secretKey: Boolean(process.env.SECRET_KEY) || !PRODUCTION,
-      copy: process.pid,
-      upSeconds: Math.round(process.uptime()),
     }),
   );
   app.use("/api", loadSession);
-  app.get("/api/health/details", requireUser, healthDetails);
+  // Which database this copy uses: admins only
+  app.get("/api/health/details", requireAccess("maintenance"), healthDetails);
   // Every open tab hears about changes (live.js)
   app.use("/api", announceChanges);
   app.use("/api/live", liveRouter);

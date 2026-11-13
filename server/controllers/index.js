@@ -95,7 +95,7 @@ export async function authorizeGuest(siteRow, ctx, access) {
   }
   return unifi.authorize(
     controller,
-    ctx.siteKey || siteRow.settings?.siteKey || "default",
+    siteRow.settings?.siteKey || ctx.siteKey || "default",
     { mac: ctx.mac, apMac: ctx.apMac },
     access,
   );

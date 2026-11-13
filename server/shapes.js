@@ -84,6 +84,9 @@ export function siteIn(body) {
       for (const pic of ["logo", "backgroundImage"])
         if (settings[key][pic]) settings[key][pic] = picture(settings[key][pic]);
     }
+  // Where guests are sent afterwards: a web address or nothing
+  if (settings.redirectUrl && !/^https?:\/\/\S+$/i.test(String(settings.redirectUrl)))
+    throw new Problem("The address guests go to afterwards should start with https://");
   if (JSON.stringify(settings).length > 12_000_000)
     throw new Problem("The pictures are too big. Use smaller ones.");
   return settings;

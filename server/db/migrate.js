@@ -14,13 +14,13 @@ import path from "node:path";
 import pg from "pg";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { getDb, schemaName } from "./index.js";
-import { explainDatabaseError } from "../config.js";
+import { databaseConnection, explainDatabaseError } from "../config.js";
 
 const FOLDER = path.resolve(import.meta.dirname, "../drizzle");
 
 async function pickSchema() {
   if (process.env.DB_SCHEMA) return;
-  const client = new pg.Client({ connectionString: process.env.DATABASE_URL });
+  const client = new pg.Client(databaseConnection());
   await client.connect();
   try {
     const {
@@ -67,7 +67,7 @@ export async function migrateDatabase() {
     throw new Error(explainDatabaseError(new Error("no database")));
   let lock = null;
   try {
-    lock = new pg.Client({ connectionString: process.env.DATABASE_URL });
+    lock = new pg.Client(databaseConnection());
     await lock.connect();
     await lock.query("select pg_advisory_lock($1)", [MIGRATE_LOCK]);
     await pickSchema();

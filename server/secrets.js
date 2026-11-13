@@ -71,8 +71,12 @@ export function unseal(sealed) {
 // A signature for some text (e.g. a guest's sign-in details): anyone can
 // read the text, but nobody can make a working signature for different
 // text without the key
+// (made with its own key, worked out from SECRET_KEY, so a signature
+// never shares a key with the locked passwords)
+let signKey = null;
 export function sign(text) {
-  return crypto.createHmac("sha256", getKey()).update(String(text)).digest("base64url").slice(0, 32);
+  signKey ??= crypto.createHmac("sha256", getKey()).update("foyer signatures v1").digest();
+  return crypto.createHmac("sha256", signKey).update(String(text)).digest("base64url").slice(0, 32);
 }
 
 // Checks a signature without leaking how much of it matched

@@ -1,5 +1,5 @@
 // The connection to the database, shared by the whole server.
-import "../config.js";
+import { databaseConnection } from "../config.js";
 import { drizzle } from "drizzle-orm/node-postgres";
 import pg from "pg";
 import * as schema from "./schema.js";
@@ -22,7 +22,7 @@ export function getDb() {
   const area = schemaName();
   // A "pool" keeps a few connections open and reuses them
   pool = new pg.Pool({
-    connectionString: process.env.DATABASE_URL,
+    ...databaseConnection(),
     max: Number(process.env.DB_POOL_SIZE) || 5,
     ...(area ? { options: `-c search_path=${area},public` } : {}),
   });

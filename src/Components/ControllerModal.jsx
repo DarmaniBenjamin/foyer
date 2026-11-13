@@ -61,6 +61,25 @@ export default function ControllerModal({ controller, onSave, onClose }) {
     if (withApi && !secret && !(hadSecret && clientId.trim() === controller.openApi.clientId))
       return setError("Enter the Open API Client Secret.");
 
+    // The saved password only ever goes to the address it was saved for
+    // (the server checks this too)
+    if (editing) {
+      const origin = (u) => {
+        try {
+          return new URL(u).origin.toLowerCase();
+        } catch {
+          return u;
+        }
+      };
+      const moved = origin(address) !== origin(controller.url);
+      const lessSafe = allowSelfSigned && !controller.allowSelfSigned;
+      const why = moved ? "The address changed:" : "To allow a self-signed certificate,";
+      if ((moved || lessSafe) && username.trim() && !password)
+        return setError(`${why} enter the controller's password again.`);
+      if ((moved || lessSafe) && withApi && !secret)
+        return setError(`${why} enter the Open API Client Secret again.`);
+    }
+
     // Blur first, so an iPhone's keyboard doesn't stay up after closing
     document.activeElement?.blur();
     onSave({

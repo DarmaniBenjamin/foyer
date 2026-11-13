@@ -137,6 +137,8 @@ authRouter.post("/login", async (req, res) => {
   const email = String(req.body?.email ?? "").trim().toLowerCase();
   const password = String(req.body?.password ?? "");
   if (!email || !password) return res.status(400).json({ error: "Enter your email and password." });
+  if (email.length > 200 || password.length > 1000)
+    return res.status(401).json({ error: "That email or password is wrong." });
 
   const key = `${req.ip}|${email}`;
   const place = `${req.ip}|*`;
@@ -188,8 +190,15 @@ authRouter.patch("/me", requireUser, async (req, res) => {
 authRouter.post("/password", requireUser, async (req, res) => {
   const current = String(req.body?.current ?? "");
   const next = String(req.body?.password ?? "");
-  if (!(await bcrypt.compare(current, req.user.passwordHash)))
+  // Someone at a signed-in computer can't keep guessing the password
+  const place = `password|${req.user.id}`;
+  if (isBlocked(place, 5))
+    return res.status(429).json({ error: "Too many wrong passwords. Wait 15 minutes and try again." });
+  if (!(await bcrypt.compare(current, req.user.passwordHash))) {
+    recordFailure(place);
     return res.status(400).json({ error: "Your current password is wrong." });
+  }
+  attempts.delete(place);
   if (next.length < 10) return res.status(400).json({ error: PASSWORD_RULE });
   await db
     .update(users)
@@ -212,10 +221,9 @@ setupRouter.post("/", async (req, res) => {
   const expected = process.env.SETUP_CODE ?? "";
   const place = `${req.ip}|setup`;
   if (isBlocked(place, 10)) return res.status(429).json({ error: "Too many tries. Wait 15 minutes." });
-  const codeOk =
-    expected.length >= 12 &&
-    code.length === expected.length &&
-    crypto.timingSafeEqual(Buffer.from(code), Buffer.from(expected));
+  // Compared as fingerprints: the same length whatever was typed
+  const print = (s) => crypto.createHash("sha256").update(s).digest();
+  const codeOk = expected.length >= 12 && crypto.timingSafeEqual(print(code), print(expected));
   if (!codeOk) {
     recordFailure(place);
     return res.status(403).json({

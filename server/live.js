@@ -20,7 +20,7 @@ import path from "node:path";
 import { Router } from "express";
 import pg from "pg";
 import { sql } from "drizzle-orm";
-import { ROOT } from "./config.js";
+import { ROOT, databaseConnection } from "./config.js";
 import { requireUser } from "./auth.js";
 import { db } from "./db/index.js";
 
@@ -94,7 +94,7 @@ function tellTabs(payload) {
 let listening = false;
 let started = false;
 async function listen() {
-  const client = new pg.Client({ connectionString: process.env.DATABASE_URL });
+  const client = new pg.Client(databaseConnection());
   let gone = false;
   const again = () => {
     if (gone) return;

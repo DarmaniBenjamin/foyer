@@ -14,7 +14,7 @@
 // page does too). It tries again every 30 seconds and opens by itself
 // as soon as the database works.
 import http from "node:http";
-import "./config.js";
+import { databaseInTheClear } from "./config.js";
 import { migrateDatabase } from "./db/migrate.js";
 import { closeDb } from "./db/index.js";
 
@@ -108,6 +108,8 @@ async function attempt() {
     state = "ready";
     letThrough();
     console.log("✓ Foyer is ready");
+    if (databaseInTheClear())
+      console.warn("✗ The database is on another server and DB_SSL isn't set: add DB_SSL=on so what's sent to it is scrambled.");
     if (!process.env.SECRET_KEY && process.env.NODE_ENV === "production")
       console.warn("✗ SECRET_KEY isn't set: controllers can't be saved until it's added.");
   } catch (err) {

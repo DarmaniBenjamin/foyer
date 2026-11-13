@@ -82,7 +82,7 @@ async function sendOn(res, site, ctx) {
   if (mode === "notice") return res.redirect(302, portalPage(site.slug));
   if (mode === "open" && (await letEveryoneOn(site, ctx)))
     return res.redirect(302, portalPage(site.slug, { done: "1" }));
-  res.redirect(302, portalPage(site.slug, seal(ctx)));
+  res.redirect(302, portalPage(site.slug, seal(ctx, site.id)));
 }
 
 // UniFi: the site is found by its UniFi site name (Sites → Details).

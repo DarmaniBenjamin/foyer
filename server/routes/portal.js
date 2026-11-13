@@ -16,6 +16,8 @@ import { voucherStatus } from "../../src/vouchers.js";
 import { normalizeMac } from "../../src/whitelist.js";
 import { Problem, adOut, ms, siteOut, voucherOut } from "../shapes.js";
 import { open } from "../context.js";
+import { mayUseSite } from "../auth.js";
+import { tooMany, strike } from "../limits.js";
 import { authorizeGuest } from "../controllers/index.js";
 
 export const portalRouter = Router();
@@ -35,8 +37,21 @@ portalRouter.get("/:slug", async (req, res) => {
     .map(adOut)
     .filter((a) => adStatus(a, now) === "running")
     .map((a) => ({ ...a, views: undefined, clicks: undefined }));
-  res.json({ site: { ...siteOut(row), controllerId: undefined, unifi: undefined }, ads: running });
+  res.json({ site: forGuests(row), ads: running });
 });
+
+// What the sign-in page needs of a site: how it looks and what it asks.
+// Nothing about the controller behind it or how it was set up.
+const ADMIN_ONLY = ["controllerId", "siteKey", "unifi", "omada", "omadaSite", "unifiUndo", "omadaUndo"];
+function forGuests(row) {
+  const site = siteOut(row);
+  for (const key of ADMIN_ONLY) delete site[key];
+  return site;
+}
+
+// Guessing voucher codes: 20 wrong codes from one place for one site
+// stops more tries from there for 10 minutes
+const GUESSES = { max: 20, minutes: 10 };
 
 // "k7qm 3rxa" and "K7QM-3RXA" are the same code
 const cleanCode = (code) => String(code ?? "").replace(/[^a-z0-9]/gi, "").toUpperCase();
@@ -60,22 +75,41 @@ portalRouter.post("/:slug/signin", async (req, res) => {
   if (!site.active) throw new Problem("Wi-Fi sign-in isn't available right now.");
   if (site.maintenance?.mode === "notice")
     throw new Problem("The Wi-Fi is under maintenance. Please try again later.");
-  const ctx = open(req.body?.ctx, req.body?.sig);
+  const ctx = open(req.body?.ctx, req.body?.sig, row.id);
   if (req.body?.ctx && !ctx)
     throw new Problem("This sign-in page has expired. Turn the Wi-Fi off and on again to get a new one.");
-  const mac = ctx?.mac ?? (req.user ? normalizeMac(req.body?.mac) : "");
+  // A test: only someone signed in to Foyer who may use this site
+  const tester = req.user && mayUseSite(req.user, row.id);
+  const mac = ctx?.mac ?? (tester ? normalizeMac(req.body?.mac) : "");
   if (!mac) throw new Problem("Open this page by joining the Wi-Fi.");
   const answers = site.mode === "form" ? cleanAnswers(site, req.body?.answers) : {};
 
   let voucher = null;
   if (site.mode === "voucher") {
+    const place = `code|${req.ip}|${row.id}`;
+    if (tooMany(place, GUESSES))
+      return res.json({ error: "Too many wrong codes. Wait 10 minutes and try again." });
     const code = cleanCode(req.body?.code);
     const list = await db.select().from(vouchers).where(eq(vouchers.siteId, row.id));
     voucher = list.find((v) => cleanCode(v.code) === code);
-    if (!code || !voucher) return res.json({ error: "That code isn't right. Check it and try again." });
+    if (!code || !voucher) {
+      strike(place, GUESSES);
+      return res.json({ error: "That code isn't right. Check it and try again." });
+    }
     const status = voucherStatus(voucherOut(voucher));
     if (status === "used") return res.json({ error: "That code has already been used." });
     if (status === "expired") return res.json({ error: "That code has expired." });
+  }
+
+  // The code's use is taken first (two phones at once can't both take
+  // the last one), and given back if the phone couldn't be let on
+  if (voucher) {
+    const [counted] = await db
+      .update(vouchers)
+      .set({ uses: sql`${vouchers.uses} + 1` })
+      .where(and(eq(vouchers.id, voucher.id), lt(vouchers.uses, vouchers.maxUses)))
+      .returning();
+    if (!counted) return res.json({ error: "That code has already been used." });
   }
 
   // Let the phone on through the controller (not for a test)
@@ -91,6 +125,11 @@ portalRouter.post("/:slug/signin", async (req, res) => {
       });
     } catch (err) {
       console.error(`Letting ${mac} on at ${row.name} failed: ${err.message}`);
+      if (voucher)
+        await db
+          .update(vouchers)
+          .set({ uses: sql`greatest(${vouchers.uses} - 1, 0)` })
+          .where(eq(vouchers.id, voucher.id));
       await db.insert(connections).values({
         siteId: row.id,
         guestId: null,
@@ -103,17 +142,6 @@ portalRouter.post("/:slug/signin", async (req, res) => {
         error: "Sorry, we couldn't connect you just now. Wait a moment and try again, or ask the staff.",
       });
     }
-  }
-
-  if (voucher) {
-    // Counted only if a use is still left (two phones at once can't both
-    // take the last one)
-    const [counted] = await db
-      .update(vouchers)
-      .set({ uses: sql`${vouchers.uses} + 1` })
-      .where(and(eq(vouchers.id, voucher.id), lt(vouchers.uses, vouchers.maxUses)))
-      .returning();
-    if (!counted) return res.json({ error: "That code has already been used." });
   }
 
   const now = new Date();
