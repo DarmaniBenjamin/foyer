@@ -21,7 +21,7 @@ import ControllerModal from "../ControllerModal";
 import Modal from "../Modal";
 import { dangerButton, primaryButton, secondaryButton } from "../formStyles";
 
-function ControllerCard({ controller, usedBy, isCurrent, onEdit, onDelete }) {
+function ControllerCard({ controller, isCurrent, onEdit, onDelete }) {
   const { testController } = useData();
   const [testing, setTesting] = useState(false);
   const kind = CONTROLLER_KINDS[controller.kind];
@@ -60,26 +60,6 @@ function ControllerCard({ controller, usedBy, isCurrent, onEdit, onDelete }) {
             {controller.username}
           </p>
         </div>
-      </div>
-
-      <div>
-        <p className="mb-2 text-xs font-medium tracking-wide text-muted uppercase">
-          Sites ({usedBy.length})
-        </p>
-        {usedBy.length ? (
-          <div className="flex flex-wrap gap-2">
-            {usedBy.map((site) => (
-              <span
-                key={site.id}
-                className="flex items-center gap-2 rounded-full border border-line py-1 pr-3 pl-1 text-sm"
-              >
-                {site.name}
-              </span>
-            ))}
-          </div>
-        ) : (
-          <p className="text-sm text-muted">No sites use it yet.</p>
-        )}
       </div>
 
       <ControllerStatus test={controller.lastTest} />
@@ -172,7 +152,6 @@ export default function Controllers() {
             <ControllerCard
               key={c.id}
               controller={c}
-              usedBy={usedBy(c)}
               isCurrent={currentSite?.controllerId === c.id}
               onEdit={() => setEditing(c)}
               onDelete={() => setDeleting(c)}
