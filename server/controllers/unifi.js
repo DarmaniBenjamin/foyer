@@ -266,11 +266,15 @@ export async function setUpPortal(controller, siteKey, { wlanId, portalIp, allow
 // guest portal on/off from before Foyer set the site up
 export async function restorePortal(controller, siteKey, before) {
   const site = `/api/s/${encodeURIComponent(siteKey)}`;
+  // No settings: another Foyer site still uses this UniFi site's portal,
+  // so they're left as they are
   const g = before.guestAccess;
-  let saved = g._id ? await call(controller, "PUT", `${site}/rest/setting/guest_access/${g._id}`, g) : null;
-  if (saved?.json?.meta?.rc !== "ok")
-    saved = await call(controller, "POST", `${site}/set/setting/guest_access`, g);
-  if (saved.json?.meta?.rc !== "ok") throw failed(saved, "put back the guest portal settings");
+  if (g) {
+    let saved = g._id ? await call(controller, "PUT", `${site}/rest/setting/guest_access/${g._id}`, g) : null;
+    if (saved?.json?.meta?.rc !== "ok")
+      saved = await call(controller, "POST", `${site}/set/setting/guest_access`, g);
+    if (saved.json?.meta?.rc !== "ok") throw failed(saved, "put back the guest portal settings");
+  }
   for (const [wlanId, isGuest] of Object.entries(before.wlans ?? {})) {
     const res = await call(controller, "PUT", `${site}/rest/wlanconf/${encodeURIComponent(wlanId)}`, {
       is_guest: isGuest,

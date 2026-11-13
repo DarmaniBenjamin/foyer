@@ -4,7 +4,7 @@
 import { Router } from "express";
 import { lookup } from "node:dns/promises";
 import { isIP } from "node:net";
-import { eq, ne, sql } from "drizzle-orm";
+import { and, eq, ne, sql } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { controllers, sites, users } from "../db/schema.js";
 import { requireAccess } from "../auth.js";
@@ -183,14 +183,43 @@ sitesRouter.post("/:id/unifi-setup", requireAccess("controllers"), async (req, r
   }
   const { done, before } = result;
 
+  // Another Foyer site that was on this Wi-Fi network isn't any more:
+  // this one takes it over, with that site's backup for Undo (what the
+  // network was before Foyer), so guests only ever see this site.
+  const neighbours = await unifiNeighbours(id, controllerId, siteKey);
+  const previous = neighbours.filter((s) => s.settings?.unifi && String(s.settings.unifi.wlanId) === wlanId);
+  // The UniFi site's portal settings from before Foyer: another Foyer
+  // site set up there first has them (what UniFi has now is Foyer's)
+  const firstBackup = neighbours
+    .map((s) => s.settings?.unifiBackup)
+    .find((b) => b?.guestAccess && b.controllerId === controllerId && b.siteKey === siteKey);
+  let original = { guestAccess: firstBackup?.guestAccess ?? before.guestAccess, wlans: before.wlans };
+  for (const old of previous) {
+    const b = old.settings?.unifiBackup;
+    if (b?.controllerId === controllerId && b.siteKey === siteKey) {
+      if (b.wlans && wlanId in b.wlans) original.wlans = { ...original.wlans, [wlanId]: b.wlans[wlanId] };
+    }
+    const restWlans = Object.fromEntries(Object.entries(b?.wlans ?? {}).filter(([w]) => w !== wlanId));
+    await db
+      .update(sites)
+      .set({
+        settings: sql`(${sites.settings} - 'unifiBackup') || ${JSON.stringify({
+          unifi: null,
+          ...(Object.keys(restWlans).length ? { unifiBackup: { ...b, wlans: restWlans } } : {}),
+        })}::jsonb`,
+      })
+      .where(eq(sites.id, old.id));
+    done.push(`Moved this Wi-Fi network over from ${old.name}`);
+  }
+
   // The backup for Undo: what the UniFi site had before Foyer first set
   // it up. Setting it up again (another Wi-Fi network) keeps that first
   // backup and adds the new network's old on/off.
   const kept = row.settings?.unifiBackup;
   const unifiBackup =
     kept && kept.controllerId === controllerId && kept.siteKey === siteKey
-      ? { ...kept, wlans: { ...before.wlans, ...kept.wlans } }
-      : { controllerId, siteKey, guestAccess: before.guestAccess, wlans: before.wlans, at: Date.now() };
+      ? { ...kept, wlans: { ...original.wlans, ...kept.wlans } }
+      : { controllerId, siteKey, guestAccess: original.guestAccess, wlans: original.wlans, at: Date.now() };
 
   const unifi = {
     siteName: text(body.siteName, 120) || siteKey,
@@ -211,6 +240,15 @@ sitesRouter.post("/:id/unifi-setup", requireAccess("controllers"), async (req, r
   res.json({ site: siteOut(saved), done });
 });
 
+// The other Foyer sites on the same UniFi site of the same controller
+async function unifiNeighbours(id, controllerId, siteKey) {
+  const rows = await db
+    .select()
+    .from(sites)
+    .where(and(eq(sites.controllerId, controllerId), sql`${sites.settings}->>'siteKey' = ${siteKey}`));
+  return rows.filter((s) => s.id !== id);
+}
+
 // Site settings → Controller → Undo: puts the UniFi site's guest portal
 // settings and Wi-Fi network back how they were before Foyer set it up
 sitesRouter.post("/:id/unifi-undo", requireAccess("controllers"), async (req, res) => {
@@ -219,8 +257,17 @@ sitesRouter.post("/:id/unifi-undo", requireAccess("controllers"), async (req, re
   if (!row) throw new Problem("That site was already deleted.", 404);
   const backup = row.settings?.unifiBackup;
   if (!backup) throw new Problem("There's nothing to undo for this site.");
+  // Other Foyer sites still set up on the same UniFi site keep its guest
+  // portal settings, and their Wi-Fi networks stay as they are
+  const others = (await unifiNeighbours(row.id, backup.controllerId, backup.siteKey)).filter((s) => s.settings?.unifi);
+  const inUse = new Set(others.map((s) => String(s.settings.unifi.wlanId)));
+  const putBack = {
+    ...backup,
+    guestAccess: others.length ? null : backup.guestAccess,
+    wlans: Object.fromEntries(Object.entries(backup.wlans ?? {}).filter(([w]) => !inUse.has(String(w)))),
+  };
   try {
-    await undoUnifi(backup.controllerId, backup.siteKey, backup);
+    await undoUnifi(backup.controllerId, backup.siteKey, putBack);
   } catch (err) {
     if (err instanceof ControllerError) throw new Problem(err.message);
     throw err;

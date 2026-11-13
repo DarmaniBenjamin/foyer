@@ -86,18 +86,40 @@ async function sendOn(res, site, ctx) {
 }
 
 // UniFi: the site is found by its UniFi site name (Sites → Details).
-// If two Foyer sites use the same name on different UniFi controllers,
-// the first one is used.
+// Several Foyer sites can have the same UniFi site (one per Wi-Fi
+// network, or an old one that was undone or turned off), so the best one
+// is picked:
+//   1. set up on the Wi-Fi network the guest joined (UniFi says which)
+//   2. set up from Foyer on that UniFi site (not undone)
+//   3. turned on
+//   4. the newest
+export function pickUnifiSite(rows, ssid) {
+  const wifi = (ssid ?? "").trim().toLowerCase();
+  const score = (s) => {
+    const unifi = s.settings?.unifi;
+    return (
+      (unifi && wifi && (unifi.wlanName ?? "").trim().toLowerCase() === wifi ? 8 : 0) +
+      (unifi ? 4 : 0) +
+      (s.active ? 2 : 0)
+    );
+  };
+  return [...rows].sort((a, b) => score(b) - score(a) || b.id - a.id)[0] ?? null;
+}
+
 arriveRouter.get("/guest/s/:siteKey", async (req, res) => {
   const key = String(req.params.siteKey);
-  const [site] = await db
+  const rows = await db
     .select({ site: sites })
     .from(sites)
     .innerJoin(controllers, eq(sites.controllerId, controllers.id))
-    .where(and(eq(controllers.kind, "unifi"), sql`${sites.settings}->>'siteKey' = ${key}`))
-    .orderBy(sites.id);
+    .where(and(eq(controllers.kind, "unifi"), sql`${sites.settings}->>'siteKey' = ${key}`));
+  const ctx = fromUnifi(key, req.query);
+  const site = pickUnifiSite(
+    rows.map((r) => r.site),
+    ctx?.ssid ?? req.query.ssid,
+  );
   if (!site) return res.redirect(302, portalPage(`unifi-${key}`));
-  await sendOn(res, site.site, fromUnifi(key, req.query));
+  await sendOn(res, site, ctx);
 });
 
 // Omada: the site is found by its address name
