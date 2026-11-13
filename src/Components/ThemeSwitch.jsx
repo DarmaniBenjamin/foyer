@@ -6,13 +6,9 @@
 //
 // The animations: on hover the button lifts and glows and its icon turns
 // a little; on a press the sun and moon swap, one spinning out as the
-// other spins in, and the old look comes off like a cover being pulled
-// off a car: a picture of the page as it was slides away from the
-// button's corner, with a shadow on its edge, showing the new theme
-// underneath as it goes (the browser's View Transitions). The picture is
-// only moved, never redrawn, so it stays smooth on slow computers and big
-// screens. Browsers without View Transitions, or "reduce motion", just
-// change. See .theme-* in index.css.
+// other spins in, and the new theme spreads over the page in a circle
+// from the button (the browser's View Transitions; without them, or with
+// "reduce motion" on, it just changes). See .theme-* in index.css.
 import { useEffect, useState } from "react";
 import { flushSync } from "react-dom";
 import { Moon, Sun } from "lucide-react";
@@ -55,30 +51,34 @@ export default function ThemeSwitch() {
   const dark = shown === "dark";
   const label = dark ? "Switch to light mode" : "Switch to dark mode";
 
-  const [busy, setBusy] = useState(false);
-
-  function toggle() {
-    if (busy) return;
+  function toggle(e) {
     const next = dark ? "light" : "dark";
-    const root = document.documentElement;
     const change = () => {
-      // Straight away, so the new look's picture has the new icon in it
+      // Straight away, so the new page picture has the new icon in it
       flushSync(() => {
         setChoice(next);
         setShown(next);
       });
       saveThemeChoice(next);
     };
-    if (calm() || !document.startViewTransition) return change();
+    if (!document.startViewTransition || calm()) return change();
 
-    // No colour fades while the page changes colour, and the cover peels
-    root.classList.add("theme-switching");
-    setBusy(true);
+    // The circle grows from the middle of the button to the far corner
+    const box = e.currentTarget.getBoundingClientRect();
+    const x = box.left + box.width / 2;
+    const y = box.top + box.height / 2;
+    const reach = Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y));
+    document.documentElement.classList.add("theme-switching");
     const switching = document.startViewTransition(change);
-    switching.finished.finally(() => {
-      root.classList.remove("theme-switching");
-      setBusy(false);
-    });
+    switching.ready
+      .then(() =>
+        document.documentElement.animate(
+          { clipPath: [`circle(0px at ${x}px ${y}px)`, `circle(${reach}px at ${x}px ${y}px)`] },
+          { duration: 650, easing: "cubic-bezier(0.65, 0, 0.35, 1)", pseudoElement: "::view-transition-new(root)" },
+        ),
+      )
+      .catch(() => {});
+    switching.finished.finally(() => document.documentElement.classList.remove("theme-switching"));
   }
 
   return (
