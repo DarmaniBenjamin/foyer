@@ -93,6 +93,19 @@ function Section({ title, hint, fold = false, children }) {
   );
 }
 
+// One part of a bigger section, under its own small heading
+function Part({ title, hint, first = false, children }) {
+  return (
+    <div className={`space-y-4 ${first ? "" : "border-t border-line pt-5"}`}>
+      <div>
+        <h4 className="text-sm font-semibold">{title}</h4>
+        {hint && <p className="mt-0.5 text-sm text-muted">{hint}</p>}
+      </div>
+      {children}
+    </div>
+  );
+}
+
 function Toggle({ checked, onChange, label, detail }) {
   return (
     <label className="flex cursor-pointer items-center justify-between gap-4">
@@ -403,17 +416,18 @@ function LookTab({ draft, set, setLook, onPreviewPage }) {
   const opacity = Math.round((look.cardOpacity ?? 1) * 100);
   return (
     <>
-      <Section fold
-        title="Copy an existing portal"
-        hint="Paste the address of another sign-in page (e.g. this site's Spotipo portal) to copy its logo, background, words, colours and questions."
-      >
-        <ImportPortal draft={draft} set={set} setLook={setLook} onPreviewPage={onPreviewPage} />
-      </Section>
-
-      <Section fold
-        title="Colours from the company's website"
-        hint="Type the company's website to see its brand colours and logo. Nothing changes until you press Use."
-      >
+      <Section fold title="Copy a look" hint="From another sign-in page, or the company's website">
+        <Part
+          first
+          title="Copy an existing portal"
+          hint="Paste the address of another sign-in page (e.g. this site's Spotipo portal) to copy its logo, background, words, colours and questions."
+        >
+          <ImportPortal draft={draft} set={set} setLook={setLook} onPreviewPage={onPreviewPage} />
+        </Part>
+        <Part
+          title="Colours from the company's website"
+          hint="Type the company's website to see its brand colours and logo. Nothing changes until you press Use."
+        >
         <BrandFromWebsite
           look={look}
           onUse={(changes) => {
@@ -421,9 +435,11 @@ function LookTab({ draft, set, setLook, onPreviewPage }) {
             setLook(changes);
           }}
         />
+        </Part>
       </Section>
 
-      <Section fold title="Logo">
+      <Section fold title="Logo and background" hint="The logo, and what's behind the sign-in box">
+        <Part first title="Logo">
         <LogoPicker
           value={look.logo}
           onChange={(logo) => {
@@ -449,9 +465,8 @@ function LookTab({ draft, set, setLook, onPreviewPage }) {
         {look.logo && (
           <p className={`${hintClass} -mt-2`}>A wide logo stops growing once it fills the box from side to side.</p>
         )}
-      </Section>
-
-      <Section fold title="Page background" hint="Behind the sign-in box. The picture covers the whole screen.">
+        </Part>
+        <Part title="Page background" hint="Behind the sign-in box. The picture covers the whole screen.">
         <LogoPicker
           kind="background"
           value={look.backgroundImage}
@@ -508,12 +523,15 @@ function LookTab({ draft, set, setLook, onPreviewPage }) {
             )}
           </>
         )}
+        </Part>
       </Section>
 
-      <Section fold
-        title="Page layout"
-        hint="What's on the sign-in page, top to bottom. The arrows move a part, the eye shows or hides it."
-      >
+      <Section fold title="Layout and sign-in box" hint="What's on the page and where, and the box's colours">
+        <Part
+          first
+          title="Page layout"
+          hint="What's on the sign-in page, top to bottom. The arrows move a part, the eye shows or hides it."
+        >
         <PageParts
           look={look}
           setLook={(changes) => {
@@ -544,9 +562,8 @@ function LookTab({ draft, set, setLook, onPreviewPage }) {
             ))}
           </div>
         </div>
-      </Section>
-
-      <Section fold title="Sign-in box">
+        </Part>
+        <Part title="Sign-in box">
         <div className="grid gap-4 sm:grid-cols-2">
           <ColorField
             id="look-card"
@@ -601,17 +618,18 @@ function LookTab({ draft, set, setLook, onPreviewPage }) {
             ))}
           </div>
         </div>
+        </Part>
       </Section>
 
-      <Section fold title="Words">
+      <Section fold title="Words and text" hint="What the page says, and how big and bold it is">
+        <Part first title="Words">
         {text("heading", "Heading")}
         {text("message", "Message under the heading", 2)}
         {text("button", "Button")}
         {text("success", "After signing in", 3)}
         {text("footer", "Small print at the bottom")}
-      </Section>
-
-      <Section fold title="Text size and style" hint="How big each kind of words is, and whether it's bold or italic.">
+        </Part>
+        <Part title="Text size and style" hint="How big each kind of words is, and whether it's bold or italic.">
         <TextStyles
           look={look}
           setLook={(changes) => {
@@ -619,6 +637,7 @@ function LookTab({ draft, set, setLook, onPreviewPage }) {
             setLook(changes);
           }}
         />
+        </Part>
       </Section>
     </>
   );

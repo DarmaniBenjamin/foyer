@@ -22,6 +22,11 @@
   body {
     padding-bottom: var(--keyboard, 0px);
   }
+  /* A pop-up shown as its own page on a phone (Modal.jsx): the page
+     behind is hidden until it closes */
+  html.modal-page #root {
+    display: none;
+  }
   html {
     background-color: var(--color-page);
     color: var(--color-ink);

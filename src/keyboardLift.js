@@ -11,6 +11,10 @@
 // sign-in window) report the screen's height a little differently as the
 // page moves, even with no keyboard. Adding and taking away room for those
 // made the sign-in page jump up and down over and over.
+//
+// The page is only ever moved once per box or keyboard (never in answer
+// to the screen moving), so it can't end up in a loop with the iPhone's
+// own scrolling.
 
 // Smaller than any phone keyboard: a gap this small isn't one
 const KEYBOARD_MIN = 150;
@@ -45,21 +49,30 @@ export function startKeyboardLift() {
     const bottom = view.offsetTop + view.height;
     if (box.top >= top + 12 && box.bottom <= bottom - 12) return;
     const middle = top + view.height / 2;
-    window.scrollBy({ top: box.top + box.height / 2 - middle, behavior: "smooth" });
+    window.scrollBy(0, Math.round(box.top + box.height / 2 - middle));
   };
 
+  // The keyboard's height (from the screen's visible height, which
+  // doesn't change when the iPhone slides the page)
+  let keyboardWas = 0;
   const update = () => {
     // Nothing being typed in: no keyboard, whatever the sizes say
-    if (!typingIn()) return setRoom(0);
-    const keyboard = Math.max(0, Math.round(window.innerHeight - view.height - view.offsetTop));
-    setRoom(keyboard >= KEYBOARD_MIN ? keyboard : 0);
+    if (!typingIn()) {
+      keyboardWas = 0;
+      return setRoom(0);
+    }
+    const gap = Math.max(0, Math.round(window.innerHeight - view.height));
+    const keyboard = gap >= KEYBOARD_MIN ? gap : 0;
+    setRoom(keyboard);
+    // Only when the keyboard opens or changes size, after it's finished
+    // sliding up
+    if (Math.abs(keyboard - keyboardWas) < 40) return;
+    keyboardWas = keyboard;
     clearTimeout(timer);
-    // After the keyboard has finished sliding up
-    timer = setTimeout(showBox, 120);
+    timer = setTimeout(showBox, 150);
   };
 
   view.addEventListener("resize", update);
-  view.addEventListener("scroll", update);
   document.addEventListener("focusin", (e) => {
     if (!e.target?.matches?.(TYPING) || e.target.closest("[data-modal]")) return;
     clearTimeout(timer);
