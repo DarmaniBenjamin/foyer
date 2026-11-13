@@ -28,7 +28,7 @@ function Option({ selected, onClick, name, detail }) {
     >
       <span className="min-w-0 flex-1">
         <span className="block truncate text-sm font-medium">{name}</span>
-        <span className="block truncate text-xs text-muted">{detail}</span>
+        {detail && <span className="block truncate text-xs text-muted">{detail}</span>}
       </span>
       {selected && <Check size={18} className="shrink-0 text-brand" />}
     </button>
@@ -37,7 +37,7 @@ function Option({ selected, onClick, name, detail }) {
 
 export default function SiteSwitcher({ onPicked, variant = "sidebar" }) {
   const inHeader = variant === "header";
-  const { sites, controllers, currentSite, pickSite, addSite, can } = useData();
+  const { sites, currentSite, pickSite, addSite, can } = useData();
   const [open, setOpen] = useState(false);
   const [adding, setAdding] = useState(false);
   const [search, setSearch] = useState("");
@@ -80,10 +80,6 @@ export default function SiteSwitcher({ onPicked, variant = "sidebar" }) {
     navigate(`/sites/${site.id}`);
     onPicked?.();
   }
-
-  const controllerName = (site) =>
-    controllers.find((c) => c.id === site.controllerId)?.name ??
-    "No controller";
 
   const shown = sites.filter((s) =>
     s.name.toLowerCase().includes(search.trim().toLowerCase()),
@@ -129,7 +125,6 @@ export default function SiteSwitcher({ onPicked, variant = "sidebar" }) {
                 selected={currentSite?.id === site.id}
                 onClick={() => choose(site.id)}
                 name={site.name}
-                detail={controllerName(site)}
               />
             ))}
             {shown.length === 0 && (
