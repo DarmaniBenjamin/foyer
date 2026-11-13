@@ -116,7 +116,6 @@ export default function SiteSwitcher({ onPicked, variant = "sidebar" }) {
               selected={!currentSite}
               onClick={() => choose(ALL_SITES)}
               name="All sites"
-              detail={`Overview of ${sites.length} sites`}
             />
             <div className="mx-2 my-1 border-t border-line" />
             {shown.map((site) => (

@@ -63,7 +63,8 @@ export default function ThemeSwitch() {
     };
     if (!document.startViewTransition || calm()) return change();
 
-    // The circle grows from the middle of the button to the far corner
+    // The circle grows from the middle of the button to the far corner:
+    // fast at first (no pause after the press), slowing as it covers
     const box = e.currentTarget.getBoundingClientRect();
     const x = box.left + box.width / 2;
     const y = box.top + box.height / 2;
@@ -74,7 +75,7 @@ export default function ThemeSwitch() {
       .then(() =>
         document.documentElement.animate(
           { clipPath: [`circle(0px at ${x}px ${y}px)`, `circle(${reach}px at ${x}px ${y}px)`] },
-          { duration: 650, easing: "cubic-bezier(0.65, 0, 0.35, 1)", pseudoElement: "::view-transition-new(root)" },
+          { duration: 520, easing: "cubic-bezier(0.22, 1, 0.36, 1)", pseudoElement: "::view-transition-new(root)" },
         ),
       )
       .catch(() => {});
