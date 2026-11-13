@@ -557,3 +557,48 @@ html.dark {
     transition: none !important;
   }
 }
+
+/* ---------- The light / dark button (ThemeSwitch.jsx) ---------- */
+
+/* The sun and moon swap: the one going away spins and shrinks to
+   nothing, the one coming in spins up from nothing with a little bounce */
+.theme-icon {
+  transition:
+    transform 550ms cubic-bezier(0.34, 1.56, 0.64, 1),
+    opacity 300ms ease;
+}
+.theme-icon-on {
+  opacity: 1;
+  transform: rotate(0deg) scale(1);
+}
+.theme-icon-off {
+  opacity: 0;
+  transform: rotate(-120deg) scale(0);
+}
+/* On hover the sun turns, the moon rocks */
+.theme-button:hover .lucide-sun.theme-icon-on {
+  transform: rotate(45deg) scale(1.1);
+}
+.theme-button:hover .lucide-moon.theme-icon-on {
+  transform: rotate(-20deg) scale(1.1);
+}
+
+/* The new theme spreads from the button in a circle: the browser's own
+   cross-fade is turned off, the circle is drawn by ThemeSwitch.jsx */
+.theme-switching::view-transition-old(root),
+.theme-switching::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+.theme-switching::view-transition-old(root) {
+  z-index: 1;
+}
+.theme-switching::view-transition-new(root) {
+  z-index: 2;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .theme-icon {
+    transition: none;
+  }
+}
