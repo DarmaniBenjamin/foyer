@@ -87,7 +87,7 @@ function findLogo(root, full) {
 // { website, name, colors: [{ hex, score }] strongest first, logo (a
 // data: link, or null), logoFrom }
 export async function readBrand(address) {
-  let start = String(address ?? "").trim();
+  let start = String(address ?? "").replace(/\s+/g, "");
   if (!start) throw new Problem("Enter the company's website.");
   const typed = /^https?:\/\//i.test(start);
   if (!typed) start = `https://${start}`;

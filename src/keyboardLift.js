@@ -29,9 +29,11 @@ export function startKeyboardLift() {
     root.style.setProperty("--keyboard", `${px}px`);
   };
 
+  // A box inside a pop-up (Modal.jsx) is looked after by the pop-up
+  // itself: moving the page under it is what made it jump
   const typingIn = () => {
     const el = document.activeElement;
-    return el?.matches?.(TYPING) ? el : null;
+    return el?.matches?.(TYPING) && !el.closest("[data-modal]") ? el : null;
   };
 
   const showBox = () => {
@@ -59,7 +61,7 @@ export function startKeyboardLift() {
   view.addEventListener("resize", update);
   view.addEventListener("scroll", update);
   document.addEventListener("focusin", (e) => {
-    if (!e.target?.matches?.(TYPING)) return;
+    if (!e.target?.matches?.(TYPING) || e.target.closest("[data-modal]")) return;
     clearTimeout(timer);
     timer = setTimeout(showBox, 350);
   });

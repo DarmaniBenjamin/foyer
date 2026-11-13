@@ -237,7 +237,11 @@ export default function BrandFromWebsite({ look, onUse, keep = "press Save to ke
           <Globe size={16} className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-muted" />
           <input
             value={url}
-            onChange={(e) => setUrl(e.target.value)}
+            // No spaces in a web address (autocorrect adds them)
+            onChange={(e) => {
+              setUrl(e.target.value.replace(/\s+/g, ""));
+              setError("");
+            }}
             onKeyDown={(e) => {
               if (e.key === "Enter") {
                 e.preventDefault();
@@ -247,6 +251,9 @@ export default function BrandFromWebsite({ look, onUse, keep = "press Save to ke
             placeholder="Company website, e.g. mix959fm.com"
             inputMode="url"
             autoCapitalize="none"
+            autoCorrect="off"
+            autoComplete="url"
+            spellCheck={false}
             aria-label="Company website"
             className={`${inputClass} pl-9`}
           />
