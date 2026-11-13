@@ -4,6 +4,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import express from "express";
+import compression from "compression";
 import { ROOT, PRODUCTION } from "./config.js";
 import { authRouter, loadSession, requireUser, setupRouter } from "./auth.js";
 import { healthDetails } from "./healthDetails.js";
@@ -39,6 +40,20 @@ export function makeApp() {
     res.setHeader("Expires", "0");
     next();
   });
+
+  // Everything sent is squeezed (gzip) when the browser can take it: the
+  // app's code and the data (sites, guests…) come down 3–5 times smaller.
+  // Not the live line (it must arrive at once, not when a block is full),
+  // nor pictures and videos, which are squeezed already.
+  app.use(
+    compression({
+      filter: (req, res) =>
+        !req.path.startsWith("/api/live") &&
+        !req.path.startsWith("/media/") &&
+        !req.path.startsWith("/ad-pictures/") &&
+        compression.filter(req, res),
+    }),
+  );
 
   // Pictures (logos, backgrounds, ads) come inside the JSON
   app.use("/api", express.json({ limit: "15mb" }));
