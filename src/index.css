@@ -583,18 +583,24 @@ html.dark {
   transform: rotate(-20deg) scale(1.1);
 }
 
-/* The new theme spreads from the button in a circle: the browser's own
-   cross-fade is turned off, the circle is drawn by ThemeSwitch.jsx */
-.theme-switching::view-transition-old(root),
-.theme-switching::view-transition-new(root) {
-  animation: none;
-  mix-blend-mode: normal;
+/* While the theme changes, nothing fades its colours: dozens of buttons
+   and links fading at once, under the circle, is what made it lag */
+.theme-switching *,
+.theme-switching *::before,
+.theme-switching *::after {
+  transition: none !important;
 }
-.theme-switching::view-transition-old(root) {
-  z-index: 1;
-}
-.theme-switching::view-transition-new(root) {
-  z-index: 2;
+
+/* The circle of the new theme's colour (ThemeSwitch.jsx): drawn once,
+   small, then only enlarged and faded, which the graphics chip does
+   without redrawing the page, so it stays smooth */
+.theme-circle {
+  position: fixed;
+  z-index: 9999;
+  border-radius: 9999px;
+  pointer-events: none;
+  transform: scale(0);
+  will-change: transform, opacity;
 }
 
 @media (prefers-reduced-motion: reduce) {

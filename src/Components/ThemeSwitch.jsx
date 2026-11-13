@@ -6,11 +6,14 @@
 //
 // The animations: on hover the button lifts and glows and its icon turns
 // a little; on a press the sun and moon swap, one spinning out as the
-// other spins in, and the new theme spreads over the page in a circle
-// from the button (the browser's View Transitions; without them, or with
-// "reduce motion" on, it just changes). See .theme-* in index.css.
+// other spins in, and a circle of the new theme's colour grows from the
+// button over the page. Under it the theme changes (the one costly
+// redraw, hidden), then the circle fades away. The circle is drawn once,
+// small, and only enlarged and faded (which the graphics chip does by
+// itself, without redrawing the page), so it stays smooth on slow
+// computers and big screens. With "reduce motion" on, it just changes.
+// See .theme-* in index.css.
 import { useEffect, useState } from "react";
-import { flushSync } from "react-dom";
 import { Moon, Sun } from "lucide-react";
 import {
   applyTheme,
@@ -22,6 +25,13 @@ import {
 } from "../theme";
 
 const calm = () => window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+
+// Each theme's page colour (--color-page in index.css)
+const PAGE = { light: "#f7f8fa", dark: "#000000" };
+const GROW_MS = 450;
+const FADE_MS = 320;
+// The circle's size when drawn (px across); it's enlarged from there
+const DRAWN = 64;
 
 export default function ThemeSwitch() {
   const [choice, setChoice] = useState(getThemeChoice);
@@ -51,34 +61,56 @@ export default function ThemeSwitch() {
   const dark = shown === "dark";
   const label = dark ? "Switch to light mode" : "Switch to dark mode";
 
-  function toggle(e) {
-    const next = dark ? "light" : "dark";
-    const change = () => {
-      // Straight away, so the new page picture has the new icon in it
-      flushSync(() => {
-        setChoice(next);
-        setShown(next);
-      });
-      saveThemeChoice(next);
-    };
-    if (!document.startViewTransition || calm()) return change();
+  const [busy, setBusy] = useState(false);
 
-    // The circle grows from the middle of the button to the far corner
+  function toggle(e) {
+    if (busy) return;
+    const next = dark ? "light" : "dark";
+    const root = document.documentElement;
+    const change = () => {
+      // No colour fades while the whole page changes colour
+      root.classList.add("theme-switching");
+      setChoice(next);
+      setShown(next);
+      saveThemeChoice(next);
+      requestAnimationFrame(() => requestAnimationFrame(() => root.classList.remove("theme-switching")));
+    };
+    if (calm() || !Element.prototype.animate) return change();
+
+    // A small circle of the new colour on the middle of the button,
+    // enlarged until it reaches the far corner of the screen
     const box = e.currentTarget.getBoundingClientRect();
-    const x = box.left + box.width / 2;
-    const y = box.top + box.height / 2;
+    const x = Math.round(box.left + box.width / 2);
+    const y = Math.round(box.top + box.height / 2);
     const reach = Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y));
-    document.documentElement.classList.add("theme-switching");
-    const switching = document.startViewTransition(change);
-    switching.ready
-      .then(() =>
-        document.documentElement.animate(
-          { clipPath: [`circle(0px at ${x}px ${y}px)`, `circle(${reach}px at ${x}px ${y}px)`] },
-          { duration: 650, easing: "cubic-bezier(0.65, 0, 0.35, 1)", pseudoElement: "::view-transition-new(root)" },
-        ),
-      )
-      .catch(() => {});
-    switching.finished.finally(() => document.documentElement.classList.remove("theme-switching"));
+    const circle = document.createElement("div");
+    circle.className = "theme-circle";
+    Object.assign(circle.style, {
+      left: `${x - DRAWN / 2}px`,
+      top: `${y - DRAWN / 2}px`,
+      width: `${DRAWN}px`,
+      height: `${DRAWN}px`,
+      backgroundColor: PAGE[next],
+    });
+    document.body.appendChild(circle);
+    setBusy(true);
+
+    const grow = circle.animate(
+      { transform: ["scale(0)", `scale(${Math.ceil((reach * 2) / DRAWN) + 1})`] },
+      { duration: GROW_MS, easing: "cubic-bezier(0.55, 0, 0.45, 1)", fill: "forwards" },
+    );
+    grow.finished
+      .then(() => {
+        // Covered: change the theme underneath, then let it show through
+        change();
+        return new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done)));
+      })
+      .then(() => circle.animate({ opacity: [1, 0] }, { duration: FADE_MS, easing: "ease-out", fill: "forwards" }).finished)
+      .catch(() => change())
+      .finally(() => {
+        circle.remove();
+        setBusy(false);
+      });
   }
 
   return (
