@@ -55,10 +55,6 @@ function ControllerCard({ controller, isCurrent, onEdit, onDelete }) {
             )}
           </div>
           <p className="truncate text-sm text-muted">{controller.url}</p>
-          <p className="text-sm text-muted">
-            {controller.kind === "omada" ? "Operator" : "Admin"}:{" "}
-            {controller.username}
-          </p>
         </div>
       </div>
 
