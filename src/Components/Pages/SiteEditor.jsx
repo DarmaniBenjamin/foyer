@@ -11,6 +11,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import {
   ArrowLeft,
+  ChevronDown,
   Clock,
   ListChecks,
   Palette,
@@ -59,14 +60,35 @@ const textareaClass =
 
 // ---------- Small pieces ----------
 
-function Section({ title, hint, children }) {
+// fold: starts closed, and opens when its title is pressed (the Look
+// tab, so the page isn't one long scroll on a phone)
+function Section({ title, hint, fold = false, children }) {
+  const [open, setOpen] = useState(!fold);
+  if (!fold)
+    return (
+      <section className="space-y-4 rounded-xl border border-line bg-white p-5">
+        <div>
+          <h3 className="font-semibold">{title}</h3>
+          {hint && <p className="mt-0.5 text-sm text-muted">{hint}</p>}
+        </div>
+        {children}
+      </section>
+    );
   return (
-    <section className="space-y-4 rounded-xl border border-line bg-white p-5">
-      <div>
-        <h3 className="font-semibold">{title}</h3>
-        {hint && <p className="mt-0.5 text-sm text-muted">{hint}</p>}
-      </div>
-      {children}
+    <section className="rounded-xl border border-line bg-white">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        className="flex w-full items-center justify-between gap-3 rounded-xl px-5 py-4 text-left transition hover:bg-brand/5"
+      >
+        <span className="min-w-0">
+          <span className="block font-semibold">{title}</span>
+          {hint && <span className="mt-0.5 block text-sm text-muted">{hint}</span>}
+        </span>
+        <ChevronDown size={18} className={`shrink-0 text-muted transition ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open && <div className="space-y-4 border-t border-line px-5 pt-4 pb-5">{children}</div>}
     </section>
   );
 }
@@ -381,14 +403,14 @@ function LookTab({ draft, set, setLook, onPreviewPage }) {
   const opacity = Math.round((look.cardOpacity ?? 1) * 100);
   return (
     <>
-      <Section
+      <Section fold
         title="Copy an existing portal"
         hint="Paste the address of another sign-in page (e.g. this site's Spotipo portal) to copy its logo, background, words, colours and questions."
       >
         <ImportPortal draft={draft} set={set} setLook={setLook} onPreviewPage={onPreviewPage} />
       </Section>
 
-      <Section
+      <Section fold
         title="Colours from the company's website"
         hint="Type the company's website to see its brand colours and logo. Nothing changes until you press Use."
       >
@@ -401,7 +423,7 @@ function LookTab({ draft, set, setLook, onPreviewPage }) {
         />
       </Section>
 
-      <Section title="Logo">
+      <Section fold title="Logo">
         <LogoPicker
           value={look.logo}
           onChange={(logo) => {
@@ -429,7 +451,7 @@ function LookTab({ draft, set, setLook, onPreviewPage }) {
         )}
       </Section>
 
-      <Section title="Page background" hint="Behind the sign-in box. The picture covers the whole screen.">
+      <Section fold title="Page background" hint="Behind the sign-in box. The picture covers the whole screen.">
         <LogoPicker
           kind="background"
           value={look.backgroundImage}
@@ -488,7 +510,7 @@ function LookTab({ draft, set, setLook, onPreviewPage }) {
         )}
       </Section>
 
-      <Section
+      <Section fold
         title="Page layout"
         hint="What's on the sign-in page, top to bottom. The arrows move a part, the eye shows or hides it."
       >
@@ -524,7 +546,7 @@ function LookTab({ draft, set, setLook, onPreviewPage }) {
         </div>
       </Section>
 
-      <Section title="Sign-in box">
+      <Section fold title="Sign-in box">
         <div className="grid gap-4 sm:grid-cols-2">
           <ColorField
             id="look-card"
@@ -581,7 +603,7 @@ function LookTab({ draft, set, setLook, onPreviewPage }) {
         </div>
       </Section>
 
-      <Section title="Words">
+      <Section fold title="Words">
         {text("heading", "Heading")}
         {text("message", "Message under the heading", 2)}
         {text("button", "Button")}
@@ -589,7 +611,7 @@ function LookTab({ draft, set, setLook, onPreviewPage }) {
         {text("footer", "Small print at the bottom")}
       </Section>
 
-      <Section title="Text size and style" hint="How big each kind of words is, and whether it's bold or italic.">
+      <Section fold title="Text size and style" hint="How big each kind of words is, and whether it's bold or italic.">
         <TextStyles
           look={look}
           setLook={(changes) => {
