@@ -183,7 +183,17 @@ const templates = new Map();
 async function template(name) {
   if (!templates.has(name)) {
     const res = await fetch(`/api/report-template/${name}`, { credentials: "same-origin" });
-    if (!res.ok) throw new Error("Couldn't get the report template. Try again.");
+    if (!res.ok) {
+      // What the server said, to tell "not updated yet" from "signed out"
+      let why = `the server answered ${res.status}`;
+      try {
+        const body = await res.json();
+        if (body?.error) why = body.error;
+      } catch {
+        // Not Foyer answering (the host's own page)
+      }
+      throw new Error(`Couldn't get the report template (${why}). If Foyer was just updated, restart it on the host.`);
+    }
     templates.set(name, await res.arrayBuffer());
   }
   return templates.get(name);
@@ -226,7 +236,7 @@ export async function downloadReportWord({ site, connections, year, month }) {
   const [{ default: JSZip }, parts, file] = await Promise.all([
     import("jszip"),
     makeParts({ site, connections, year, month }),
-    template("report.docx"),
+    template("report-docx"),
   ]);
   const zip = await JSZip.loadAsync(file);
   let xml = await zip.file("word/document.xml").async("string");
@@ -260,9 +270,9 @@ export async function downloadReportPdf({ site, connections, year, month }) {
     import("pdf-lib"),
     import("@pdf-lib/fontkit"),
     makeParts({ site, connections, year, month }),
-    template("report.pdf"),
-    template("Poppins-Regular.ttf"),
-    template("Poppins-Bold.ttf"),
+    template("report-pdf"),
+    template("poppins-regular"),
+    template("poppins-bold"),
   ]);
   const pdf = await PDFDocument.load(file);
   pdf.registerFontkit(fontkit);
@@ -355,7 +365,7 @@ export function reportGuests({ site, guests, year, month }) {
 }
 
 export async function downloadReportExcel({ site, guests, year, month }) {
-  const [{ default: JSZip }, file] = await Promise.all([import("jszip"), template("guests.xlsx")]);
+  const [{ default: JSZip }, file] = await Promise.all([import("jszip"), template("guests-xlsx")]);
   const { head, rows } = reportGuests({ site, guests, year, month });
   const cell = (ref, value, style) =>
     typeof value === "number"

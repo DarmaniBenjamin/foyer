@@ -144,18 +144,22 @@ export function makeApp() {
   app.get("/api/health/details", requireAccess("maintenance"), healthDetails);
 
   // The monthly report's templates (Protonic's own Word file, PDF and
-  // Excel file, and the Poppins font): for people signed in to Foyer only
+  // Excel file, and the Poppins font): for people signed in to Foyer only.
+  // Their addresses have no ".pdf" or ".docx" on the end: some hosts
+  // (SiteGround) answer those themselves, as files on the website, and
+  // Foyer never sees the request.
   const TEMPLATES = {
-    "report.docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    "report.pdf": "application/pdf",
-    "guests.xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    "Poppins-Regular.ttf": "font/ttf",
-    "Poppins-Bold.ttf": "font/ttf",
+    "report-docx": ["report.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"],
+    "report-pdf": ["report.pdf", "application/pdf"],
+    "guests-xlsx": ["guests.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"],
+    "poppins-regular": ["Poppins-Regular.ttf", "font/ttf"],
+    "poppins-bold": ["Poppins-Bold.ttf", "font/ttf"],
   };
   app.get("/api/report-template/:name", requireUser, (req, res) => {
-    const type = Object.hasOwn(TEMPLATES, req.params.name) ? TEMPLATES[req.params.name] : null;
-    if (!type) return res.status(404).json({ error: "There's no such template." });
-    res.type(type).sendFile(path.join(ROOT, "server", "report-template", req.params.name));
+    const found = Object.hasOwn(TEMPLATES, req.params.name) ? TEMPLATES[req.params.name] : null;
+    if (!found) return res.status(404).json({ error: "There's no such template." });
+    const [file, type] = found;
+    res.type(type).sendFile(path.join(ROOT, "server", "report-template", file));
   });
   // Every open tab hears about changes (live.js)
   app.use("/api", announceChanges);
