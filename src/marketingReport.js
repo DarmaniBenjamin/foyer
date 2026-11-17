@@ -1,4 +1,5 @@
-// The monthly Wi-Fi Marketing Report sent to each client: the same
+// The Wi-Fi Marketing Report sent to each client (for a month, or any
+// days picked): the same
 // Word file, PDF and Excel file Protonic made by hand, with this site's
 // month in them. The Word file and PDF are Protonic's own (in
 // server/report-template), with only these swapped in:
@@ -12,7 +13,7 @@
 //
 // Everything is made here in the browser from the data already loaded,
 // and the tools (zip, PDF) are only loaded when a button is pressed.
-import { MONTHS, monthRange } from "./dates";
+import { MONTHS, startOfDay, wholeMonth } from "./dates";
 import { answerText } from "./guests";
 
 // ---------- The month's numbers ----------
@@ -33,22 +34,27 @@ function byTwoHours(list) {
   return blocks;
 }
 
-// Each day of the month: [new guests, returning guests]. New: that
+// Each day of the range: [new guests, returning guests]. New: that
 // guest's first sign-in ever; returning: every sign-in after that.
-function newAndReturning(connections, list, year, month) {
+function newAndReturning(connections, list, range) {
   const first = new Map();
   for (const c of connections) {
     if (!c.ok || !c.guestId) continue;
     const seen = first.get(c.guestId);
     if (seen === undefined || c.at < seen) first.set(c.guestId, c.at);
   }
-  const days = new Date(year, month + 1, 0).getDate();
-  const out = Array.from({ length: days }, (_, i) => ({
-    label: `${year}-${String(month + 1).padStart(2, "0")}-${String(i + 1).padStart(2, "0")}`,
-    values: [0, 0],
-  }));
+  const out = [];
+  const index = new Map();
+  for (let d = new Date(range.from); d.getTime() <= range.to; d.setDate(d.getDate() + 1)) {
+    index.set(startOfDay(d.getTime()), out.length);
+    out.push({
+      label: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`,
+      values: [0, 0],
+    });
+  }
   for (const c of list) {
-    const day = out[new Date(c.at).getDate() - 1];
+    const day = out[index.get(startOfDay(c.at))];
+    if (!day) continue;
     if (c.guestId && first.get(c.guestId) === c.at) day.values[0] += 1;
     else day.values[1] += 1;
   }
@@ -210,33 +216,52 @@ function save(blob, name) {
   setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
 
-// The graphs and words for a site's month
-async function makeParts({ site, connections, year, month }) {
-  const range = monthRange(year, month);
+// What the report says it's for: "November 2026" (a whole month),
+// "1 to 17 November 2026", "17 November 2026" (one day),
+// "3 October to 17 November 2026", "28 December 2025 to 3 January 2026"
+export function reportPeriod(range) {
+  const whole = wholeMonth(range);
+  if (whole) return `${MONTHS[whole.month]} ${whole.year}`;
+  const f = new Date(range.from);
+  const t = new Date(range.to);
+  const day = (d, month, year) => [d.getDate(), month && MONTHS[d.getMonth()], year && d.getFullYear()].filter(Boolean).join(" ");
+  if (startOfDay(range.from) === startOfDay(range.to)) return day(t, true, true);
+  if (f.getFullYear() !== t.getFullYear()) return `${day(f, true, true)} to ${day(t, true, true)}`;
+  if (f.getMonth() !== t.getMonth()) return `${day(f, true)} to ${day(t, true, true)}`;
+  return `${day(f)} to ${day(t, true, true)}`;
+}
+
+// The graphs and words for a site's range of days
+async function makeParts({ site, connections, range }) {
   const list = signInsIn(connections, site, range);
   const [hours, days] = await Promise.all([
     // Sizes as in the report (Word: 310 × 300 and 654 × 300)
     drawGraph(byTwoHours(list), { width: 310, height: 300 }),
-    drawGraph(newAndReturning(connections, list, year, month), { width: 654, height: 300 }),
+    drawGraph(newAndReturning(connections, list, range), {
+      width: 654,
+      height: 300,
+      // Every day's name up to about a month; fewer for longer ranges
+      labelEvery: Math.max(1, Math.ceil((range.to - range.from) / (32 * 86400000))),
+    }),
   ]);
   return {
     hours,
     days,
-    period: `${MONTHS[month]} ${year}`,
+    period: reportPeriod(range),
     submitted: submissionDate(),
     ...reportNames(site),
   };
 }
 
-// "Wi-Fi Marketing Report November 2026.pdf": the month the report is for
+// "Wi-Fi Marketing Report November 2026.pdf": what the report is for
 const fileName = (parts, ext) => `Wi-Fi Marketing Report ${parts.period}.${ext}`;
 
 // ---------- Word ----------
 
-export async function downloadReportWord({ site, connections, year, month }) {
+export async function downloadReportWord({ site, connections, range }) {
   const [{ default: JSZip }, parts, file] = await Promise.all([
     import("jszip"),
-    makeParts({ site, connections, year, month }),
+    makeParts({ site, connections, range }),
     template("report-docx"),
   ]);
   const zip = await JSZip.loadAsync(file);
@@ -266,11 +291,11 @@ export async function downloadReportWord({ site, connections, year, month }) {
 // in the original
 const LABEL_BLUE = [0, 0.471, 0.808];
 
-export async function downloadReportPdf({ site, connections, year, month }) {
+export async function downloadReportPdf({ site, connections, range }) {
   const [{ PDFDocument, rgb }, { default: fontkit }, parts, file, regularFile, boldFile] = await Promise.all([
     import("pdf-lib"),
     import("@pdf-lib/fontkit"),
-    makeParts({ site, connections, year, month }),
+    makeParts({ site, connections, range }),
     template("report-pdf"),
     template("poppins-regular"),
     template("poppins-bold"),
@@ -342,10 +367,9 @@ const timeText = (ms) => {
   return `${d.getFullYear()}-${two(d.getMonth() + 1)}-${two(d.getDate())} ${two(d.getHours())}:${two(d.getMinutes())}:${two(d.getSeconds())}`;
 };
 
-// The guests first seen in the month, oldest first, with the site's
+// The guests first seen in the range, oldest first, with the site's
 // questions as columns
-export function reportGuests({ site, guests, year, month }) {
-  const range = monthRange(year, month);
+export function reportGuests({ site, guests, range }) {
   const fields = site.mode === "form" ? (site.fields ?? []) : [];
   const head = [...fields.map((f) => f.label), ...(fields.length ? [] : ["Device (MAC)"]), "Firstseen On", "Lastseen On", "Visits"];
   const rows = guests
@@ -365,9 +389,9 @@ export function reportGuests({ site, guests, year, month }) {
   return { head, rows };
 }
 
-export async function downloadReportExcel({ site, guests, year, month }) {
+export async function downloadReportExcel({ site, guests, range }) {
   const [{ default: JSZip }, file] = await Promise.all([import("jszip"), template("guests-xlsx")]);
-  const { head, rows } = reportGuests({ site, guests, year, month });
+  const { head, rows } = reportGuests({ site, guests, range });
   const cell = (ref, value, style) =>
     typeof value === "number"
       ? `<c r="${ref}" s="${style}"><v>${value}</v></c>`
@@ -395,7 +419,7 @@ export async function downloadReportExcel({ site, guests, year, month }) {
     compression: "DEFLATE",
     mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   });
-  const parts = { ...reportNames(site), period: `${MONTHS[month]} ${year}` };
+  const parts = { ...reportNames(site), period: reportPeriod(range) };
   save(blob, fileName(parts, "xlsx"));
   return rows.length;
 }

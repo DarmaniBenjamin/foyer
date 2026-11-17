@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import WifiLoader from "../WifiLoader";
 import useData from "../../useData";
-import { MONTHS, formatRange, monthRange, resolveRange } from "../../dates";
+import { formatRange, resolveRange } from "../../dates";
 import { buildReport, guestsIn } from "../../reports";
 import { SIGN_IN_MODES } from "../../data";
 import DateRangePicker from "../DateRangePicker";
@@ -45,38 +45,30 @@ function DownloadButton({ icon, title, detail, onClick, busy, disabled }) {
   );
 }
 
-// The last 12 whole months, newest first: [{ year, month, label }]
-function lastMonths(now) {
-  const d = new Date(now);
-  return Array.from({ length: 12 }, (_, i) => {
-    const at = new Date(d.getFullYear(), d.getMonth() - 1 - i, 1);
-    return { year: at.getFullYear(), month: at.getMonth(), label: `${MONTHS[at.getMonth()]} ${at.getFullYear()}` };
-  });
-}
-
 // The Wi-Fi Marketing Report for the client: Protonic's Word file and
-// PDF with this site's month in them, and the guest list (Excel)
+// PDF with this site's numbers in them, and the guest list (Excel), for a
+// whole month or any days picked
 function MonthlyReport({ site, guests, connections, canGuests, now }) {
-  const months = useMemo(() => lastMonths(now), [now]);
-  const [picked, setPicked] = useState(0);
+  const [rangeValue, setRangeValue] = useState({ preset: "last-month" });
+  const range = useMemo(() => resolveRange(rangeValue, now), [rangeValue, now]);
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
-  const { year, month, label } = months[picked];
+  const label = formatRange(range);
 
-  const counts = useMemo(() => {
-    const range = monthRange(year, month);
-    return {
+  const counts = useMemo(
+    () => ({
       signIns: connections.filter((c) => c.ok && c.siteId === site.id && c.at >= range.from && c.at <= range.to).length,
       newGuests: guests.filter((g) => g.siteId === site.id && g.firstSeenAt >= range.from && g.firstSeenAt <= range.to).length,
-    };
-  }, [site, guests, connections, year, month]);
+    }),
+    [site, guests, connections, range],
+  );
 
   async function download(kind) {
     setBusy(kind);
     setError("");
     try {
       const report = await import("../../marketingReport");
-      const args = { site, guests, connections, year, month };
+      const args = { site, guests, connections, range };
       if (kind === "word") await report.downloadReportWord(args);
       else if (kind === "pdf") await report.downloadReportPdf(args);
       else await report.downloadReportExcel(args);
@@ -91,25 +83,15 @@ function MonthlyReport({ site, guests, connections, canGuests, now }) {
   const noClient = !site.reportClient?.lastName?.trim();
   return (
     <section className="space-y-4 rounded-xl border border-line bg-white p-5">
-      <div className="flex flex-wrap items-start justify-between gap-3">
+      {/* The days picker under the title (its calendar opens to the right) */}
+      <div className="space-y-3">
         <div className="min-w-0">
           <h2 className="font-semibold">Wi-Fi Marketing Report</h2>
           <p className="mt-0.5 text-sm text-muted">
-            For {site.name}: the report and the guest list for one month, ready to send.
+            For {site.name}: the report and the guest list for a month, or any days you pick.
           </p>
         </div>
-        <select
-          value={picked}
-          onChange={(e) => setPicked(Number(e.target.value))}
-          aria-label="Month"
-          className="h-10 rounded-lg border border-line bg-white px-3 text-sm font-medium"
-        >
-          {months.map((m, i) => (
-            <option key={m.label} value={i}>
-              {m.label}
-            </option>
-          ))}
-        </select>
+        <DateRangePicker value={rangeValue} onChange={setRangeValue} />
       </div>
       <div className="grid gap-3 md:grid-cols-3">
         <DownloadButton
@@ -130,7 +112,7 @@ function MonthlyReport({ site, guests, connections, canGuests, now }) {
           <DownloadButton
             icon={FileSpreadsheet}
             title="Guests (Excel)"
-            detail={`${counts.newGuests.toLocaleString()} guests first seen in ${MONTHS[month]}`}
+            detail={`${counts.newGuests.toLocaleString()} new guests · ${label}`}
             busy={busy === "excel"}
             onClick={() => download("excel")}
           />
