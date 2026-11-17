@@ -228,7 +228,8 @@ async function makeParts({ site, connections, year, month }) {
   };
 }
 
-const fileName = (parts, ext) => `${parts.company} - Wi-Fi Marketing Report ${parts.period}.${ext}`;
+// "Wi-Fi Marketing Report November 2026.pdf": the month the report is for
+const fileName = (parts, ext) => `Wi-Fi Marketing Report ${parts.period}.${ext}`;
 
 // ---------- Word ----------
 
