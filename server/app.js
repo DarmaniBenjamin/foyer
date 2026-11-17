@@ -7,7 +7,7 @@ import path from "node:path";
 import express from "express";
 import compression from "compression";
 import { ROOT, PRODUCTION } from "./config.js";
-import { authRouter, loadSession, requireAccess, setupRouter } from "./auth.js";
+import { authRouter, loadSession, requireAccess, requireUser, setupRouter } from "./auth.js";
 import { healthDetails } from "./healthDetails.js";
 import { dataRouter } from "./routes/data.js";
 import { usersRouter } from "./routes/users.js";
@@ -142,6 +142,21 @@ export function makeApp() {
   app.use("/api", loadSession);
   // Which database this copy uses: admins only
   app.get("/api/health/details", requireAccess("maintenance"), healthDetails);
+
+  // The monthly report's templates (Protonic's own Word file, PDF and
+  // Excel file, and the Poppins font): for people signed in to Foyer only
+  const TEMPLATES = {
+    "report.docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "report.pdf": "application/pdf",
+    "guests.xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "Poppins-Regular.ttf": "font/ttf",
+    "Poppins-Bold.ttf": "font/ttf",
+  };
+  app.get("/api/report-template/:name", requireUser, (req, res) => {
+    const type = Object.hasOwn(TEMPLATES, req.params.name) ? TEMPLATES[req.params.name] : null;
+    if (!type) return res.status(404).json({ error: "There's no such template." });
+    res.type(type).sendFile(path.join(ROOT, "server", "report-template", req.params.name));
+  });
   // Every open tab hears about changes (live.js)
   app.use("/api", announceChanges);
   app.use("/api/live", liveRouter);

@@ -5,12 +5,13 @@
 import { useMemo, useState } from "react";
 import {
   CircleAlert,
+  FileDown,
   FileSpreadsheet,
   FileText,
 } from "lucide-react";
 import WifiLoader from "../WifiLoader";
 import useData from "../../useData";
-import { formatRange, resolveRange } from "../../dates";
+import { MONTHS, formatRange, monthRange, resolveRange } from "../../dates";
 import { buildReport, guestsIn } from "../../reports";
 import { SIGN_IN_MODES } from "../../data";
 import DateRangePicker from "../DateRangePicker";
@@ -41,6 +42,112 @@ function DownloadButton({ icon, title, detail, onClick, busy, disabled }) {
         <span className="block text-sm text-muted">{detail}</span>
       </span>
     </button>
+  );
+}
+
+// The last 12 whole months, newest first: [{ year, month, label }]
+function lastMonths(now) {
+  const d = new Date(now);
+  return Array.from({ length: 12 }, (_, i) => {
+    const at = new Date(d.getFullYear(), d.getMonth() - 1 - i, 1);
+    return { year: at.getFullYear(), month: at.getMonth(), label: `${MONTHS[at.getMonth()]} ${at.getFullYear()}` };
+  });
+}
+
+// The Wi-Fi Marketing Report for the client: Protonic's Word file and
+// PDF with this site's month in them, and the guest list (Excel)
+function MonthlyReport({ site, guests, connections, canGuests, now }) {
+  const months = useMemo(() => lastMonths(now), [now]);
+  const [picked, setPicked] = useState(0);
+  const [busy, setBusy] = useState("");
+  const [error, setError] = useState("");
+  const { year, month, label } = months[picked];
+
+  const counts = useMemo(() => {
+    const range = monthRange(year, month);
+    return {
+      signIns: connections.filter((c) => c.ok && c.siteId === site.id && c.at >= range.from && c.at <= range.to).length,
+      newGuests: guests.filter((g) => g.siteId === site.id && g.firstSeenAt >= range.from && g.firstSeenAt <= range.to).length,
+    };
+  }, [site, guests, connections, year, month]);
+
+  async function download(kind) {
+    setBusy(kind);
+    setError("");
+    try {
+      const report = await import("../../marketingReport");
+      const args = { site, guests, connections, year, month };
+      if (kind === "word") await report.downloadReportWord(args);
+      else if (kind === "pdf") await report.downloadReportPdf(args);
+      else await report.downloadReportExcel(args);
+    } catch (err) {
+      console.error(err);
+      setError(`Couldn't make the file: ${err.message}`);
+    } finally {
+      setBusy("");
+    }
+  }
+
+  const noClient = !site.reportClient?.lastName?.trim();
+  return (
+    <section className="space-y-4 rounded-xl border border-line bg-white p-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="font-semibold">Wi-Fi Marketing Report</h2>
+          <p className="mt-0.5 text-sm text-muted">
+            For {site.name}: the report and the guest list for one month, ready to send.
+          </p>
+        </div>
+        <select
+          value={picked}
+          onChange={(e) => setPicked(Number(e.target.value))}
+          aria-label="Month"
+          className="h-10 rounded-lg border border-line bg-white px-3 text-sm font-medium"
+        >
+          {months.map((m, i) => (
+            <option key={m.label} value={i}>
+              {m.label}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div className="grid gap-3 md:grid-cols-3">
+        <DownloadButton
+          icon={FileText}
+          title="Report (Word)"
+          detail={`${label} · ${counts.signIns.toLocaleString()} sign-ins`}
+          busy={busy === "word"}
+          onClick={() => download("word")}
+        />
+        <DownloadButton
+          icon={FileDown}
+          title="Report (PDF)"
+          detail={`${label} · ready to send`}
+          busy={busy === "pdf"}
+          onClick={() => download("pdf")}
+        />
+        {canGuests && (
+          <DownloadButton
+            icon={FileSpreadsheet}
+            title="Guests (Excel)"
+            detail={`${counts.newGuests.toLocaleString()} guests first seen in ${MONTHS[month]}`}
+            busy={busy === "excel"}
+            onClick={() => download("excel")}
+          />
+        )}
+      </div>
+      {noClient && (
+        <p className="text-sm text-muted">
+          It says “Dear Sir/Madam”: add the client's name in the site's settings (Details → Client) to use it.
+        </p>
+      )}
+      {error && (
+        <p className="flex gap-2 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+          <CircleAlert size={16} className="mt-0.5 shrink-0" />
+          {error}
+        </p>
+      )}
+    </section>
   );
 }
 
@@ -104,6 +211,20 @@ export default function Reports() {
           {where} · {report.signIns.toLocaleString()} sign-ins
         </p>
       </div>
+
+      {currentSite ? (
+        <MonthlyReport
+          site={currentSite}
+          guests={guests}
+          connections={connections}
+          canGuests={canGuests}
+          now={now}
+        />
+      ) : (
+        <p className="rounded-xl border border-dashed border-line px-4 py-3 text-sm text-muted">
+          Pick a site at the top to make its monthly Wi-Fi Marketing Report.
+        </p>
+      )}
 
       <div className="grid gap-3 md:grid-cols-2">
         {canGuests && (

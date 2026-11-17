@@ -42,7 +42,7 @@ portalRouter.get("/:slug", async (req, res) => {
 
 // What the sign-in page needs of a site: how it looks and what it asks.
 // Nothing about the controller behind it or how it was set up.
-const ADMIN_ONLY = ["controllerId", "siteKey", "unifi", "omada", "omadaSite", "unifiUndo", "omadaUndo"];
+const ADMIN_ONLY = ["controllerId", "siteKey", "unifi", "omada", "omadaSite", "unifiUndo", "omadaUndo", "reportClient"];
 function forGuests(row) {
   const site = siteOut(row);
   for (const key of ADMIN_ONLY) delete site[key];

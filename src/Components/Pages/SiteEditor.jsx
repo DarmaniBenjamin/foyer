@@ -178,6 +178,60 @@ function useControllerKind(draft) {
   return controllers.find((c) => c.id === draft.controllerId)?.kind ?? null;
 }
 
+const TITLES = ["Mr.", "Ms.", "Mrs.", "Miss", "Dr."];
+
+// The client's title, first and last name (for the monthly report)
+function ClientFields({ draft, set }) {
+  const client = draft.reportClient ?? {};
+  const change = (part) => set({ reportClient: { ...client, ...part } });
+  return (
+    <div className="grid gap-3 sm:grid-cols-[7rem_1fr_1fr]">
+      <div>
+        <label className={labelClass} htmlFor="client-title">
+          Title
+        </label>
+        <select
+          id="client-title"
+          value={client.title ?? ""}
+          onChange={(e) => change({ title: e.target.value })}
+          className={inputClass}
+        >
+          <option value="">None</option>
+          {TITLES.map((t) => (
+            <option key={t} value={t}>
+              {t}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div>
+        <label className={labelClass} htmlFor="client-first">
+          First name
+        </label>
+        <input
+          id="client-first"
+          value={client.firstName ?? ""}
+          onChange={(e) => change({ firstName: e.target.value })}
+          autoComplete="off"
+          className={inputClass}
+        />
+      </div>
+      <div>
+        <label className={labelClass} htmlFor="client-last">
+          Last name
+        </label>
+        <input
+          id="client-last"
+          value={client.lastName ?? ""}
+          onChange={(e) => change({ lastName: e.target.value })}
+          autoComplete="off"
+          className={inputClass}
+        />
+      </div>
+    </div>
+  );
+}
+
 function DetailsTab({ site, draft, set, slugsTaken, onDelete }) {
   const kind = useControllerKind(draft);
   return (
@@ -200,6 +254,13 @@ function DetailsTab({ site, draft, set, slugsTaken, onDelete }) {
           label="Portal on"
           detail="When it's off, guests see that Wi-Fi sign-in isn't available."
         />
+      </Section>
+
+      <Section
+        title="Client"
+        hint="Who the monthly report is for. It says “Dear” with their title and last name, e.g. Dear Ms. Charles."
+      >
+        <ClientFields draft={draft} set={set} />
       </Section>
 
       <Section
