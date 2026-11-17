@@ -159,7 +159,16 @@ export function makeApp() {
     const found = Object.hasOwn(TEMPLATES, req.params.name) ? TEMPLATES[req.params.name] : null;
     if (!found) return res.status(404).json({ error: "There's no such template." });
     const [file, type] = found;
-    res.type(type).sendFile(path.join(ROOT, "server", "report-template", file));
+    // Read and sent as it is (not res.sendFile, which answers "Not Found"
+    // when any folder on the way has a name starting with a dot, as hosts'
+    // app folders can)
+    fs.readFile(path.join(ROOT, "server", "report-template", file), (err, data) => {
+      if (err) {
+        console.error(`Report template ${file}:`, err.message);
+        return res.status(500).json({ error: `The template ${file} is missing on the server.` });
+      }
+      res.type(type).send(data);
+    });
   });
   // Every open tab hears about changes (live.js)
   app.use("/api", announceChanges);
