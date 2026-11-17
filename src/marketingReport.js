@@ -64,7 +64,7 @@ function newAndReturning(connections, list, range) {
 // ---------- The graphs (drawn like the ones in the report) ----------
 
 const BLUE = "#457AEE";
-const GREY = "rgba(207, 211, 218, 0.82)";
+const GREY = "#CFD3DA";
 const GRID = "#E6E8EC";
 const WORDS = "#6E7079";
 const FONT = '"Times New Roman", Times, serif';
@@ -81,8 +81,8 @@ function steps(max) {
 
 // A bar graph as a PNG. width × height: the size in the report (the
 // picture is drawn 3 times bigger, so it's sharp when printed).
-// series: one bar per value ([blue] or [blue, grey]); grey is drawn
-// half over the blue one, the way the report's graph does it.
+// series: one bar per value ([blue] or [blue, grey]); two bars stand
+// side by side (never over each other), with a gap between days.
 async function drawGraph(data, { width, height, labelEvery = 1 }) {
   const scale = 3;
   const canvas = document.createElement("canvas");
@@ -124,13 +124,17 @@ async function drawGraph(data, { width, height, labelEvery = 1 }) {
 
   // The bars
   const slot = plot.w / data.length;
-  const bar = Math.max(2, slot * (data[0].values.length > 1 ? 0.62 : 0.42));
-  const shift = data[0].values.length > 1 ? bar * 0.28 : 0;
+  const pair = data[0].values.length > 1;
+  // Two bars: each a third of the day's room, a hair apart; one bar: 42%
+  const bar = Math.max(1, slot * (pair ? 0.33 : 0.42));
+  const apart = pair ? Math.min(2, slot * 0.04) : 0;
   data.forEach((d, i) => {
     const middle = plot.x + slot * (i + 0.5);
     const heightOf = (v) => (v / top) * plot.h;
-    // blue on the right, grey over it on the left
-    const order = d.values.length > 1 ? [[0, middle + shift], [1, middle - shift]] : [[0, middle]];
+    // New guests (blue) on the left, returning (grey) on the right
+    const order = pair
+      ? [[0, middle - bar / 2 - apart / 2], [1, middle + bar / 2 + apart / 2]]
+      : [[0, middle]];
     for (const [k, centre] of order) {
       const h = heightOf(d.values[k]);
       if (h <= 0) continue;
