@@ -69,6 +69,14 @@ export function databaseConnection() {
   };
 }
 
+// How many copies of Foyer run side by side on this server (index.js
+// starts them, one per processor core). Some limits are shared out
+// between them (controller sign-ins at once, database connections), so
+// together they still add up to the same. (Wrong passwords and codes are
+// counted once for all of them: limits.js.)
+export const copies = () => Math.max(1, Number(env.FOYER_WORKERS) || 1);
+export const share = (total, least = 1) => Math.max(least, Math.ceil(total / copies()));
+
 // Is the database on another machine, without DB_SSL?
 export function databaseInTheClear() {
   if (env.DB_SSL) return false;

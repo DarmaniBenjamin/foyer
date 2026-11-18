@@ -176,8 +176,9 @@ export function makeApp() {
   app.use("/api", announceChanges);
   app.use("/api/live", liveRouter);
   startLive();
-  // Every controller checked every 5 minutes (controllers/watch.js)
-  startWatching();
+  // Every controller checked every 5 minutes (controllers/watch.js), by
+  // copy 1 only when several copies run (index.js)
+  if ((Number(process.env.FOYER_COPY) || 1) === 1) startWatching();
   app.use("/api/auth", authRouter);
   app.use("/api/setup", setupRouter);
   app.use("/api/data", dataRouter);

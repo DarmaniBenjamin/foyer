@@ -3,6 +3,7 @@
 // Same way as Uplink: the password is checked against a scrambled copy
 // (bcrypt), then a long random session token goes in an httpOnly cookie
 // and only its hash is kept in the sessions table. Sessions last 30 days.
+import { forgive, strike, tooMany } from "./limits.js";
 import { Router } from "express";
 import bcrypt from "bcryptjs";
 import crypto from "node:crypto";
@@ -56,24 +57,10 @@ async function startSession(req, res, userId) {
 // ---------- Slowing down password guessing ----------
 // 10 wrong passwords for one email from one place, or 50 from one place
 // for any emails, block sign-in from there for 15 minutes
-const WINDOW = 15 * 60 * 1000;
-const attempts = new Map();
-function isBlocked(key, max) {
-  const entry = attempts.get(key);
-  if (!entry) return false;
-  if (Date.now() - entry.since > WINDOW) {
-    attempts.delete(key);
-    return false;
-  }
-  return entry.count >= max;
-}
-function recordFailure(key) {
-  if (attempts.size > 10000)
-    for (const [k, v] of attempts) if (Date.now() - v.since > WINDOW) attempts.delete(k);
-  const entry = attempts.get(key) ?? { count: 0, since: Date.now() };
-  entry.count += 1;
-  attempts.set(key, entry);
-}
+// (counted in limits.js: the same for every copy of Foyer)
+const rule = (max) => ({ max, minutes: 15 });
+const isBlocked = (key, max) => tooMany(key, rule(max));
+const recordFailure = (key) => strike(key, rule(0));
 
 // ---------- Who is signed in? (runs before every /api request) ----------
 
@@ -149,7 +136,7 @@ authRouter.post("/login", async (req, res) => {
 
   const key = `${req.ip}|${email}`;
   const place = `${req.ip}|*`;
-  if (isBlocked(key, 10) || isBlocked(place, 50))
+  if ((await isBlocked(key, 10)) || (await isBlocked(place, 50)))
     return res
       .status(429)
       .json({ error: "Too many wrong passwords. Wait 15 minutes and try again." });
@@ -157,11 +144,11 @@ authRouter.post("/login", async (req, res) => {
   const [user] = await db.select().from(users).where(eq(users.email, email));
   const ok = await bcrypt.compare(password, user?.passwordHash ?? DUMMY_HASH);
   if (!user || !ok) {
-    recordFailure(key);
-    recordFailure(place);
+    await recordFailure(key);
+    await recordFailure(place);
     return res.status(401).json({ error: "That email or password is wrong." });
   }
-  attempts.delete(key);
+  await forgive(key);
   // Old sessions are tidied away now and then
   await db.delete(sessions).where(lt(sessions.expiresAt, new Date()));
   await startSession(req, res, user.id);
@@ -199,13 +186,13 @@ authRouter.post("/password", requireUser, async (req, res) => {
   const next = String(req.body?.password ?? "");
   // Someone at a signed-in computer can't keep guessing the password
   const place = `password|${req.user.id}`;
-  if (isBlocked(place, 5))
+  if (await isBlocked(place, 5))
     return res.status(429).json({ error: "Too many wrong passwords. Wait 15 minutes and try again." });
   if (!(await bcrypt.compare(current, req.user.passwordHash))) {
-    recordFailure(place);
+    await recordFailure(place);
     return res.status(400).json({ error: "Your current password is wrong." });
   }
-  attempts.delete(place);
+  await forgive(place);
   if (next.length < 10) return res.status(400).json({ error: PASSWORD_RULE });
   await db
     .update(users)
@@ -227,12 +214,12 @@ setupRouter.post("/", async (req, res) => {
   const code = String(req.body?.code ?? "");
   const expected = process.env.SETUP_CODE ?? "";
   const place = `${req.ip}|setup`;
-  if (isBlocked(place, 10)) return res.status(429).json({ error: "Too many tries. Wait 15 minutes." });
+  if (await isBlocked(place, 10)) return res.status(429).json({ error: "Too many tries. Wait 15 minutes." });
   // Compared as fingerprints: the same length whatever was typed
   const print = (s) => crypto.createHash("sha256").update(s).digest();
   const codeOk = expected.length >= 12 && crypto.timingSafeEqual(print(code), print(expected));
   if (!codeOk) {
-    recordFailure(place);
+    await recordFailure(place);
     return res.status(403).json({
       error:
         expected.length < 12

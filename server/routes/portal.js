@@ -125,7 +125,7 @@ portalRouter.post("/:slug/signin", async (req, res) => {
   if (site.mode === "voucher") {
     const phone = `code|${row.id}|${mac}`;
     const place = `code|${row.id}|${req.ip}`;
-    if (tooMany(phone, GUESSES) || tooMany(place, PLACE_GUESSES))
+    if ((await tooMany(phone, GUESSES)) || (await tooMany(place, PLACE_GUESSES)))
       return res.json({ error: "Too many wrong codes. Wait 10 minutes and try again." });
     const code = cleanCode(req.body?.code);
     // Found by the database (not by reading every code of the site)
@@ -142,8 +142,8 @@ portalRouter.post("/:slug/signin", async (req, res) => {
           .limit(1)
       : [];
     if (!code || !voucher) {
-      strike(phone, GUESSES);
-      strike(place, PLACE_GUESSES);
+      await strike(phone, GUESSES);
+      await strike(place, PLACE_GUESSES);
       return res.json({ error: "That code isn't right. Check it and try again." });
     }
     const status = voucherStatus(voucherOut(voucher));

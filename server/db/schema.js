@@ -176,7 +176,11 @@ export const connections = pgTable(
     ok: boolean("ok").notNull().default(true),
     at: time("at").notNull().defaultNow(),
   },
-  (t) => [index("connections_site_at").on(t.siteId, t.at)],
+  (t) => [
+    index("connections_site_at").on(t.siteId, t.at),
+    // Removing a guest finds their sign-ins by this (old guests tidied away)
+    index("connections_guest").on(t.guestId),
+  ],
 );
 
 // Pictures and videos uploaded in the splash ad builder. Kept in the

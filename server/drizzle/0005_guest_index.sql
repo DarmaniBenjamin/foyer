@@ -1,0 +1,1 @@
+CREATE INDEX "connections_guest" ON "connections" USING btree ("guest_id");

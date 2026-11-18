@@ -1,6 +1,7 @@
 // The one place the rest of the server talks to controllers through:
 // it reads the controller from the database (unlocking its password)
 // and hands over to unifi.js or omada.js.
+import { share } from "../config.js";
 import { eq } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { controllers } from "../db/schema.js";
@@ -78,7 +79,8 @@ export async function saveTest(row, result, { auto = false } = {}) {
 // A crowd signing in: each controller is asked to let at most 16 phones
 // on at the same moment; the rest wait their turn (a few seconds at
 // most), so the controller isn't flooded and nobody is turned away.
-const AT_ONCE = 16;
+// (shared out between the copies of Foyer: config.js)
+const AT_ONCE = share(16, 4);
 const WAIT_MAX = 25 * 1000;
 const lines = new Map(); // controller id → { busy, waiting: [] }
 async function inTurn(id, work) {

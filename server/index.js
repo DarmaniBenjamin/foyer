@@ -8,15 +8,22 @@
 // instead of being told "starting up" (hosts like SiteGround start a
 // fresh copy of the app now and then, e.g. after it's been idle).
 //
+// On a server with several processor cores, one copy of Foyer runs per
+// core (up to 8), so an upgraded server is used fully: see "Copies" below.
+//
 // If the database can't be reached (wrong password, not created...),
 // the server still starts, but only to show it's not ready: the site
 // says "Starting up" and /api/health says why (with SHOW_ERRORS=on, the
 // page does too). It tries again every 30 seconds and opens by itself
 // as soon as the database works.
+import cluster from "node:cluster";
+import fs from "node:fs";
 import http from "node:http";
+import os from "node:os";
 import { databaseInTheClear } from "./config.js";
 import { migrateDatabase } from "./db/migrate.js";
 import { closeDb } from "./db/index.js";
+import { answerCopy } from "./limits.js";
 
 const RETRY_EVERY = 30 * 1000;
 const SHOW_ERRORS = /^(on|yes|true|1)$/i.test(process.env.SHOW_ERRORS ?? "");
@@ -90,24 +97,137 @@ function refuse(req, res) {
 }
 
 let handler = notReady;
-server = http.createServer((req, res) => handler(req, res));
-server.listen(...listenTarget(), () => {
-  const where = server.address();
-  console.log(
-    `Foyer is listening on ${typeof where === "string" ? where : `port ${where.port}`}`,
-  );
-});
+
+// ---------- Copies ----------
+// WORKERS: how many copies run side by side.
+//   (not set) or "auto": one per processor core the server gives Foyer,
+//                        as many as its memory allows (about 300 MB
+//                        each), at most 8. On a one-core plan: just one.
+//   a number:            that many (1 = only ever one copy)
+// The copies share the port: each phone is answered by whichever is free.
+// One that stops (a crash) is started again at once, so the others keep
+// answering meanwhile.
+const MEMORY_EACH = 300 * 1024 * 1024;
+
+// What this server really lets Foyer use (a hosting plan's limit, not the
+// whole machine's), from Linux's control groups when they say
+function readLimit(file) {
+  try {
+    return fs.readFileSync(file, "utf8").trim();
+  } catch {
+    return "";
+  }
+}
+function coresAllowed() {
+  let cores = os.availableParallelism?.() ?? os.cpus().length;
+  const [quota, period] = readLimit("/sys/fs/cgroup/cpu.max").split(" ");
+  if (quota && quota !== "max" && Number(period) > 0)
+    cores = Math.min(cores, Math.floor(Number(quota) / Number(period)));
+  const q1 = Number(readLimit("/sys/fs/cgroup/cpu/cpu.cfs_quota_us"));
+  const p1 = Number(readLimit("/sys/fs/cgroup/cpu/cpu.cfs_period_us"));
+  if (q1 > 0 && p1 > 0) cores = Math.min(cores, Math.floor(q1 / p1));
+  return Math.max(1, cores);
+}
+// The memory limit, or null when the server doesn't say (then only the
+// whole machine's memory is known, which a hosting plan may not give)
+function memoryAllowed() {
+  for (const file of ["/sys/fs/cgroup/memory.max", "/sys/fs/cgroup/memory/memory.limit_in_bytes"]) {
+    const n = Number(readLimit(file));
+    // (a "limit" bigger than the machine means none was set)
+    if (n > 0 && n < os.totalmem()) return n;
+  }
+  return null;
+}
+function howManyCopies() {
+  const asked = String(process.env.WORKERS ?? "auto").trim().toLowerCase();
+  if (/^\d+$/.test(asked)) return Math.min(32, Math.max(1, Number(asked)));
+  const memory = memoryAllowed();
+  // Not knowing the plan's memory: at most 2 copies, to be safe
+  const byMemory = memory ? Math.floor(memory / MEMORY_EACH) : Math.min(2, Math.floor(os.totalmem() / MEMORY_EACH));
+  return Math.max(1, Math.min(8, coresAllowed(), byMemory));
+}
+
+const COPIES = cluster.isPrimary ? howManyCopies() : Number(process.env.FOYER_WORKERS) || 1;
+// This copy's number (1 = the one that also brings the database up to
+// date and checks the controllers every 5 minutes)
+const COPY = Number(process.env.FOYER_COPY) || 1;
+
+if (cluster.isPrimary && COPIES > 1) startCopies();
+else runCopy();
+
+function startCopies() {
+  console.log(`Foyer is starting ${COPIES} copies (one per processor core)`);
+  let ready = false; // copy 1 has brought the database up to date
+  let stopping = false;
+  const crashes = {}; // copy number → when it stopped lately
+  const start = (n) => {
+    const worker = cluster.fork({ FOYER_COPY: String(n), FOYER_WORKERS: String(COPIES) });
+    // Wrong passwords and codes are counted here, for all the copies
+    answerCopy(worker);
+    worker.on("message", (m) => {
+      if (m === "database ready" && !ready) {
+        ready = true;
+        for (const w of Object.values(cluster.workers)) w.send("go");
+      }
+    });
+    worker.on("online", () => ready && n !== 1 && worker.send("go"));
+    worker.on("exit", (code, signal) => {
+      if (stopping) return;
+      // A copy that keeps stopping (e.g. the server is out of memory) is
+      // left stopped, so the others have room; copy 1 always comes back
+      const recent = (crashes[n] = [...(crashes[n] ?? []), Date.now()].filter((t) => Date.now() - t < 60 * 1000));
+      if (n > 1 && recent.length >= 3) {
+        console.error(`Copy ${n} stopped 3 times in a minute: leaving it off (set WORKERS to fewer copies)`);
+        return;
+      }
+      console.error(`Copy ${n} stopped (${signal ?? code}): starting it again`);
+      setTimeout(() => start(n), 1000);
+    });
+  };
+  for (let n = 1; n <= COPIES; n += 1) start(n);
+  for (const signal of ["SIGTERM", "SIGINT"])
+    process.on(signal, () => {
+      stopping = true;
+      for (const w of Object.values(cluster.workers)) w.process.kill(signal);
+      setTimeout(() => process.exit(0), 5000).unref();
+    });
+}
+
+function runCopy() {
+  server = http.createServer((req, res) => handler(req, res));
+  server.listen(...listenTarget(), () => {
+    const where = server.address();
+    if (COPY === 1)
+      console.log(`Foyer is listening on ${typeof where === "string" ? where : `port ${where.port}`}`);
+  });
+
+  // Copies 2, 3...: start once copy 1 has brought the database up to date
+  if (COPY === 1) attempt();
+  else process.on("message", (m) => m === "go" && state === "starting" && attempt());
+
+  // Stopping cleanly (the host restarts or redeploys the app)
+  for (const signal of ["SIGTERM", "SIGINT"])
+    process.on(signal, () => {
+      server.close();
+      closeDb().finally(() => process.exit(0));
+    });
+}
 
 async function attempt() {
   try {
-    await migrateDatabase();
-    const { makeFirstAdmin } = await import("./firstAdmin.js");
-    await makeFirstAdmin();
+    if (COPY === 1) {
+      await migrateDatabase();
+      const { makeFirstAdmin } = await import("./firstAdmin.js");
+      await makeFirstAdmin();
+    }
     const { makeApp } = await import("./app.js");
     handler = makeApp();
     state = "ready";
     letThrough();
-    console.log("✓ Foyer is ready");
+    if (COPY === 1) {
+      console.log("✓ Foyer is ready");
+      process.send?.("database ready");
+    }
     if (databaseInTheClear())
       console.warn("✗ The database is on another server and DB_SSL isn't set: add DB_SSL=on so what's sent to it is scrambled.");
     if (!process.env.SECRET_KEY && process.env.NODE_ENV === "production")
@@ -116,17 +236,9 @@ async function attempt() {
     reason = err.message;
     state = "failed";
     letThrough();
-    console.error(`The database isn't ready: ${reason}`);
+    if (COPY === 1) console.error(`The database isn't ready: ${reason}`);
     await closeDb().catch(() => {});
     setTimeout(attempt, RETRY_EVERY);
   }
 }
 
-attempt();
-
-// Stopping cleanly (the host restarts or redeploys the app)
-for (const signal of ["SIGTERM", "SIGINT"])
-  process.on(signal, () => {
-    server.close();
-    closeDb().finally(() => process.exit(0));
-  });
