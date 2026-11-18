@@ -19,26 +19,59 @@ import { open } from "../context.js";
 import { mayUseSite } from "../auth.js";
 import { tooMany, strike } from "../limits.js";
 import { authorizeGuest } from "../controllers/index.js";
+import { guestPage, guestSiteBySlug, pictureFor, sendPage } from "../guestCache.js";
 
 export const portalRouter = Router();
 
+// (kept in memory for the crowd: guestCache.js)
 async function findSite(slug) {
-  const [row] = await db.select().from(sites).where(eq(sites.slug, String(slug)));
+  const row = await guestSiteBySlug(slug);
   if (!row) throw new Problem("This Wi-Fi page doesn't exist.", 404);
   return row;
 }
 
-// The site's page settings and its running splash ads
-portalRouter.get("/:slug", async (req, res) => {
-  const row = await findSite(req.params.slug);
+// The site's page settings and its running splash ads (made once and
+// kept for every phone: guestCache.js)
+async function makePage(slug) {
+  const row = await findSite(slug);
   const now = Date.now();
   // Without the view and tap counts, or which controller it uses
   const running = (await db.select().from(ads).where(eq(ads.siteId, row.id)))
     .map(adOut)
     .filter((a) => adStatus(a, now) === "running")
-    .map((a) => ({ ...a, views: undefined, clicks: undefined }));
-  res.json({ site: forGuests(row), ads: running });
+    .map((a) => ({ ...a, views: undefined, clicks: undefined, pictureLinks: undefined }));
+  return { site: forGuests(row), ads: running };
+}
+
+portalRouter.get("/:slug", async (req, res) => {
+  const slug = String(req.params.slug).slice(0, 200);
+  sendPage(req, res, await guestPage(slug, () => makePage(slug)));
 });
+
+// GET /pic/<fingerprint>: a picture on a sign-in page. A picture Foyer
+// doesn't have (it was restarted since the page was made) makes the
+// pages again once, which finds it.
+let remaking = null;
+export async function servePicture(req, res) {
+  let picture = pictureFor(req.params.key);
+  if (!picture && /^[\w-]{22}$/.test(String(req.params.key))) {
+    remaking ??= (async () => {
+      const list = await db.select({ slug: sites.slug }).from(sites);
+      for (const { slug } of list) await guestPage(slug, () => makePage(slug)).catch(() => {});
+    })().finally(() => setTimeout(() => (remaking = null), 30 * 1000));
+    await remaking;
+    picture = pictureFor(req.params.key);
+  }
+  if (!picture) return res.status(404).end();
+  res.removeHeader("Pragma");
+  res.removeHeader("Expires");
+  // The address changes when the picture does, so phones keep it
+  res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+  res.setHeader("Content-Type", picture.type);
+  res.setHeader("Content-Length", picture.data.length);
+  if (picture.type === "image/svg+xml") res.setHeader("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'");
+  res.end(req.method === "HEAD" ? undefined : picture.data);
+}
 
 // What the sign-in page needs of a site: how it looks and what it asks.
 // Nothing about the controller behind it or how it was set up.
@@ -49,9 +82,13 @@ function forGuests(row) {
   return site;
 }
 
-// Guessing voucher codes: 20 wrong codes from one place for one site
-// stops more tries from there for 10 minutes
+// Guessing voucher codes: 20 wrong codes from one phone stops it for 10
+// minutes. Counted by phone, not by internet address: everyone at a mall
+// comes from the same address, and one guest's typos mustn't lock out
+// the rest. The whole address gets a much higher ceiling (a crowd makes
+// typos too), which still stops anyone trying thousands of codes.
 const GUESSES = { max: 20, minutes: 10 };
+const PLACE_GUESSES = { max: 1500, minutes: 10 };
 
 // "k7qm 3rxa" and "K7QM-3RXA" are the same code
 const cleanCode = (code) => String(code ?? "").replace(/[^a-z0-9]/gi, "").toUpperCase();
@@ -86,14 +123,27 @@ portalRouter.post("/:slug/signin", async (req, res) => {
 
   let voucher = null;
   if (site.mode === "voucher") {
-    const place = `code|${req.ip}|${row.id}`;
-    if (tooMany(place, GUESSES))
+    const phone = `code|${row.id}|${mac}`;
+    const place = `code|${row.id}|${req.ip}`;
+    if (tooMany(phone, GUESSES) || tooMany(place, PLACE_GUESSES))
       return res.json({ error: "Too many wrong codes. Wait 10 minutes and try again." });
     const code = cleanCode(req.body?.code);
-    const list = await db.select().from(vouchers).where(eq(vouchers.siteId, row.id));
-    voucher = list.find((v) => cleanCode(v.code) === code);
+    // Found by the database (not by reading every code of the site)
+    [voucher] = code
+      ? await db
+          .select()
+          .from(vouchers)
+          .where(
+            and(
+              eq(vouchers.siteId, row.id),
+              sql`regexp_replace(upper(${vouchers.code}), '[^A-Z0-9]', '', 'g') = ${code}`,
+            ),
+          )
+          .limit(1)
+      : [];
     if (!code || !voucher) {
-      strike(place, GUESSES);
+      strike(phone, GUESSES);
+      strike(place, PLACE_GUESSES);
       return res.json({ error: "That code isn't right. Check it and try again." });
     }
     const status = voucherStatus(voucherOut(voucher));
@@ -173,13 +223,38 @@ portalRouter.post("/:slug/signin", async (req, res) => {
   res.json({ minutes, at: ms(now), next: ctx?.url ?? "", test: !ctx });
 });
 
-// A splash ad was seen, or tapped
+// A splash ad was seen, or tapped. Counted here and written together
+// every few seconds: a crowd seeing the same ad would otherwise all wait
+// in line to change the same row.
+const counts = new Map(); // ad id → { views, clicks }
+let writing = false;
+async function writeCounts() {
+  if (writing || !counts.size) return;
+  writing = true;
+  const batch = [...counts];
+  counts.clear();
+  try {
+    for (const [id, c] of batch)
+      await db
+        .update(ads)
+        .set({ views: sql`${ads.views} + ${c.views}`, clicks: sql`${ads.clicks} + ${c.clicks}` })
+        .where(eq(ads.id, id));
+  } catch (err) {
+    console.error("Saving ad counts failed:", err.message);
+  } finally {
+    writing = false;
+  }
+}
+setInterval(writeCounts, 5000).unref();
+process.once("SIGTERM", () => writeCounts());
+
 for (const kind of ["view", "click"])
-  portalRouter.post(`/ads/:id/${kind}`, async (req, res) => {
-    const column = kind === "view" ? ads.views : ads.clicks;
-    await db
-      .update(ads)
-      .set({ [kind === "view" ? "views" : "clicks"]: sql`${column} + 1` })
-      .where(eq(ads.id, Number(req.params.id)));
+  portalRouter.post(`/ads/:id/${kind}`, (req, res) => {
+    const id = Number(req.params.id);
+    if (Number.isInteger(id) && id > 0) {
+      const c = counts.get(id) ?? { views: 0, clicks: 0 };
+      c[kind === "view" ? "views" : "clicks"] += 1;
+      if (counts.size < 10000) counts.set(id, c);
+    }
     res.json({ ok: true });
   });

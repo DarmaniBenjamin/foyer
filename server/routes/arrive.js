@@ -12,11 +12,12 @@
 // "Let guests on" (Maintenance page); in "Maintenance page" mode they
 // see that page instead.
 import { Router } from "express";
-import { and, eq, gt, isNull, or, sql } from "drizzle-orm";
+import { and, eq, gt, isNull, or } from "drizzle-orm";
 import { db } from "../db/index.js";
-import { controllers, sites, whitelist } from "../db/schema.js";
+import { whitelist } from "../db/schema.js";
 import { fromOmada, fromUnifi, seal } from "../context.js";
 import { authorizeGuest } from "../controllers/index.js";
+import { guestSiteBySlug, guestSites } from "../guestCache.js";
 
 export const arriveRouter = Router();
 
@@ -108,23 +109,16 @@ export function pickUnifiSite(rows, ssid) {
 
 arriveRouter.get("/guest/s/:siteKey", async (req, res) => {
   const key = String(req.params.siteKey);
-  const rows = await db
-    .select({ site: sites })
-    .from(sites)
-    .innerJoin(controllers, eq(sites.controllerId, controllers.id))
-    .where(and(eq(controllers.kind, "unifi"), sql`${sites.settings}->>'siteKey' = ${key}`));
+  const rows = (await guestSites()).filter((s) => s.controllerKind === "unifi" && s.settings?.siteKey === key);
   const ctx = fromUnifi(key, req.query);
-  const site = pickUnifiSite(
-    rows.map((r) => r.site),
-    ctx?.ssid ?? req.query.ssid,
-  );
+  const site = pickUnifiSite(rows, ctx?.ssid ?? req.query.ssid);
   if (!site) return res.redirect(302, portalPage(`unifi-${key}`));
   await sendOn(res, site, ctx);
 });
 
 // Omada: the site is found by its address name
 arriveRouter.get("/omada/:slug", async (req, res) => {
-  const [site] = await db.select().from(sites).where(eq(sites.slug, String(req.params.slug)));
+  const site = await guestSiteBySlug(req.params.slug);
   if (!site) return res.redirect(302, portalPage(String(req.params.slug)));
   await sendOn(res, site, fromOmada(req.query));
 });

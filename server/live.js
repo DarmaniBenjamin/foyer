@@ -23,6 +23,7 @@ import { sql } from "drizzle-orm";
 import { ROOT, databaseConnection } from "./config.js";
 import { requireUser } from "./auth.js";
 import { db } from "./db/index.js";
+import { forgetPages } from "./guestCache.js";
 
 const CHANNEL = "foyer_live";
 
@@ -84,6 +85,13 @@ liveRouter.get("/stamp", requireUser, (req, res) => {
 
 // Sends the news to this copy's tabs
 function tellTabs(payload) {
+  // An admin's change: guest sign-in pages are made again (every copy of
+  // the app hears this). A guest signing in changes nothing they show.
+  try {
+    if (JSON.parse(payload).guests !== true) forgetPages();
+  } catch {
+    forgetPages();
+  }
   noteChange(payload);
   const message = `event: changed\ndata: ${payload}\n\n`;
   for (const { res } of tabs) res.write(message);
@@ -123,8 +131,9 @@ export function startLive() {
 
 // Tells every open tab that something changed. from: the tab that made
 // the change (it already shows it, so it skips loading again).
-export async function announceChange(from = "") {
-  const payload = JSON.stringify({ from, at: Date.now() });
+// guests: true for guests signing in (see announceChanges).
+export async function announceChange(from = "", guests = false) {
+  const payload = JSON.stringify({ from, at: Date.now(), ...(guests ? { guests: true } : {}) });
   if (listening) {
     try {
       await db.execute(sql`select pg_notify(${CHANNEL}, ${payload})`);
@@ -139,11 +148,28 @@ export async function announceChange(from = "") {
 // Any change that worked (anything but GET), except signing in and out,
 // which only matter to that browser
 const QUIET = ["/auth/login", "/auth/logout", "/live"];
+//
+// Guests signing in (and ads being seen) are told at most once every 15
+// seconds, all together: with a crowd signing in every second, telling
+// each one would have every admin tab loading everything again nonstop.
+const GUEST_EVERY = 15 * 1000;
+let guestNews = null;
+function announceGuests() {
+  guestNews ??= setTimeout(() => {
+    guestNews = null;
+    announceChange("", true).catch(() => {});
+  }, GUEST_EVERY);
+}
+
 export function announceChanges(req, res, next) {
   if (req.method === "GET" || req.method === "HEAD" || QUIET.includes(req.path)) return next();
+  const fromGuest = req.path.startsWith("/portal/");
   res.on("finish", () => {
-    if (res.statusCode < 400)
-      announceChange(String(req.get("x-foyer-tab") ?? "").slice(0, 64)).catch(() => {});
+    if (res.statusCode >= 400) return;
+    if (fromGuest) return announceGuests();
+    // This copy's guest pages at once (other copies when they hear it)
+    forgetPages();
+    announceChange(String(req.get("x-foyer-tab") ?? "").slice(0, 64)).catch(() => {});
   });
   next();
 }

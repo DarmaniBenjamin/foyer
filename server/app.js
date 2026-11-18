@@ -16,6 +16,7 @@ import { sitesRouter } from "./routes/sites.js";
 import { adsRouter, guestsRouter, vouchersRouter, whitelistRouter } from "./routes/siteData.js";
 import { portalRouter } from "./routes/portal.js";
 import { mediaRouter, serveAdPicture, serveMedia } from "./routes/media.js";
+import { servePicture } from "./routes/portal.js";
 import { arriveRouter } from "./routes/arrive.js";
 import { maintenanceRouter } from "./routes/maintenance.js";
 import { announceChanges, liveRouter, startLive } from "./live.js";
@@ -124,6 +125,7 @@ export function makeApp() {
         !req.path.startsWith("/api/live") &&
         !req.path.startsWith("/media/") &&
         !req.path.startsWith("/ad-pictures/") &&
+        !req.path.startsWith("/pic/") &&
         compression.filter(req, res),
     }),
   );
@@ -209,6 +211,7 @@ export function makeApp() {
   app.get("/media/:key", serveMedia);
   // Each picture of a picture ad, at its own address
   app.get("/ad-pictures/:id/:code", serveAdPicture);
+  app.get("/pic/:key", servePicture);
 
   // Guests arriving from UniFi (/guest/s/…) and Omada (/omada/…)
   app.use(arriveRouter);

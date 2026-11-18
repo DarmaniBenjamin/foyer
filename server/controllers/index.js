@@ -75,12 +75,58 @@ export async function saveTest(row, result, { auto = false } = {}) {
 // Lets one guest's device on, through the site's controller.
 // siteRow: the sites row. ctx: what the controller put in the guest's
 // address (see context.js). access: { minutes, downKbps, upKbps, dataMb }
+// A crowd signing in: each controller is asked to let at most 16 phones
+// on at the same moment; the rest wait their turn (a few seconds at
+// most), so the controller isn't flooded and nobody is turned away.
+const AT_ONCE = 16;
+const WAIT_MAX = 25 * 1000;
+const lines = new Map(); // controller id → { busy, waiting: [] }
+async function inTurn(id, work) {
+  const line = lines.get(id) ?? { busy: 0, waiting: [] };
+  lines.set(id, line);
+  if (line.busy >= AT_ONCE)
+    await new Promise((resolve, reject) => {
+      const entry = { resolve };
+      entry.timer = setTimeout(() => {
+        line.waiting.splice(line.waiting.indexOf(entry), 1);
+        reject(new ControllerError("The controller is very busy right now. Try again in a moment."));
+      }, WAIT_MAX);
+      line.waiting.push(entry);
+    });
+  line.busy += 1;
+  try {
+    return await work();
+  } finally {
+    line.busy -= 1;
+    const next = line.waiting.shift();
+    if (next) {
+      clearTimeout(next.timer);
+      next.resolve();
+    }
+  }
+}
+
+// The controller with its password, kept for 10 seconds (every guest
+// signing in needs it)
+const kept = new Map(); // controller id → { at, controller }
+async function controllerFor(id) {
+  const hit = kept.get(id);
+  if (hit && Date.now() - hit.at < 10 * 1000) return hit.controller;
+  const [row] = await db.select().from(controllers).where(eq(controllers.id, id));
+  if (!row) throw new ControllerError("This site's controller was removed.");
+  const controller = withPassword(row);
+  kept.set(id, { at: Date.now(), controller });
+  return controller;
+}
+
 export async function authorizeGuest(siteRow, ctx, access) {
   if (!siteRow.controllerId)
     throw new ControllerError("This site isn't linked to a controller.");
-  const [row] = await db.select().from(controllers).where(eq(controllers.id, siteRow.controllerId));
-  if (!row) throw new ControllerError("This site's controller was removed.");
-  const controller = withPassword(row);
+  const controller = await controllerFor(siteRow.controllerId);
+  return inTurn(controller.id, () => letOn(controller, siteRow, ctx, access));
+}
+
+async function letOn(controller, siteRow, ctx, access) {
   if (controller.kind !== ctx.kind)
     throw new ControllerError(
       `This site uses a ${controller.kind === "omada" ? "Omada" : "UniFi"} controller, but the guest came from ${ctx.kind === "omada" ? "Omada" : "UniFi"}.`,

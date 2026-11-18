@@ -128,9 +128,16 @@ export const mayUseSite = (user, siteId) => {
 
 export const authRouter = Router();
 
+// Once there's an admin there always is (the last one can't be
+// removed), so that's only asked until then: every guest's page asks
+// /me, and a crowd shouldn't count the admins thousands of times
+let hasAdmins = false;
 authRouter.get("/me", async (req, res) => {
-  const [{ n }] = await db.select({ n: count() }).from(users);
-  res.json({ user: req.user ? publicUser(req.user) : null, needsSetup: n === 0 });
+  if (!hasAdmins) {
+    const [{ n }] = await db.select({ n: count() }).from(users);
+    hasAdmins = n > 0;
+  }
+  res.json({ user: req.user ? publicUser(req.user) : null, needsSetup: !hasAdmins });
 });
 
 authRouter.post("/login", async (req, res) => {

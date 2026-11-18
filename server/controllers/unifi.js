@@ -14,6 +14,7 @@
 // and made again by itself when the controller has ended it.
 import { ControllerError, CookieJar, request } from "./http.js";
 
+const signingIn = new Map(); // controller id → the sign-in under way
 const sessions = new Map(); // controller id → { jar, csrf, prefix, at, stamp }
 const SESSION_MAX_AGE = 30 * 60 * 1000;
 
@@ -64,14 +65,24 @@ async function login(controller) {
 
 async function session(controller, fresh = false) {
   const s = sessions.get(controller.id);
+  // fresh: the session was turned down; one made in the last few
+  // seconds (by another guest's request) is new enough
   if (
-    !fresh &&
+    (!fresh || (s && Date.now() - s.at < 5000)) &&
     s &&
     s.stamp === stamp(controller) &&
     Date.now() - s.at < SESSION_MAX_AGE
   )
     return s;
-  return login(controller);
+  // One sign-in at a time: when a crowd arrives just as the old session
+  // runs out, they all wait for the same new one (not one sign-in each)
+  if (!signingIn.has(controller.id)) {
+    signingIn.set(
+      controller.id,
+      login(controller).finally(() => signingIn.delete(controller.id)),
+    );
+  }
+  return signingIn.get(controller.id);
 }
 
 // A call with the signed-in session; signs in again once if it's expired

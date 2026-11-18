@@ -23,7 +23,7 @@ export function getDb() {
   // A "pool" keeps a few connections open and reuses them
   pool = new pg.Pool({
     ...databaseConnection(),
-    max: Number(process.env.DB_POOL_SIZE) || 5,
+    max: Number(process.env.DB_POOL_SIZE) || 10,
     ...(area ? { options: `-c search_path=${area},public` } : {}),
   });
   database = drizzle(pool, { schema });
