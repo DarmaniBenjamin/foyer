@@ -24,7 +24,8 @@ export function getDb() {
   pool = new pg.Pool({
     ...databaseConnection(),
     // 10 connections, or 24 shared out between several copies of Foyer
-    max: Number(process.env.DB_POOL_SIZE) || (copies() > 1 ? share(24, 4) : 10),
+    // (a copy started when busy may be one of up to 8: index.js)
+    max: Number(process.env.DB_POOL_SIZE) || (copies() > 1 ? share(24, 6) : 10),
     ...(area ? { options: `-c search_path=${area},public` } : {}),
   });
   database = drizzle(pool, { schema });

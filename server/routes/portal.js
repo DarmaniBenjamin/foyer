@@ -246,7 +246,8 @@ async function writeCounts() {
   }
 }
 setInterval(writeCounts, 5000).unref();
-process.once("SIGTERM", () => writeCounts());
+// Saved before this copy stops (index.js)
+process.on("foyer:finish", (done) => writeCounts().finally(done));
 
 for (const kind of ["view", "click"])
   portalRouter.post(`/ads/:id/${kind}`, (req, res) => {

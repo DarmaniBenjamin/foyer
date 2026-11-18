@@ -80,13 +80,13 @@ export async function saveTest(row, result, { auto = false } = {}) {
 // on at the same moment; the rest wait their turn (a few seconds at
 // most), so the controller isn't flooded and nobody is turned away.
 // (shared out between the copies of Foyer: config.js)
-const AT_ONCE = share(16, 4);
+const atOnce = () => share(16, 4);
 const WAIT_MAX = 25 * 1000;
 const lines = new Map(); // controller id → { busy, waiting: [] }
 async function inTurn(id, work) {
   const line = lines.get(id) ?? { busy: 0, waiting: [] };
   lines.set(id, line);
-  if (line.busy >= AT_ONCE)
+  if (line.busy >= atOnce())
     await new Promise((resolve, reject) => {
       const entry = { resolve };
       entry.timer = setTimeout(() => {
