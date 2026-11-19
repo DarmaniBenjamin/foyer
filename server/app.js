@@ -1,6 +1,7 @@
 // The web server: the API under /api, and the built pages (the dist
 // folder, made by "npm run build") for every other address, so
 // /sites/3 or /p/grand-anse-mall open the right page.
+import { keepAwake, noteAddress } from "./keepAwake.js";
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
@@ -63,6 +64,8 @@ export function makeApp() {
   // SiteGround (and any https host) passes requests on from its own
   // front server; this makes req.secure and req.ip right
   app.set("trust proxy", 1);
+  // Foyer's public address, for keeping it awake (keepAwake.js)
+  app.use(noteAddress);
 
   // Nothing from Foyer may be kept by a cache in between. SiteGround's
   // "Dynamic Cache" keeps every page and API answer unless told not to,
@@ -178,7 +181,11 @@ export function makeApp() {
   startLive();
   // Every controller checked every 5 minutes (controllers/watch.js), by
   // copy 1 only when several copies run (index.js)
-  if ((Number(process.env.FOYER_COPY) || 1) === 1) startWatching();
+  if ((Number(process.env.FOYER_COPY) || 1) === 1) {
+    startWatching();
+    // Never idle long enough for the host to stop it (keepAwake.js)
+    keepAwake();
+  }
   app.use("/api/auth", authRouter);
   app.use("/api/setup", setupRouter);
   app.use("/api/data", dataRouter);
