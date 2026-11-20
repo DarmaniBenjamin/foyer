@@ -20,7 +20,7 @@
 // on.
 import { useEffect, useState } from "react";
 import { useParams, useSearchParams } from "react-router";
-import { ArrowLeft, SearchX, WifiOff, Wrench } from "lucide-react";
+import { ArrowLeft, SearchX, TriangleAlert, WifiOff, Wrench } from "lucide-react";
 import WifiLoader from "../WifiLoader";
 import useData from "../../useData";
 import { api } from "../../api";
@@ -68,7 +68,10 @@ const count = (ad, kind) =>
 // The sign-in page with its splash ads. The ads are picked once, when
 // the page opens.
 // guest: { ctx, sig } from the controller, or null for a test
-function Portal({ site, ads, guest, done }) {
+// controllerDown: Foyer's last check found the site's controller offline,
+// so a notice says sign-in may not work (the guest can still try: it may
+// be back already)
+function Portal({ site, ads, guest, done, controllerDown, lower }) {
   const [before] = useState(() => (done ? null : pickAd(ads, site.id, "before")));
   const [after] = useState(() => pickAd(ads, site.id, "after"));
   const [showing, setShowing] = useState(before); // the ad on screen, or null
@@ -103,6 +106,23 @@ function Portal({ site, ads, guest, done }) {
         onSignIn={signIn}
         paused={Boolean(showing)}
       />
+      {controllerDown && !done && !showing && (
+        <div
+          role="status"
+          className={`fixed inset-x-0 top-0 z-40 flex justify-center px-3 ${
+            // (under the "Back to Foyer" button, for admins trying it)
+            lower ? "pt-14" : "pt-[max(0.75rem,env(safe-area-inset-top))]"
+          }`}
+        >
+          <p className="flex max-w-md items-start gap-2.5 rounded-xl bg-amber-50 px-4 py-3 text-sm leading-snug text-amber-900 shadow-lg ring-1 ring-amber-200">
+            <TriangleAlert size={18} className="mt-0.5 shrink-0 text-amber-600" />
+            <span>
+              <strong className="font-semibold">Wi-Fi sign-in is having a problem right now.</strong> You can still try,
+              or ask the staff for help.
+            </span>
+          </p>
+        </div>
+      )}
       {showing && (
         <SplashAd
           key={showing.id + showing.when}
@@ -176,6 +196,8 @@ export default function GuestPortal() {
           ads={page.ads}
           guest={guest}
           done={params.get("done") === "1"}
+          controllerDown={Boolean(page.controllerDown)}
+          lower={Boolean(currentAdmin)}
         />
       )}
 

@@ -21,8 +21,18 @@ import { guestSiteBySlug, guestSites } from "../guestCache.js";
 
 export const arriveRouter = Router();
 
-const portalPage = (slug, extra = {}) =>
-  `/p/${encodeURIComponent(slug)}?${new URLSearchParams(extra)}`;
+// The full address (https://kyvr3.sg-host.com/p/...), not just /p/...:
+// guests can arrive through the controller server, which fetches this
+// for them (so it can show a page of its own when Foyer is down), and
+// the phone must then go on to Foyer, not stay on the controller server.
+// PUBLIC_URL if set, otherwise the address this request was made to.
+function portalPage(res, slug, extra = {}) {
+  const req = res.req;
+  const fixed = (process.env.PUBLIC_URL ?? "").trim().replace(/\/+$/, "");
+  const host = req.get("host") ?? "";
+  const base = fixed || (/^[\w.-]+(:\d+)?$/.test(host) ? `${req.protocol}://${host}` : "");
+  return `${base}/p/${encodeURIComponent(slug)}?${new URLSearchParams(extra)}`;
+}
 
 // A whitelisted device: let on now, for as long as its entry lasts (or
 // 30 days, and again each time it comes back). true if it worked.
@@ -75,15 +85,15 @@ async function letEveryoneOn(site, ctx) {
 }
 
 async function sendOn(res, site, ctx) {
-  if (!ctx) return res.redirect(302, portalPage(site.slug));
+  if (!ctx) return res.redirect(302, portalPage(res, site.slug));
   // Whitelisted devices (TVs, FireSticks) get on even during maintenance
   if (site.active && (await letWhitelistedOn(site, ctx)))
-    return res.redirect(302, portalPage(site.slug, { done: "1" }));
+    return res.redirect(302, portalPage(res, site.slug, { done: "1" }));
   const mode = site.settings?.maintenance?.mode ?? "off";
-  if (mode === "notice") return res.redirect(302, portalPage(site.slug));
+  if (mode === "notice") return res.redirect(302, portalPage(res, site.slug));
   if (mode === "open" && (await letEveryoneOn(site, ctx)))
-    return res.redirect(302, portalPage(site.slug, { done: "1" }));
-  res.redirect(302, portalPage(site.slug, seal(ctx, site.id)));
+    return res.redirect(302, portalPage(res, site.slug, { done: "1" }));
+  res.redirect(302, portalPage(res, site.slug, seal(ctx, site.id)));
 }
 
 // UniFi: the site is found by its UniFi site name (Sites → Details).
@@ -112,13 +122,13 @@ arriveRouter.get("/guest/s/:siteKey", async (req, res) => {
   const rows = (await guestSites()).filter((s) => s.controllerKind === "unifi" && s.settings?.siteKey === key);
   const ctx = fromUnifi(key, req.query);
   const site = pickUnifiSite(rows, ctx?.ssid ?? req.query.ssid);
-  if (!site) return res.redirect(302, portalPage(`unifi-${key}`));
+  if (!site) return res.redirect(302, portalPage(res, `unifi-${key}`));
   await sendOn(res, site, ctx);
 });
 
 // Omada: the site is found by its address name
 arriveRouter.get("/omada/:slug", async (req, res) => {
   const site = await guestSiteBySlug(req.params.slug);
-  if (!site) return res.redirect(302, portalPage(String(req.params.slug)));
+  if (!site) return res.redirect(302, portalPage(res, String(req.params.slug)));
   await sendOn(res, site, fromOmada(req.query));
 });

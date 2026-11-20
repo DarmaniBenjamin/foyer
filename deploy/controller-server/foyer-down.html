@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wi-Fi</title>
+<style>
+  body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f4f6fb; color: #111827; }
+  .box { max-width: 22rem; margin: 1.5rem; padding: 2rem 1.5rem; background: #fff; border-radius: 1.25rem;
+         box-shadow: 0 10px 30px rgba(17, 24, 39, .08); text-align: center; }
+  .icon { width: 3.5rem; height: 3.5rem; margin: 0 auto 1rem; border-radius: 1rem; background: #fef3c7;
+          display: flex; align-items: center; justify-content: center; }
+  h1 { font-size: 1.25rem; margin: 0 0 .5rem; }
+  p { margin: 0 0 1rem; color: #4b5563; line-height: 1.5; }
+  small { color: #9ca3af; }
+</style>
+</head>
+<body>
+  <div class="box">
+    <div class="icon">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h.01"/><path d="M8.5 16.43a5 5 0 0 1 7 0"/><path d="M5 12.86a10 10 0 0 1 5.17-2.69"/><path d="M19 12.86a10 10 0 0 0-2-1.52"/><path d="M2 8.82a15 15 0 0 1 4.17-2.65"/><path d="M10.66 5c4.01-.36 8.14.9 11.34 3.76"/><path d="m2 2 20 20"/></svg>
+    </div>
+    <h1>Wi-Fi sign-in is temporarily unavailable</h1>
+    <p>We're working on it. This page will try again by itself in a moment, or ask the staff for help.</p>
+    <small id="again">Trying again in 15 seconds…</small>
+  </div>
+  <script>
+    // Try the sign-in page again every 15 seconds: as soon as it answers,
+    // the guest is taken to it
+    var left = 15;
+    setInterval(function () {
+      left -= 1;
+      if (left <= 0) location.reload();
+      else document.getElementById("again").textContent = "Trying again in " + left + " seconds…";
+    }, 1000);
+  </script>
+</body>
+</html>

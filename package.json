@@ -29,6 +29,7 @@
     "jszip": "^3.10.1",
     "lucide-react": "^1.60.0",
     "node-html-parser": "9.0.5",
+    "nodemailer": "^6.9.16",
     "pdf-lib": "^1.17.1",
     "pg": "^8.23.1",
     "react": "^19.3.1",

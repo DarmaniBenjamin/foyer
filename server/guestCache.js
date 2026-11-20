@@ -34,7 +34,8 @@ export function forgetPages() {
   siteList = null;
 }
 
-// Every site (each with controllerKind: "unifi", "omada" or null), kept
+// Every site (each with controllerKind: "unifi", "omada" or null, and
+// controllerDown: its controller was offline when last checked), kept
 // for 15 seconds
 let siteList = null; // { at, rows } or a promise of one
 export async function guestSites() {
@@ -42,10 +43,18 @@ export async function guestSites() {
   if (siteList instanceof Promise) return (await siteList).rows;
   const loading = (async () => {
     const rows = await db
-      .select({ site: sites, kind: controllers.kind })
+      .select({ site: sites, kind: controllers.kind, lastTest: controllers.lastTest })
       .from(sites)
       .leftJoin(controllers, eq(sites.controllerId, controllers.id));
-    return { at: Date.now(), rows: rows.map((r) => ({ ...r.site, controllerKind: r.kind ?? null })) };
+    return {
+      at: Date.now(),
+      rows: rows.map((r) => ({
+        ...r.site,
+        controllerKind: r.kind ?? null,
+        // Foyer's last check of the site's controller found it offline
+        controllerDown: r.lastTest?.ok === false,
+      })),
+    };
   })();
   siteList = loading;
   try {

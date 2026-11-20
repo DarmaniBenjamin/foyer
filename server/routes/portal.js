@@ -7,6 +7,7 @@
 // trying /p/<site> in your own browser while signed in to Foyer), it's a
 // test: the guest is saved with a made-up MAC address and nobody is let
 // on.
+import { checkNow } from "../controllers/watch.js";
 import { Router } from "express";
 import { and, eq, lt, sql } from "drizzle-orm";
 import { db } from "../db/index.js";
@@ -40,7 +41,8 @@ async function makePage(slug) {
     .map(adOut)
     .filter((a) => adStatus(a, now) === "running")
     .map((a) => ({ ...a, views: undefined, clicks: undefined, pictureLinks: undefined }));
-  return { site: forGuests(row), ads: running };
+  // controllerDown: the sign-in page says sign-in may not work right now
+  return { site: forGuests(row), ads: running, controllerDown: row.controllerDown };
 }
 
 portalRouter.get("/:slug", async (req, res) => {
@@ -175,6 +177,9 @@ portalRouter.post("/:slug/signin", async (req, res) => {
       });
     } catch (err) {
       console.error(`Letting ${mac} on at ${row.name} failed: ${err.message}`);
+      // Is the controller down? Checked now, not in up to 5 minutes, so
+      // the next guests are told and the admins see it straight away
+      checkNow(row.controllerId);
       if (voucher)
         await db
           .update(vouchers)
