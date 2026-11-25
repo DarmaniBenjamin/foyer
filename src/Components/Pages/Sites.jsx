@@ -1,70 +1,70 @@
-// Sites: every client site with a guest Wi-Fi portal. Click one to set
-// up its sign-in page; the site you picked in the site switcher is
-// marked "Selected".
-import { useState } from "react";
+// Sites: every client site with a guest Wi-Fi portal, as a list like an
+// email inbox: one row per site. Click one to set up its sign-in page;
+// the site you picked in the site switcher is marked "Selected".
+//   ● green: the portal is on   ○ grey: off   ● red: its controller is offline
+//   the number on the right: sign-ins today
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router";
 import { ChevronRight, Plus, Search } from "lucide-react";
 import useData from "../../useData";
-import { CONTROLLER_KINDS, SIGN_IN_MODES, formatMinutes } from "../../data";
+import { SIGN_IN_MODES, formatMinutes } from "../../data";
+import { startOfDay } from "../../dates";
 import NewSiteModal from "../NewSiteModal";
 import { primaryButton } from "../formStyles";
 
-function SiteCard({ site, controller, selected, onOpen }) {
+function SiteRow({ site, controller, selected, today, onOpen }) {
+  const down = controller?.lastTest?.ok === false;
   const details = [
+    controller ? controller.name : "No controller",
     SIGN_IN_MODES[site.mode].label,
-    site.mode === "form" &&
-      `${site.fields.length} question${site.fields.length === 1 ? "" : "s"}`,
+    site.mode === "form" && `${site.fields.length} question${site.fields.length === 1 ? "" : "s"}`,
     formatMinutes(site.minutes),
   ].filter(Boolean);
+  const state = !site.active
+    ? { dot: "border-2 border-gray-300 bg-transparent", words: "Portal off" }
+    : down
+      ? { dot: "bg-red-500", words: `${controller.name} is offline` }
+      : { dot: "bg-emerald-500", words: "Portal on" };
 
   return (
     <button
       type="button"
       onClick={onOpen}
-      className={`group flex w-full items-center gap-4 rounded-xl border bg-white p-4 text-left transition hover:-translate-y-0.5 hover:border-brand/30 hover:shadow-md ${
-        selected ? "border-brand/50 ring-[3px] ring-brand/10" : "border-line"
+      className={`group flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-brand/5 sm:gap-4 ${
+        selected ? "bg-brand/5" : ""
       }`}
     >
-      <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-2">
-          <h3 className="font-semibold group-hover:text-brand">{site.name}</h3>
+      <span title={state.words} aria-label={state.words} className={`h-2.5 w-2.5 shrink-0 rounded-full ${state.dot}`} />
+      <div className="min-w-0 flex-1 sm:flex sm:items-center sm:gap-4">
+        <div className="flex min-w-0 items-center gap-2 sm:w-64 sm:shrink-0">
+          <span className={`truncate font-semibold group-hover:text-brand ${site.active ? "" : "text-muted"}`}>
+            {site.name}
+          </span>
           {selected && (
-            <span className="rounded-full bg-brand/10 px-2 py-0.5 text-xs font-medium text-brand">
+            <span className="shrink-0 rounded-full bg-brand/10 px-2 py-0.5 text-[11px] font-medium text-brand">
               Selected
             </span>
           )}
-          {!site.active && (
-            <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700">
-              Portal off
-            </span>
-          )}
         </div>
-        <p className="truncate text-sm text-muted">
-          {controller
-            ? `${controller.name} · ${CONTROLLER_KINDS[controller.kind].label}`
-            : "No controller"}
-        </p>
-        <div className="mt-2 flex flex-wrap gap-1.5">
-          {details.map((d) => (
-            <span
-              key={d}
-              className="rounded-full bg-page px-2 py-0.5 text-xs font-medium text-muted"
-            >
-              {d}
-            </span>
-          ))}
-        </div>
+        <p className="truncate text-sm text-muted">{details.join(" · ")}</p>
       </div>
+      <span
+        title="Sign-ins today"
+        className={`shrink-0 text-right text-sm tabular-nums ${today ? "font-semibold text-ink" : "text-muted"}`}
+      >
+        {today.toLocaleString()}
+        <span className="hidden font-normal text-muted lg:inline"> today</span>
+      </span>
       <ChevronRight
-        size={20}
-        className="shrink-0 text-muted transition group-hover:translate-x-0.5 group-hover:text-brand"
+        size={18}
+        className="hidden shrink-0 text-muted transition group-hover:translate-x-0.5 group-hover:text-brand sm:block"
       />
     </button>
   );
 }
 
 export default function Sites() {
-  const { sites, controllers, currentSite, addSite, pickSite } = useData();
+  const { sites, controllers, connections, currentSite, addSite, pickSite } = useData();
   const navigate = useNavigate();
   const [adding, setAdding] = useState(false);
   const [search, setSearch] = useState("");
@@ -86,6 +86,15 @@ export default function Sites() {
     s.name.toLowerCase().includes(search.trim().toLowerCase()),
   );
 
+  // Sign-ins today, per site (from midnight when the page was opened)
+  const [midnight] = useState(() => startOfDay(Date.now()));
+  const today = useMemo(() => {
+    const from = midnight;
+    const counts = new Map();
+    for (const c of connections) if (c.ok && c.at >= from) counts.set(c.siteId, (counts.get(c.siteId) ?? 0) + 1);
+    return counts;
+  }, [connections, midnight]);
+
   return (
     <div className="space-y-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -103,7 +112,7 @@ export default function Sites() {
         </button>
       </div>
 
-      {sites.length > 6 && (
+      {sites.length > 0 && (
         <div className="relative max-w-sm">
           <Search
             size={18}
@@ -126,16 +135,20 @@ export default function Sites() {
           </p>
         </div>
       ) : (
-        <div className="grid gap-3 xl:grid-cols-2">
+        <div className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-white">
           {shown.map((site) => (
-            <SiteCard
+            <SiteRow
               key={site.id}
               site={site}
               controller={controllers.find((c) => c.id === site.controllerId)}
               selected={currentSite?.id === site.id}
+              today={today.get(site.id) ?? 0}
               onOpen={() => open(site)}
             />
           ))}
+          {shown.length === 0 && (
+            <p className="px-4 py-6 text-center text-sm text-muted">No site called “{search.trim()}”.</p>
+          )}
         </div>
       )}
 
