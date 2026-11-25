@@ -129,7 +129,7 @@ export default function WhitelistModal({ entry, siteId, onSave, onClose }) {
             id="w-note"
             value={note}
             onChange={(e) => setNote(e.target.value)}
-            placeholder="e.g. Mall FireStick"
+            placeholder="e.g. Lobby TV"
             className={inputClass}
           />
         </div>

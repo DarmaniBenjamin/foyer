@@ -62,7 +62,7 @@ export default function NewSiteModal({ onCreate, onClose }) {
             autoFocus
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="e.g. Grand Anse Mall"
+            placeholder="e.g. Main Office"
             className={inputClass}
           />
         </div>

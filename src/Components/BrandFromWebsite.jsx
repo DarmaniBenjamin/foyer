@@ -197,7 +197,7 @@ export default function BrandFromWebsite({ look, onUse, keep = "press Save to ke
   const pick = (changes) => setPicked((p) => ({ ...p, ...changes }));
 
   async function look_up() {
-    if (!url.trim()) return setError("Enter the company's website, e.g. mix959fm.com");
+    if (!url.trim()) return setError("Enter the company's website, e.g. example.com");
     setBusy(true);
     setError("");
     setFound(null);
@@ -248,7 +248,7 @@ export default function BrandFromWebsite({ look, onUse, keep = "press Save to ke
                 look_up();
               }
             }}
-            placeholder="Company website, e.g. mix959fm.com"
+            placeholder="Company website, e.g. example.com"
             inputMode="url"
             autoCapitalize="none"
             autoCorrect="off"

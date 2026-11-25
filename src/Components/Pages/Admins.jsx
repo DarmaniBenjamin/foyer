@@ -132,7 +132,7 @@ function UserModal({ user, isYou, sites, emailsTaken, onSave, onClose }) {
               id="u-name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder={role === "client" ? "e.g. Mall Manager" : ""}
+              placeholder={role === "client" ? "e.g. Site Manager" : ""}
               className={inputClass}
             />
           </div>

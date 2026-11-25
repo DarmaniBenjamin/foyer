@@ -189,7 +189,7 @@ export default function ImportPortal({ draft, set, setLook, onPreviewPage }) {
           inputMode="url"
           value={url}
           onChange={(e) => setUrl(e.target.value)}
-          placeholder="https://yourname.securewifilogin.com/…"
+          placeholder="https://portal.example.com/…"
           autoCapitalize="none"
           autoCorrect="off"
           className={`${inputClass} flex-1`}
