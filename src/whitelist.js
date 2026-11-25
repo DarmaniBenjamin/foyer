@@ -27,7 +27,7 @@ export const STARTING_WHITELIST = [
     id: 1,
     siteId: 1,
     mac: "08:57:FB:7F:4A:88",
-    note: "Mall FireStick",
+    note: "Lobby TV",
     expiresAt: Date.now() + 4 * year,
     downKbps: null,
     upKbps: null,

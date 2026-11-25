@@ -1,5 +1,5 @@
 // The page guests see on their phone when they join a site's Wi-Fi:
-// /p/<site's address name>, e.g. /p/grand-anse-mall
+// /p/<site's address name>, e.g. /p/sample-mall
 //
 // It gets the site's page and its splash ads from the server
 // (/api/portal), and signing in saves the guest there. If the site has a

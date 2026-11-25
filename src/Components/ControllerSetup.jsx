@@ -361,8 +361,8 @@ function AutoSetup({ site, draft, set, controller }) {
     >
       <p className="text-sm text-muted">
         {omada
-          ? "The Omada site's other portals and Pre-Authentication Access go back to exactly how they were before Foyer set them up (e.g. the Wi-Fi goes back on Spotipo's portal), and Foyer's portal and Hotspot Operator are removed. Guests stop seeing this site's Foyer page."
-          : "The UniFi site's guest portal settings and the Wi-Fi network go back to exactly how they were before Foyer set them up, including the portal it used before (e.g. Spotipo). Guests stop seeing this site's Foyer page."}
+          ? "The Omada site's other portals and Pre-Authentication Access go back to exactly how they were before Foyer set them up, and Foyer's portal and Hotspot Operator are removed. Guests stop seeing this site's Foyer page."
+          : "The UniFi site's guest portal settings and the Wi-Fi network go back to exactly how they were before Foyer set them up, including the portal it used before. Guests stop seeing this site's Foyer page."}
       </p>
     </Modal>
   );

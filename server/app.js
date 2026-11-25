@@ -1,6 +1,6 @@
 // The web server: the API under /api, and the built pages (the dist
 // folder, made by "npm run build") for every other address, so
-// /sites/3 or /p/grand-anse-mall open the right page.
+// /sites/3 or /p/sample-mall open the right page.
 import { keepAwake, noteAddress } from "./keepAwake.js";
 import crypto from "node:crypto";
 import fs from "node:fs";

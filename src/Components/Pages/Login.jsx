@@ -96,7 +96,7 @@ export default function Login() {
           Sign in
         </button>
         <p className="text-center text-xs text-muted">
-          Forgot your password? Ask Protonic Solutions to set a new one.
+          Forgot your password? Ask your administrator to set a new one.
         </p>
       </form>
 

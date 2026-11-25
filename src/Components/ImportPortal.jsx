@@ -288,7 +288,7 @@ export default function ImportPortal({ draft, set, setLook, onPreviewPage }) {
                 <p className="mt-1 text-xs text-muted">
                   Foyer fills in that portal's form with these details and signs in once, like a guest,
                   to find the pages that come next and their splash pictures. That portal will count it
-                  as one guest. Use an email address that works: portals like Spotipo refuse made-up ones.
+                  as one guest. Use an email address that works: some portals refuse made-up ones.
                 </p>
               </div>
               {found.fields.some((f) => f.name && f.type !== "checkbox") && (

@@ -100,7 +100,7 @@ export function makeKey(label, taken = []) {
   return key;
 }
 
-// "Grand Anse Mall" → "grand-anse-mall", for the site's portal address
+// "Sample Mall" → "sample-mall", for the site's portal address
 export function makeSlug(name, taken = []) {
   const base =
     name
@@ -332,8 +332,8 @@ export function makeSite({ id, name, controllerId, mode, color, slug }) {
 function exampleSites() {
   const mall = makeSite({
     id: 1,
-    name: "Grand Anse Mall",
-    slug: "grand-anse-mall",
+    name: "Sample Mall",
+    slug: "sample-mall",
     controllerId: 1,
     mode: "form",
     color: "#0e7490",
@@ -368,32 +368,32 @@ function exampleSites() {
     mall,
     makeSite({
       id: 2,
-      name: "Spice Island Café",
-      slug: "spice-island-cafe",
+      name: "Sample Café",
+      slug: "sample-cafe",
       controllerId: 2,
       mode: "terms",
       color: "#c2410c",
     }),
     makeSite({
       id: 3,
-      name: "Harbour View Hotel",
-      slug: "harbour-view-hotel",
+      name: "Sample Hotel",
+      slug: "sample-hotel",
       controllerId: 1,
       mode: "voucher",
       color: "#0f766e",
     }),
     makeSite({
       id: 4,
-      name: "Carenage Bistro",
-      slug: "carenage-bistro",
+      name: "Sample Bistro",
+      slug: "sample-bistro",
       controllerId: 2,
       mode: "form",
       color: "#9333ea",
     }),
     makeSite({
       id: 5,
-      name: "Island Fitness",
-      slug: "island-fitness",
+      name: "Sample Gym",
+      slug: "sample-gym",
       controllerId: 1,
       mode: "form",
       color: "#e11d48",

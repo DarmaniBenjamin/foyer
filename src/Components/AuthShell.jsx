@@ -17,7 +17,7 @@ export default function AuthShell({ title, subtitle, children }) {
         {subtitle && <p className="mt-1 text-sm text-muted">{subtitle}</p>}
         <div className="mt-6">{children}</div>
       </div>
-      <p className="mt-6 text-xs text-muted">Guest Wi-Fi for Protonic Solutions clients</p>
+      <p className="mt-6 text-xs text-muted">Guest Wi-Fi sign-in</p>
     </div>
   );
 }

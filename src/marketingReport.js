@@ -349,7 +349,6 @@ export async function downloadReportPdf({ site, connections, range }) {
   graphs.drawImage(days, { x: 87.75, y: 155.32, width: 419.25, height: 192.3 });
 
   pdf.setTitle(title);
-  pdf.setAuthor("Protonic Solutions Inc");
   pdf.setCreator("Foyer");
   const bytes = await pdf.save();
   save(new Blob([bytes], { type: "application/pdf" }), fileName(parts, "pdf"));

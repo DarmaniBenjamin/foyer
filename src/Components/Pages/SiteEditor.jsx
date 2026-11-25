@@ -258,7 +258,7 @@ function DetailsTab({ site, draft, set, slugsTaken, onDelete }) {
 
       <Section
         title="Client"
-        hint="Who the monthly report is for. It says “Dear” with their title and last name, e.g. Dear Ms. Charles."
+        hint="Who the monthly report is for. It says “Dear” with their title and last name, e.g. Dear Ms. Smith."
       >
         <ClientFields draft={draft} set={set} />
       </Section>
@@ -481,7 +481,7 @@ function LookTab({ draft, set, setLook, onPreviewPage }) {
         <Part
           first
           title="Copy an existing portal"
-          hint="Paste the address of another sign-in page (e.g. this site's Spotipo portal) to copy its logo, background, words, colours and questions."
+          hint="Paste the address of another sign-in page (e.g. the portal this site uses now) to copy its logo, background, words, colours and questions."
         >
           <ImportPortal draft={draft} set={set} setLook={setLook} onPreviewPage={onPreviewPage} />
         </Part>

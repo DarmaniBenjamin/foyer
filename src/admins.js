@@ -73,7 +73,7 @@ export const STARTING_ADMINS = [
   },
   {
     id: 3,
-    name: "Mall Manager",
+    name: "Site Manager",
     email: "manager@example.com",
     password: "client-demo",
     role: "client",

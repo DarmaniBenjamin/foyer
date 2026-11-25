@@ -49,7 +49,7 @@ export const VOUCHER_STATUSES = {
   expired: { label: "Expired", badge: "bg-amber-50 text-amber-700" },
 };
 
-// Example vouchers for Harbour View Hotel (site 3)
+// Example vouchers for Sample Hotel (site 3)
 function exampleVouchers() {
   const day = 24 * 60 * 60 * 1000;
   const now = Date.now();

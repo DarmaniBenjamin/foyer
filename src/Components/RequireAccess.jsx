@@ -15,7 +15,7 @@ export default function RequireAccess({ area, children }) {
       </span>
       <h2 className="text-lg font-semibold">You don't have access to this page</h2>
       <p className="mt-1 text-sm text-muted">
-        Ask Protonic Solutions if you need it.
+        Ask your administrator if you need it.
       </p>
       <Link to="/" className="mt-4 text-sm font-semibold text-brand hover:underline">
         Go to the Dashboard
