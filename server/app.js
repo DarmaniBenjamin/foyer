@@ -134,6 +134,14 @@ export function makeApp() {
   );
 
   // Pictures (logos, backgrounds, ads) come inside the JSON
+  // A backup being put back can be much bigger than anything else sent:
+  // read only after checking it's an admin who may (Maintenance)
+  app.post(
+    "/api/maintenance/restore",
+    loadSession,
+    requireAccess("maintenance"),
+    express.json({ limit: "300mb" }),
+  );
   app.use("/api", express.json({ limit: "15mb" }));
   // Anyone can ask this (hosts check it), so it only says it's running
   app.get("/api/health", (req, res) =>

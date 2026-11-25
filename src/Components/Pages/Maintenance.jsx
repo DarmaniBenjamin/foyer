@@ -4,7 +4,7 @@
 //   sign-in page. Whitelisted devices always get on.
 // - System health: the server, the database and the controllers.
 // - Clean-up: delete guest data older than a number of months.
-// - Backup: everything in the database as one file.
+// - Backup: everything in the database as one file, and putting one back.
 import { useCallback, useEffect, useState } from "react";
 import {
   CircleAlert,
@@ -16,6 +16,7 @@ import {
   RefreshCw,
   Server,
   Trash2,
+  Upload,
   Wrench,
 } from "lucide-react";
 import WifiLoader from "../WifiLoader";
@@ -421,17 +422,135 @@ function CleanUp() {
   );
 }
 
+// What's in a backup, in words
+const TABLE_NAMES = {
+  sites: "sites",
+  guests: "guests",
+  connections: "sign-ins",
+  vouchers: "vouchers",
+  ads: "splash ads",
+  controllers: "controllers",
+  users: "users",
+  whitelist: "whitelisted devices",
+  media: "uploaded pictures and videos",
+};
+// counts: { sites: 12, guests: 3400, ... } → "12 sites · 3,400 guests · …"
+function summary(counts) {
+  return Object.entries(TABLE_NAMES)
+    .filter(([name]) => typeof counts[name] === "number")
+    .map(([name, words]) => `${counts[name].toLocaleString()} ${words}`)
+    .join(" · ");
+}
+const backupSummary = (backup) =>
+  summary(
+    Object.fromEntries(
+      Object.entries(backup.tables).map(([name, rows]) => [name, Array.isArray(rows) ? rows.length : null]),
+    ),
+  );
+
 function Backup() {
+  // The backup picked to put back: { file, madeAt, summary }
+  const [picked, setPicked] = useState(null);
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  async function pick(e) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    setError("");
+    if (!file) return;
+    try {
+      const backup = JSON.parse(await file.text());
+      if (backup?.app !== "Foyer" || !backup.tables) throw new Error();
+      setPicked({ file, madeAt: backup.madeAt, summary: backupSummary(backup) });
+    } catch {
+      setError("That isn't a Foyer backup file (foyer-backup-….json).");
+    }
+  }
+
+  async function restore() {
+    setBusy(true);
+    setError("");
+    try {
+      // The file as it is (it can be big)
+      const res = await fetch("/api/maintenance/restore", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: picked.file,
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error || `The server answered ${res.status}.`);
+      // Everyone was signed out: on to the sign-in page, which says what
+      // was put back
+      try {
+        sessionStorage.setItem(
+          "foyer-restored",
+          JSON.stringify({ summary: summary(body.restored), warning: body.warning }),
+        );
+      } catch {
+        // No storage: the sign-in page just won't say
+      }
+      window.location.assign("/login");
+    } catch (err) {
+      setError(err.message);
+      setBusy(false);
+    }
+  }
+
   return (
     <Card
       icon={Download}
       title="Backup"
-      hint="Everything in Foyer as one file: sites, guests, sign-ins, vouchers, users and controllers. Passwords stay scrambled. Keep it somewhere safe: it has guests' details in it."
+      hint="Everything in Foyer as one file: sites, guests, sign-ins, vouchers, ads, uploaded pictures and videos, users and controllers. Passwords stay scrambled. Keep it somewhere safe: it has guests' details in it."
     >
-      <a href="/api/maintenance/backup" className={`${secondaryButton} w-full sm:w-auto`}>
-        <Download size={16} />
-        Download backup
-      </a>
+      <div className="flex flex-col gap-2 sm:flex-row">
+        <a href="/api/maintenance/backup" className={`${secondaryButton} w-full sm:w-auto`}>
+          <Download size={16} />
+          Download backup
+        </a>
+        <label className={`${secondaryButton} w-full cursor-pointer sm:w-auto`}>
+          <Upload size={16} />
+          Restore from backup
+          <input type="file" accept=".json,application/json" onChange={pick} className="sr-only" />
+        </label>
+      </div>
+      {error && <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
+
+      {picked && (
+        <Modal
+          title="Replace everything with this backup?"
+          onClose={() => !busy && setPicked(null)}
+          footer={
+            <>
+              <button type="button" onClick={() => setPicked(null)} disabled={busy} className={secondaryButton}>
+                Cancel
+              </button>
+              <button type="button" onClick={restore} disabled={busy} className={dangerButton}>
+                {busy ? <WifiLoader size={16} /> : <Upload size={16} />}
+                {busy ? "Restoring…" : "Replace everything"}
+              </button>
+            </>
+          }
+        >
+          <div className="space-y-3 text-sm">
+            <p>
+              <span className="font-medium">{picked.file.name}</span>
+              {picked.madeAt && (
+                <span className="text-muted"> · made {new Date(picked.madeAt).toLocaleString()}</span>
+              )}
+            </p>
+            <p className="rounded-lg bg-page px-3 py-2 text-muted">{picked.summary}</p>
+            <p className="text-muted">
+              Everything in Foyer now is replaced by what's in this file, and everyone is signed out. Anything
+              added since the backup was made is lost, so{" "}
+              <a href="/api/maintenance/backup" className="font-medium text-brand underline">
+                download a backup of what's here now
+              </a>{" "}
+              first if you might need it.
+            </p>
+          </div>
+        </Modal>
+      )}
     </Card>
   );
 }

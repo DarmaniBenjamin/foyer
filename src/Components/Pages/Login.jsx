@@ -2,7 +2,7 @@
 // go back to the page you were trying to open.
 import { useState } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router";
-import { LogIn } from "lucide-react";
+import { CircleAlert, CircleCheck, LogIn } from "lucide-react";
 import WifiLoader from "../WifiLoader";
 import useData from "../../useData";
 import AuthShell from "../AuthShell";
@@ -18,6 +18,16 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  // Just restored a backup (Maintenance): what was put back, said once
+  const [restored] = useState(() => {
+    try {
+      const saved = JSON.parse(sessionStorage.getItem("foyer-restored") ?? "null");
+      sessionStorage.removeItem("foyer-restored");
+      return saved;
+    } catch {
+      return null;
+    }
+  });
   const goTo = location.state?.from ?? "/";
 
   if (currentAdmin && status === "ready") return <Navigate to={goTo} replace />;
@@ -37,6 +47,22 @@ export default function Login() {
   return (
     <AuthShell title="Sign in" subtitle="Manage your clients' guest Wi-Fi.">
       <form onSubmit={submit} className="space-y-4" noValidate>
+        {restored && (
+          <div className="space-y-2">
+            <p className="flex items-start gap-2 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+              <CircleCheck size={18} className="mt-0.5 shrink-0" />
+              <span>
+                Backup restored: {restored.summary}. Sign in with an account from the backup.
+              </span>
+            </p>
+            {restored.warning && (
+              <p className="flex items-start gap-2 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                <CircleAlert size={18} className="mt-0.5 shrink-0" />
+                {restored.warning}
+              </p>
+            )}
+          </div>
+        )}
         <div>
           <label className={labelClass} htmlFor="email">
             Email
