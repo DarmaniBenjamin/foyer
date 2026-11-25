@@ -1,6 +1,6 @@
-// The "Add site" box: the name, controller and how guests sign in, and
-// (if you like) the company's colours and logo from its website.
-// Everything else is set on the site's page afterwards.
+// The "Add site" box: only the name is needed. The controller and how
+// guests sign in can be picked now or later (on the site's page), and so
+// can the company's colours and logo from its website.
 import { useState } from "react";
 import { ChevronDown } from "lucide-react";
 import Modal from "./Modal";
@@ -17,8 +17,9 @@ import {
 export default function NewSiteModal({ onCreate, onClose }) {
   const { controllers } = useData();
   const [name, setName] = useState("");
-  const [controllerId, setControllerId] = useState(controllers[0]?.id ?? "");
-  const [mode, setMode] = useState("form");
+  // "" = choose later
+  const [controllerId, setControllerId] = useState("");
+  const [mode, setMode] = useState("");
   const [error, setError] = useState("");
   // Colours and logo picked from the company's website, if any
   const [brand, setBrand] = useState(null);
@@ -26,9 +27,13 @@ export default function NewSiteModal({ onCreate, onClose }) {
 
   function save() {
     if (!name.trim()) return setError("Enter the site's name.");
-    if (!controllerId) return setError("Add a controller first (Controllers page).");
     document.activeElement?.blur();
-    onCreate({ name: name.trim(), controllerId: Number(controllerId), mode, look: brand ?? undefined });
+    onCreate({
+      name: name.trim(),
+      controllerId: controllerId ? Number(controllerId) : null,
+      mode: mode || undefined,
+      look: brand ?? undefined,
+    });
   }
 
   return (
@@ -64,7 +69,8 @@ export default function NewSiteModal({ onCreate, onClose }) {
 
         <div>
           <label className={labelClass} htmlFor="site-controller">
-            Controller
+            Controller{" "}
+            <span className="font-normal text-muted">(optional)</span>
           </label>
           <select
             id="site-controller"
@@ -72,7 +78,7 @@ export default function NewSiteModal({ onCreate, onClose }) {
             onChange={(e) => setControllerId(e.target.value)}
             className={inputClass}
           >
-            {controllers.length === 0 && <option value="">No controllers yet</option>}
+            <option value="">Choose later</option>
             {controllers.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name} ({CONTROLLER_KINDS[c.kind].label})
@@ -82,9 +88,21 @@ export default function NewSiteModal({ onCreate, onClose }) {
         </div>
 
         <div>
-          <span className={labelClass}>How guests sign in</span>
-          <div className="grid gap-2 sm:grid-cols-3">
-            {Object.entries(SIGN_IN_MODES).map(([value, info]) => (
+          <span className={labelClass}>
+            How guests sign in{" "}
+            <span className="font-normal text-muted">(optional)</span>
+          </span>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {[
+              [
+                "",
+                {
+                  label: "Choose later",
+                  detail: "Starts as a form; change it on the site's page",
+                },
+              ],
+              ...Object.entries(SIGN_IN_MODES),
+            ].map(([value, info]) => (
               <button
                 key={value}
                 type="button"
@@ -116,10 +134,15 @@ export default function NewSiteModal({ onCreate, onClose }) {
             <span>
               Colours from the company's website
               <span className="block text-xs font-normal text-muted">
-                {brand ? "Picked: they're added when you make the site" : "Optional"}
+                {brand
+                  ? "Picked: they're added when you make the site"
+                  : "Optional"}
               </span>
             </span>
-            <ChevronDown size={16} className={`shrink-0 text-muted transition ${branding ? "rotate-180" : ""}`} />
+            <ChevronDown
+              size={16}
+              className={`shrink-0 text-muted transition ${branding ? "rotate-180" : ""}`}
+            />
           </button>
           {branding && (
             <div className="border-t border-line p-3">

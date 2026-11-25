@@ -880,7 +880,6 @@ function PhonePreview({ draft, page, onPage }) {
 
 function problemWith(draft, slugsTaken) {
   if (!draft.name.trim()) return "Give the site a name (Details).";
-  if (!draft.controllerId) return "Pick a controller (Details).";
   if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(draft.slug))
     return "The address name can only have small letters, numbers and dashes (Details).";
   if (slugsTaken.includes(draft.slug))

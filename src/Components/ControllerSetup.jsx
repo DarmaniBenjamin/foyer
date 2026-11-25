@@ -708,7 +708,7 @@ export default function ControllerSetup({ site, draft, set }) {
           onChange={(e) => set({ controllerId: Number(e.target.value) || null })}
           className={inputClass}
         >
-          <option value="">Pick a controller</option>
+          <option value="">None yet (choose later)</option>
           {controllers.map((c) => (
             <option key={c.id} value={c.id}>
               {c.name} ({CONTROLLER_KINDS[c.kind].label})
