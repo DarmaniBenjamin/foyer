@@ -1,7 +1,7 @@
 // The frame around every admin page: the sidebar on the left (a slide-in
 // menu on phones) and the top bar with the page's name and the site
 // switcher.
-import { useEffect, useState } from "react";
+import { startTransition, useEffect, useState } from "react";
 import { Link, NavLink, useLocation, useNavigate } from "react-router";
 import { ExternalLink, LogOut, Menu, Settings2, UserRound, Wifi, X } from "lucide-react";
 import { navLinks, getPageTitle } from "./navLinks";
@@ -70,8 +70,9 @@ function Sidebar({ open, onClose }) {
           <button
             type="button"
             onClick={() => {
-              pickSite(ALL_SITES);
+              // (the page first: see SiteSwitcher's choose)
               navigate("/");
+              startTransition(() => pickSite(ALL_SITES));
               onClose?.();
             }}
             className="-ml-1 flex items-center gap-2 rounded-lg p-1 transition hover:opacity-80"

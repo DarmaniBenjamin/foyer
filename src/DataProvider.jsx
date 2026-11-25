@@ -264,7 +264,13 @@ export default function DataProvider({ children }) {
     [data.sites, siteId],
   );
 
+  // The site that was picked before switching to "All sites", so the
+  // Sites list can point it out
+  const [lastSiteId, setLastSiteId] = useState(null);
+  const lastSite = siteId === ALL_SITES ? (data.sites.find((s) => s.id === lastSiteId) ?? null) : null;
+
   function pickSite(id) {
+    if (id === ALL_SITES && siteId !== ALL_SITES) setLastSiteId(siteId);
     setSiteId(id);
     remember(SAVED_SITE, String(id));
   }
@@ -574,6 +580,7 @@ export default function DataProvider({ children }) {
     guests: data.guests,
     connections: data.connections,
     currentSite,
+    lastSite,
     pickSite,
     range,
     setRange,

@@ -9,7 +9,7 @@
 //
 // "Add site" at the bottom of the list makes a new site from wherever you
 // are, then opens its Site settings.
-import { useEffect, useRef, useState } from "react";
+import { startTransition, useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { Check, ChevronsUpDown, Plus, Search } from "lucide-react";
 import useData from "../useData";
@@ -61,11 +61,13 @@ export default function SiteSwitcher({ onPicked, variant = "sidebar" }) {
   }, [open]);
 
   function choose(id) {
-    pickSite(id);
-    if (/^\/sites\/\d+/.test(pathname))
-      navigate(id === ALL_SITES ? "/sites" : `/sites/${id}`);
-    else if (id !== ALL_SITES && /^\/(sites|controllers)\/?$/.test(pathname))
-      navigate(`/sites/${id}`);
+    // The page and the site change together: the router changes pages in a
+    // "transition", so the site is picked in the same one. (Picked on its
+    // own, a site's settings page would still show for a moment with "All
+    // sites" picked, and pick its own site again: it picks the site it shows.)
+    if (/^\/sites\/\d+/.test(pathname)) navigate(id === ALL_SITES ? "/sites" : `/sites/${id}`);
+    else if (id !== ALL_SITES && /^\/(sites|controllers)\/?$/.test(pathname)) navigate(`/sites/${id}`);
+    startTransition(() => pickSite(id));
     setOpen(false);
     setSearch("");
     onPicked?.();
